@@ -1,0 +1,10 @@
+target/
+.git/
+.env
+.env.*
+*.log
+.idea/
+*.iml
+test_api.ps1
+.DS_Store
+Thumbs.db
