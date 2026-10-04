@@ -8,6 +8,7 @@ import {
   Package,
   Sprout,
   Truck,
+  Tractor,
   Leaf,
   ShoppingBag,
   Users,
@@ -50,6 +51,14 @@ export const CORE_MODULES = [
     icon: Milk,
     badge: "924 L today",
     color: "bg-sky-500/15 text-sky-800 dark:text-sky-300 border-sky-500/30",
+  },
+  {
+    id: "equipment",
+    title: "Equipment",
+    subtitle: "Milking machines, chillers & tractors",
+    icon: Tractor,
+    badge: "6 Units",
+    color: "bg-teal-500/15 text-teal-800 dark:text-teal-300 border-teal-500/30",
   },
   {
     id: "production",

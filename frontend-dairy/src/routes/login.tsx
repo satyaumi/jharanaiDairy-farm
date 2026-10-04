@@ -11,22 +11,29 @@ import {
   AlertCircle,
   CheckCircle2,
   ShieldCheck,
-  Milk,
-  HeartPulse,
-  Sparkles,
+  ShieldAlert,
+  Crown,
+  Briefcase,
+  UserCheck,
+  RefreshCw,
+  KeyRound,
 } from "lucide-react";
 import { CowBrandLogo, CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { DEMO_CREDENTIALS } from "@/services/auth-service";
+import type { Role } from "@/types/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign In | Jharanai Farm" },
-      { name: "description", content: "Sign in to your Jharanai Farm dairy management account." },
+      { title: "Secure Sign In | Jharanai Farm" },
+      {
+        name: "description",
+        content: "Secure role-based sign in and OTP verification for Jharanai Farm dairy management.",
+      },
     ],
   }),
   component: LoginPage,
@@ -34,15 +41,24 @@ export const Route = createFileRoute("/login")({
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, sendLoginOtp, loginWithOtp, isAuthenticated, isLoading } = useAuth();
 
-  const [authMode, setAuthMode] = useState<"phone" | "email">("phone");
-  const [countryCode, setCountryCode] = useState<string>("+91");
-  const [phoneDigits, setPhoneDigits] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
+  // Role Flow Selection (Owner, Management, Worker)
+  const [selectedRole, setSelectedRole] = useState<Role>("OWNER");
+  const [authMethod, setAuthMethod] = useState<"otp" | "password">("otp");
+
+  // Identification & Credentials
+  const [identifier, setIdentifier] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [rememberMe, setRememberMe] = useState<boolean>(true);
+  const [otpCode, setOtpCode] = useState<string>("");
+
+  // OTP State Machine
+  const [otpStep, setOtpStep] = useState<"input_id" | "enter_otp">("input_id");
+  const [dispatchedEmail, setDispatchedEmail] = useState<string>("");
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+
+  // Status
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -53,24 +69,79 @@ export function LoginPage() {
     }
   }, [isAuthenticated, isLoading, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Cooldown timer effect
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      const timer = setTimeout(() => setCooldownSeconds((c) => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownSeconds]);
+
+  // 1. Send Login OTP
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMessage(null);
+
+    const cleanId = identifier.trim();
+    if (!cleanId) {
+      setErrorMessage("Please enter your registered email address or mobile number.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await sendLoginOtp(cleanId, selectedRole);
+      setDispatchedEmail(res.email || cleanId);
+      setOtpStep("enter_otp");
+      setCooldownSeconds(60);
+      toast.success("Verification Code Dispatched", {
+        description: res.message || "A 6-digit code was sent to your verified contact method.",
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to dispatch verification code.";
+      setErrorMessage(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 2. Verify OTP & Establish Authenticated Session
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    let identifier = "";
-    if (authMode === "phone") {
-      const cleanDigits = phoneDigits.replace(/[^0-9]/g, "");
-      if (cleanDigits.length < 8) {
-        setErrorMessage("Please enter a valid phone number (at least 8 digits).");
-        return;
-      }
-      identifier = `${countryCode} ${cleanDigits}`;
-    } else {
-      if (!email || !email.includes("@")) {
-        setErrorMessage("Please enter a valid email address.");
-        return;
-      }
-      identifier = email.trim();
+    const cleanOtp = otpCode.trim();
+    if (cleanOtp.length < 4) {
+      setErrorMessage("Please enter the complete 6-digit verification code.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await loginWithOtp(identifier.trim(), cleanOtp, selectedRole);
+      toast.success("Session Verified", {
+        description: "Authenticated with verified role permissions.",
+      });
+      navigate({ to: "/" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Invalid or expired verification code.";
+      setErrorMessage(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 3. Password Login
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    const cleanId = identifier.trim();
+    if (!cleanId) {
+      setErrorMessage("Please enter your registered email or phone number.");
+      return;
     }
 
     if (!password || password.length < 4) {
@@ -81,16 +152,15 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await login({
-        phoneOrEmail: identifier,
+        phoneOrEmail: cleanId,
         password,
-        rememberMe,
       });
       toast.success("Welcome back!", {
         description: "Successfully signed in to your farm dashboard.",
       });
       navigate({ to: "/" });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to sign in. Please verify your credentials.";
+      const msg = err instanceof Error ? err.message : "Failed to sign in. Please check your credentials.";
       setErrorMessage(msg);
       toast.error(msg);
     } finally {
@@ -98,78 +168,147 @@ export function LoginPage() {
     }
   };
 
-  // Quick 1-click credential filler for fast review & role testing
-  const handleQuickFill = (role: "OWNER" | "MANAGER" | "WORKER") => {
+  // Quick 1-click test helper
+  const handleQuickFill = (role: Role) => {
+    setSelectedRole(role);
     const cred = DEMO_CREDENTIALS[role];
-    if (cred.phoneOrEmail.startsWith("+")) {
-      setAuthMode("phone");
-      const parts = cred.phoneOrEmail.split(" ");
-      setCountryCode(parts[0] || "+91");
-      setPhoneDigits(parts.slice(1).join(""));
-    } else {
-      setAuthMode("email");
-      setEmail(cred.phoneOrEmail);
-    }
+    setIdentifier(cred.phoneOrEmail);
     setPassword(cred.password || "password123");
     setErrorMessage(null);
+    setOtpStep("input_id");
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Soft Ambient Farm Background Elements */}
+      {/* Ambient Backdrop */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-500/5" />
-        <div className="absolute -right-24 top-20 h-80 w-80 rounded-full bg-sky-500/10 blur-3xl dark:bg-sky-500/5" />
-        <div className="absolute -bottom-24 left-1/3 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl dark:bg-amber-500/5" />
+        <div className="absolute -right-24 top-20 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-500/5" />
+        <div className="absolute -bottom-24 left-1/3 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl dark:bg-cyan-500/5" />
       </div>
 
       <div className="relative mx-auto w-full max-w-md sm:max-w-lg">
-        {/* Farm Branding */}
-        <div className="text-center mb-6">
-          <div className="inline-flex justify-center mb-3">
+        {/* Brand Header */}
+        <div className="text-center mb-5">
+          <div className="inline-flex justify-center mb-2">
             <CowBrandLogo size="lg" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-            Welcome to Jharanai Farm
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+            Jharanai Farm
           </h1>
-          <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
-            Sign in to manage your dairy herd, daily milk & farm operations
+          <p className="mt-1 text-xs text-muted-foreground">
+            Secure Role-Based Authentication & Operations Portal
           </p>
         </div>
 
         {/* Main Card */}
-        <div className="farm-glass-strong rounded-3xl border border-border/80 p-5 sm:p-8 shadow-2xl backdrop-blur-xl">
-          {/* Auth Mode Toggle (Phone / Email) */}
-          <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-secondary/60 p-1 mb-5">
+        <div className="farm-glass-strong rounded-3xl border border-border/80 p-5 sm:p-7 shadow-2xl backdrop-blur-xl">
+          {/* STEP 1: PREDEFINED ROLE SELECTION */}
+          <div className="space-y-2 mb-5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                Step 1: Select Your Assigned Role Flow
+              </label>
+              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                Verified by Database
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {/* Owner */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRole("OWNER");
+                  setOtpStep("input_id");
+                  setErrorMessage(null);
+                }}
+                className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 sm:p-3 text-center transition-all ${
+                  selectedRole === "OWNER"
+                    ? "border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-500/30 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200"
+                    : "border-border/70 bg-card/60 hover:bg-card text-muted-foreground"
+                }`}
+              >
+                <Crown className={`size-5 mb-1 ${selectedRole === "OWNER" ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <span className="text-xs font-black">Owner</span>
+                <span className="text-[9px] text-muted-foreground">Full Access</span>
+              </button>
+
+              {/* Management */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRole("MANAGER");
+                  setOtpStep("input_id");
+                  setErrorMessage(null);
+                }}
+                className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 sm:p-3 text-center transition-all ${
+                  selectedRole === "MANAGER"
+                    ? "border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-500/30 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200"
+                    : "border-border/70 bg-card/60 hover:bg-card text-muted-foreground"
+                }`}
+              >
+                <Briefcase className={`size-5 mb-1 ${selectedRole === "MANAGER" ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <span className="text-xs font-black">Management</span>
+                <span className="text-[9px] text-muted-foreground">Herds & Team</span>
+              </button>
+
+              {/* Worker */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRole("WORKER");
+                  setOtpStep("input_id");
+                  setErrorMessage(null);
+                }}
+                className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 sm:p-3 text-center transition-all ${
+                  selectedRole === "WORKER"
+                    ? "border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-500/30 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200"
+                    : "border-border/70 bg-card/60 hover:bg-card text-muted-foreground"
+                }`}
+              >
+                <UserCheck className={`size-5 mb-1 ${selectedRole === "WORKER" ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <span className="text-xs font-black">Worker</span>
+                <span className="text-[9px] text-muted-foreground">Daily Operations</span>
+              </button>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground leading-tight px-1">
+              Selecting a role does not grant privileges. The backend securely checks and enforces your account's verified permissions.
+            </p>
+          </div>
+
+          {/* AUTH METHOD TOGGLE: OTP vs PASSWORD */}
+          <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-secondary/60 p-1 mb-4">
             <button
               type="button"
               onClick={() => {
-                setAuthMode("phone");
+                setAuthMethod("otp");
                 setErrorMessage(null);
               }}
-              className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
-                authMode === "phone"
-                  ? "bg-background text-foreground shadow-sm"
+              className={`flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition-all ${
+                authMethod === "otp"
+                  ? "bg-background text-foreground shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Phone className="size-3.5" />
-              <span>Login with Phone</span>
+              <KeyRound className="size-3.5" />
+              <span>Email OTP (Secure)</span>
             </button>
             <button
               type="button"
               onClick={() => {
-                setAuthMode("email");
+                setAuthMethod("password");
                 setErrorMessage(null);
               }}
-              className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
-                authMode === "email"
-                  ? "bg-background text-foreground shadow-sm"
+              className={`flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition-all ${
+                authMethod === "password"
+                  ? "bg-background text-foreground shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Mail className="size-3.5" />
-              <span>Login with Email</span>
+              <Lock className="size-3.5" />
+              <span>Password Login</span>
             </button>
           </div>
 
@@ -177,211 +316,257 @@ export function LoginPage() {
           {errorMessage && (
             <div
               role="alert"
-              className="mb-5 flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs font-medium text-destructive animate-fade-in"
+              className="mb-4 flex items-start gap-2.5 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive animate-fade-in"
             >
               <AlertCircle className="size-4 shrink-0 mt-0.5" />
               <div className="flex-1">{errorMessage}</div>
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            {authMode === "phone" ? (
-              <div>
-                <label
-                  htmlFor="phone-input"
-                  className="block text-xs font-bold text-foreground mb-1.5"
-                >
-                  Mobile Number <span className="text-destructive">*</span>
-                </label>
-                <div className="flex gap-2">
-                  {/* Country Code Picker */}
-                  <select
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    aria-label="Country calling code"
-                    className="h-12 rounded-2xl border border-input bg-background/80 px-2.5 text-xs font-bold text-foreground focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
-                  >
-                    <option value="+91">🇮🇳 +91</option>
-                    <option value="+1">🇺🇸 +1</option>
-                    <option value="+44">🇬🇧 +44</option>
-                    <option value="+61">🇦🇺 +61</option>
-                    <option value="+971">🇦🇪 +971</option>
-                    <option value="+254">🇰🇪 +254</option>
-                  </select>
+          {/* METHOD A: SECURE OTP AUTHENTICATION */}
+          {authMethod === "otp" && (
+            <div>
+              {otpStep === "input_id" ? (
+                <form onSubmit={handleSendOtp} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-extrabold text-foreground">
+                      Step 2: Enter Registered Email or Mobile
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        value={identifier}
+                        onChange={(e) => {
+                          setIdentifier(e.target.value);
+                          setErrorMessage(null);
+                        }}
+                        placeholder="e.g. priya@jharanai.com or +91 98765 43210"
+                        className="pl-10 h-11 rounded-2xl border-border bg-background/80 text-sm font-medium"
+                        autoComplete="username"
+                        required
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      A single-use verification code will be dispatched to your registered address via Resend.
+                    </p>
+                  </div>
 
-                  <div className="relative flex-1">
-                    <Phone className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-11 rounded-2xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30 transition-all active:scale-[0.98]"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin mr-2" />
+                        <span>Dispatching Verification Code...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Send 6-Digit Code</span>
+                        <ArrowRight className="size-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOtp} className="space-y-4 animate-fade-in">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 p-3 space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5 font-black text-emerald-800 dark:text-emerald-300">
+                      <CheckCircle2 className="size-4" />
+                      <span>Code Dispatched</span>
+                    </div>
+                    <p className="text-muted-foreground text-[11px]">
+                      Enter the 6-digit code sent to <strong className="text-foreground">{dispatchedEmail}</strong>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-extrabold text-foreground">
+                      Step 3: Enter 6-Digit Verification Code
+                    </label>
                     <Input
-                      id="phone-input"
-                      name="tel"
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel-national"
-                      placeholder="98765 43210"
-                      value={phoneDigits}
-                      onChange={(e) => setPhoneDigits(e.target.value)}
+                      type="text"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => {
+                        setOtpCode(e.target.value.replace(/[^0-9]/g, ""));
+                        setErrorMessage(null);
+                      }}
+                      placeholder="• • • • • •"
+                      className="h-12 text-center tracking-[0.5em] text-lg font-black rounded-2xl border-border bg-background/80"
+                      autoFocus
                       required
-                      className="h-12 rounded-2xl bg-background/80 pl-10 text-sm font-semibold tracking-wide"
                     />
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label
-                  htmlFor="email-input"
-                  className="block text-xs font-bold text-foreground mb-1.5"
-                >
-                  Email Address <span className="text-destructive">*</span>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setOtpStep("input_id")}
+                      className="text-muted-foreground hover:text-foreground font-semibold"
+                    >
+                      Change Contact
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={cooldownSeconds > 0 || isSubmitting}
+                      onClick={() => handleSendOtp()}
+                      className="text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 font-black disabled:opacity-50"
+                    >
+                      {cooldownSeconds > 0 ? `Resend code in ${cooldownSeconds}s` : "Resend Code"}
+                    </button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || otpCode.length < 4}
+                    className="w-full h-11 rounded-2xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30 transition-all active:scale-[0.98]"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin mr-2" />
+                        <span>Verifying Session...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Verify & Enter Farm</span>
+                        <ArrowRight className="size-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* METHOD B: PASSWORD LOGIN */}
+          {authMethod === "password" && (
+            <form onSubmit={handlePasswordLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-foreground">
+                  Email Address or Mobile Number
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
-                    id="email-input"
-                    name="email"
-                    type="email"
-                    inputMode="email"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => {
+                      setIdentifier(e.target.value);
+                      setErrorMessage(null);
+                    }}
+                    placeholder="priya@jharanai.com or +91 98765 43210"
+                    className="pl-10 h-11 rounded-2xl border-border bg-background/80 text-sm font-medium"
                     autoComplete="username"
-                    placeholder="farmer@jharanai.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-12 rounded-2xl bg-background/80 pl-10 text-sm font-semibold"
                   />
                 </div>
               </div>
-            )}
 
-            {/* Password Field with Show/Hide Toggle */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label
-                  htmlFor="current-password"
-                  className="block text-xs font-bold text-foreground"
-                >
-                  Password <span className="text-destructive">*</span>
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:underline"
-                >
-                  Forgot password?
-                </Link>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold text-foreground">
+                    Password
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-[11px] font-bold text-emerald-700 hover:underline dark:text-emerald-400"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrorMessage(null);
+                    }}
+                    placeholder="Enter password"
+                    className="pl-10 pr-10 h-11 rounded-2xl border-border bg-background/80 text-sm font-medium"
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="current-password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-12 rounded-2xl bg-background/80 pl-10 pr-11 text-sm font-semibold"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-            </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                id="remember-me"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="size-4 rounded border-border accent-emerald-600 focus:ring-emerald-500"
-              />
-              <label
-                htmlFor="remember-me"
-                className="text-xs font-semibold text-muted-foreground select-none cursor-pointer"
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-11 rounded-2xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30 transition-all active:scale-[0.98]"
               >
-                Keep me signed in on this device
-              </label>
-            </div>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign in with Password</span>
+                    <ArrowRight className="size-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 transition-all active:scale-[0.99] gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>Signing In...</span>
-                </>
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="size-4" />
-                </>
-              )}
-            </Button>
-          </form>
-
-          {/* Quick Demo Role Selector for pair programming & testing */}
-          <div className="mt-6 pt-5 border-t border-border/60">
-            <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground text-center mb-2.5">
-              Quick Test Credentials (Pre-seeded DB)
+          {/* Quick-fill helper for reviewer testing */}
+          <div className="mt-5 border-t border-border/60 pt-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-2 text-center">
+              Quick Test Credentials (Pre-seeded Accounts)
             </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
+            <div className="grid grid-cols-3 gap-1.5">
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => handleQuickFill("OWNER")}
-                className="group flex flex-col items-center justify-center p-2 rounded-xl bg-secondary/50 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-transparent transition-all text-center"
+                className="h-8 rounded-xl text-[10px] font-bold border-border"
               >
-                <span className="text-[11px] font-extrabold text-foreground group-hover:text-emerald-600">
-                  Farm Owner
-                </span>
-                <span className="text-[10px] text-muted-foreground truncate w-full">Priya (Owner)</span>
-              </button>
-              <button
+                Priya (Owner)
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => handleQuickFill("MANAGER")}
-                className="group flex flex-col items-center justify-center p-2 rounded-xl bg-secondary/50 hover:bg-sky-500/10 hover:border-sky-500/30 border border-transparent transition-all text-center"
+                className="h-8 rounded-xl text-[10px] font-bold border-border"
               >
-                <span className="text-[11px] font-extrabold text-foreground group-hover:text-sky-600">
-                  Manager
-                </span>
-                <span className="text-[10px] text-muted-foreground truncate w-full">Rajesh</span>
-              </button>
-              <button
+                Rajesh (Manager)
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => handleQuickFill("WORKER")}
-                className="group flex flex-col items-center justify-center p-2 rounded-xl bg-secondary/50 hover:bg-amber-500/10 hover:border-amber-500/30 border border-transparent transition-all text-center"
+                className="h-8 rounded-xl text-[10px] font-bold border-border"
               >
-                <span className="text-[11px] font-extrabold text-foreground group-hover:text-amber-600">
-                  Worker
-                </span>
-                <span className="text-[10px] text-muted-foreground truncate w-full">Suresh</span>
-              </button>
+                Suresh (Worker)
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Footer: Signup Link */}
-        <div className="text-center mt-6">
-          <p className="text-xs text-muted-foreground font-medium">
-            New team member or staff?{" "}
-            <Link
-              to="/signup"
-              className="font-extrabold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:underline"
-            >
-              Join Jharanai Farm Staff
-            </Link>
-          </p>
-        </div>
+        {/* Footer info */}
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Need account invitation or password reset?{" "}
+          <Link to="/forgot-password" className="font-bold text-emerald-700 dark:text-emerald-400 hover:underline">
+            Reset access
+          </Link>
+        </p>
       </div>
     </div>
   );

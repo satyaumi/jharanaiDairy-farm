@@ -13,6 +13,8 @@ import { authService } from "@/services/auth-service";
 
 interface AuthContextValue extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
+  sendLoginOtp: (phoneOrEmail: string, role?: Role) => Promise<{ success: boolean; message: string; email?: string; role?: string }>;
+  loginWithOtp: (phoneOrEmail: string, otp: string, role?: Role) => Promise<void>;
   signup: (payload: SignupPayload) => Promise<void>;
   verifyOtp: (payload: VerifyOtpPayload) => Promise<void>;
   logout: () => Promise<void>;
@@ -94,6 +96,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const sendLoginOtp = useCallback(async (phoneOrEmail: string, role?: Role) => {
+    return await authService.sendLoginOtp(phoneOrEmail, role);
+  }, []);
+
+  const loginWithOtp = useCallback(async (phoneOrEmail: string, otp: string, role?: Role) => {
+    setIsLoading(true);
+    try {
+      const res = await authService.loginWithOtp(phoneOrEmail, otp, role);
+      setUser(res.user);
+      setToken(res.token);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const signup = useCallback(async (payload: SignupPayload) => {
     setIsLoading(true);
     try {
@@ -161,6 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(user && token),
       isLoading,
       login,
+      sendLoginOtp,
+      loginWithOtp,
       signup,
       verifyOtp,
       logout,
@@ -182,6 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token,
       isLoading,
       login,
+      sendLoginOtp,
+      loginWithOtp,
       signup,
       verifyOtp,
       logout,

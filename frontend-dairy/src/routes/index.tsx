@@ -12,6 +12,8 @@ import { AnimalListView } from "@/components/animals/AnimalListView";
 import { FarmDashboard } from "@/components/dashboard/FarmDashboard";
 import { AnalyticsDashboardView } from "@/components/dashboard/AnalyticsDashboardView";
 import { MilkingModuleView } from "@/components/modules/MilkingModuleView";
+import { EquipmentModuleView } from "@/components/modules/EquipmentModuleView";
+import { MoreModulesView } from "@/components/modules/MoreModulesView";
 import { HealthModuleView } from "@/components/modules/HealthModuleView";
 import { FeedingModuleView } from "@/components/modules/FeedingModuleView";
 import { StockModuleView } from "@/components/modules/StockModuleView";
@@ -21,6 +23,7 @@ import { SupplyModuleView } from "@/components/modules/SupplyModuleView";
 import { AlertsView } from "@/components/alerts/AlertsView";
 import { ReportsView } from "@/components/modules/ReportsView";
 import { TeamView } from "@/components/modules/TeamView";
+import { ProfileSettingsView } from "@/components/profile/ProfileSettingsView";
 import { ProfileModal } from "@/components/auth/ProfileModal";
 import { ExportModal } from "@/components/common/ExportModal";
 import { CowBrandLogo } from "@/components/common/CowBrandLogo";
@@ -104,15 +107,9 @@ export function FarmApp() {
 
   // RBAC Navigation Guard
   const handleNavigate = (page: string) => {
-    if (isWorker && (page === "settings" || page === "users" || page === "reports")) {
+    if (isWorker && page === "users") {
       toast.error("Access Restricted", {
-        description: "Farm workers have operational access only. Settings require Manager or Owner access.",
-      });
-      return;
-    }
-    if (isManager && page === "settings") {
-      toast.error("Access Restricted", {
-        description: "Farm settings require Farm Owner access.",
+        description: "Team & Role management requires Farm Manager or Owner access.",
       });
       return;
     }
@@ -237,6 +234,15 @@ export function FarmApp() {
               />
             )}
 
+            {currentPage === "equipment" && <EquipmentModuleView />}
+            
+            {currentPage === "more" && (
+              <MoreModulesView
+                onNavigate={handleNavigate}
+                urgentAlertCount={urgentAlertCount}
+              />
+            )}
+
             {currentPage === "feeding" && (
               <FeedingModuleView
                 onOpenQuickFeeding={() => handleOpenQuickAdd("feeding")}
@@ -274,7 +280,7 @@ export function FarmApp() {
 
             {currentPage === "users" && <TeamView />}
 
-            {currentPage === "settings" && <TeamView />}
+            {currentPage === "settings" && <ProfileSettingsView />}
           </main>
         </div>
       </div>

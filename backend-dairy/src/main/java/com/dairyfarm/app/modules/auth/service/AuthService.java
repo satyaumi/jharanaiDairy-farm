@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -88,6 +89,118 @@ public class AuthService {
         TenantContext.setFarmId(user.getFarm().getId());
         TenantContext.setUserId(user.getId());
         auditService.record("LOGIN", "USER", user.getId().toString(), "User logged in: " + user.getMobileNumber());
+
+        return AuthResponse.builder()
+                .token(token)
+                .user(UserDto.fromEntity(user))
+                .build();
+    }
+
+    @Transactional
+    public Map<String, Object> sendLoginOtp(SendLoginOtpRequest request) {
+        if (request == null || request.getPhoneOrEmail() == null || request.getPhoneOrEmail().isBlank()) {
+            throw new BadRequestException("Phone number or email is required");
+        }
+        String identifier = request.getPhoneOrEmail().trim();
+
+        User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
+                .orElse(null);
+
+        if (user == null) {
+            String digitsOnly = identifier.replaceAll("[^0-9]", "");
+            if (digitsOnly.length() >= 7) {
+                user = userRepository.findAll().stream()
+                        .filter(u -> u.getMobileNumber() != null &&
+                                u.getMobileNumber().replaceAll("[^0-9]", "").endsWith(digitsOnly))
+                        .findFirst()
+                        .orElse(null);
+            }
+        }
+
+        if (user == null) {
+            throw new UnauthorizedException("No registered account found with identifier: " + identifier);
+        }
+
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Your account is currently disabled. Please contact farm administrator.");
+        }
+
+        // Verify role authorization match if specified
+        if (request.getRequestedRole() != null) {
+            if (user.getRole() != request.getRequestedRole() && user.getRole() != Role.OWNER) {
+                throw new UnauthorizedException("Your account does not have " + request.getRequestedRole() + " authorization.");
+            }
+        }
+
+        String targetEmail = user.getEmail();
+        otpService.generateAndSendOtp(identifier, targetEmail, "LOGIN");
+
+        String maskedEmail = (targetEmail != null && targetEmail.contains("@"))
+                ? targetEmail.replaceAll("(^[^@]{2})[^@]+(@.*$)", "$1***$2")
+                : identifier;
+
+        return Map.of(
+                "success", true,
+                "message", "Verification code dispatched to " + maskedEmail,
+                "email", maskedEmail,
+                "role", user.getRole().name()
+        );
+    }
+
+    @Transactional
+    public AuthResponse loginWithOtp(LoginOtpRequest request) {
+        if (request == null || request.getPhoneOrEmail() == null || request.getOtp() == null) {
+            throw new BadRequestException("Phone number/email and verification code are required");
+        }
+        String identifier = request.getPhoneOrEmail().trim();
+
+        User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
+                .orElse(null);
+
+        if (user == null) {
+            String digitsOnly = identifier.replaceAll("[^0-9]", "");
+            if (digitsOnly.length() >= 7) {
+                user = userRepository.findAll().stream()
+                        .filter(u -> u.getMobileNumber() != null &&
+                                u.getMobileNumber().replaceAll("[^0-9]", "").endsWith(digitsOnly))
+                        .findFirst()
+                        .orElse(null);
+            }
+        }
+
+        if (user == null) {
+            throw new UnauthorizedException("Invalid mobile/email or verification code");
+        }
+
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Your account is currently disabled. Please contact farm administrator.");
+        }
+
+        if (request.getRequestedRole() != null) {
+            if (user.getRole() != request.getRequestedRole() && user.getRole() != Role.OWNER) {
+                throw new UnauthorizedException("Your account does not have " + request.getRequestedRole() + " authorization.");
+            }
+        }
+
+        otpService.verifyOtp(identifier, request.getOtp(), "LOGIN");
+
+        UserPrincipal principal = UserPrincipal.create(
+                user.getId(),
+                user.getFarm().getId(),
+                user.getFullName(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getMobileNumber(),
+                user.getPasswordHash(),
+                user.getRole(),
+                user.isActive()
+        );
+
+        String token = tokenProvider.generateToken(principal);
+
+        TenantContext.setFarmId(user.getFarm().getId());
+        TenantContext.setUserId(user.getId());
+        auditService.record("LOGIN_OTP", "USER", user.getId().toString(), "User logged in via verified OTP: " + user.getMobileNumber());
 
         return AuthResponse.builder()
                 .token(token)

@@ -190,6 +190,77 @@ class AuthService {
   }
 
   /**
+   * Request OTP for role-based account login
+   */
+  async sendLoginOtp(phoneOrEmail: string, requestedRole?: Role): Promise<{ success: boolean; message: string; email?: string; role?: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/send-login-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneOrEmail: phoneOrEmail.trim(),
+          requestedRole,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to dispatch verification code.");
+      }
+
+      return data;
+    } catch (err: unknown) {
+      if (err instanceof Error) throw err;
+      throw new Error("Unable to dispatch verification code. Please check your connection.");
+    }
+  }
+
+  /**
+   * Authenticate and establish session using verified OTP and backend assigned role
+   */
+  async loginWithOtp(phoneOrEmail: string, otp: string, requestedRole?: Role): Promise<{ token: string; user: User }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/login-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneOrEmail: phoneOrEmail.trim(),
+          otp: otp.trim(),
+          requestedRole,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Invalid verification code.");
+      }
+
+      const payload = data?.data || data;
+      if (!payload?.token || !payload?.user) {
+        throw new Error("Invalid response format received from server.");
+      }
+
+      const user: User = {
+        id: payload.user.id,
+        name: payload.user.name,
+        phone: payload.user.phone || payload.user.mobileNumber || "",
+        email: payload.user.email,
+        role: payload.user.role,
+        farmName: payload.user.farmName || "Jharanai Farm",
+        avatarUrl: payload.user.avatarUrl,
+      };
+
+      this.setSession(payload.token, user);
+      return { token: payload.token, user };
+    } catch (err: unknown) {
+      if (err instanceof Error) throw err;
+      throw new Error("Unable to verify OTP. Please try again.");
+    }
+  }
+
+  /**
    * Register a new Farm Owner account and tenant farm
    */
   async signup(payload: SignupPayload): Promise<{ token: string; user: User }> {

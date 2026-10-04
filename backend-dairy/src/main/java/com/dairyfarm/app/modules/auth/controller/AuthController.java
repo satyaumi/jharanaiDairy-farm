@@ -31,6 +31,20 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/send-login-otp")
+    @Operation(summary = "Request secure OTP for role-based account login")
+    public ResponseEntity<Map<String, Object>> sendLoginOtp(@Valid @RequestBody SendLoginOtpRequest request) {
+        Map<String, Object> result = authService.sendLoginOtp(request);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/login-otp")
+    @Operation(summary = "Authenticate and establish session using verified OTP")
+    public ResponseEntity<AuthResponse> loginWithOtp(@Valid @RequestBody LoginOtpRequest request) {
+        AuthResponse response = authService.loginWithOtp(request);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/signup")
     @Operation(summary = "Register a new farm and owner account")
     public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
