@@ -57,7 +57,7 @@ public class WebConfig implements WebMvcConfigurer {
         log.info("Configured CORS Allowed Origins: {}", Arrays.toString(origins));
 
         registry.addMapping("/**")
-                .allowedOrigins(origins)
+                .allowedOriginPatterns(origins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("Content-Disposition", "X-Error-Message", "Authorization")
