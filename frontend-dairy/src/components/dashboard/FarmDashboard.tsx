@@ -59,7 +59,7 @@ export function FarmDashboard({
       ? Math.round(
           stockItems.reduce((acc, s) => acc + s.percent, 0) / stockItems.length
         )
-      : 85;
+      : 0;
 
   // 1. THE FOUR PRIMARY OPERATIONAL MODULES (Section 1 Core Focus)
   const PRIMARY_FOUR_MODULES = [
@@ -68,14 +68,14 @@ export function FarmDashboard({
       name: "Herd Management",
       icon: CowIcon,
       isCustomIcon: true,
-      badge: `${animals.length || 198} Head`,
+      badge: `${animals.length} Head`,
       subtitle: "Registry, breeds, lactating & calf care",
     },
     {
       id: "milking",
       name: "Milk Harvest",
       icon: Milk,
-      badge: todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(0)} L Today` : "2,450 L",
+      badge: todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(1)} L Today` : "0.0 L",
       subtitle: "Shift collection, quality logs & yields",
     },
     {
@@ -89,7 +89,7 @@ export function FarmDashboard({
       id: "feeding",
       name: "Feed & Rations",
       icon: Wheat,
-      badge: `${feedStockPercent}% Silo`,
+      badge: stockItems.length > 0 ? `${feedStockPercent}% Silo` : "0% Silo",
       subtitle: "Daily intake, concentrate & silage storage",
     },
   ];
@@ -160,7 +160,7 @@ export function FarmDashboard({
               Milk Production:
             </p>
             <p className="text-xs sm:text-sm font-black text-slate-900 leading-tight">
-              {todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(0)} Ltr` : "2,450 Ltr"}
+              {todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(1)} Ltr` : "0.0 Ltr"}
             </p>
             <span className="text-[8px] sm:text-[10px] font-extrabold text-emerald-600 leading-tight">
               (Today)
@@ -185,7 +185,7 @@ export function FarmDashboard({
               Herd Health:
             </p>
             <p className="text-xs sm:text-sm font-black text-slate-900 leading-tight">
-              {animals.length > 0 ? animals.length : 198} Active /
+              {animals.length} Active /
             </p>
             <span className="text-[8px] sm:text-[10px] font-extrabold text-rose-600 leading-tight">
               {urgentAlerts.length} Alerts
@@ -205,7 +205,7 @@ export function FarmDashboard({
               Feed Stock:
             </p>
             <p className="text-xs sm:text-sm font-black text-slate-900 leading-tight">
-              {feedStockPercent}% Full
+              {stockItems.length > 0 ? `${feedStockPercent}% Full` : "0%"}
             </p>
             <span className="text-[8px] sm:text-[10px] font-bold text-slate-500 leading-tight">
               Silo Status

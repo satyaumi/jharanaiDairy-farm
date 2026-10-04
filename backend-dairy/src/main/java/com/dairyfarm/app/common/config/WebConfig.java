@@ -14,7 +14,7 @@ import java.util.Set;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:8081,http://localhost:3000}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:8081,http://localhost:3000,https://jharanai.vercel.app,https://jharanai.onrender.com}")
     private String allowedOrigins;
 
     @Value("${FRONTEND_URL:#{null}}")
@@ -23,9 +23,18 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${CORS_ORIGINS:#{null}}")
     private String corsOrigins;
 
+    @Value("${CORS_ALLOWED_ORIGINS:#{null}}")
+    private String corsAllowedOrigins;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         Set<String> originSet = new LinkedHashSet<>();
+
+        // Add default production domains
+        originSet.add("https://jharanai.vercel.app");
+        originSet.add("https://jharanai.onrender.com");
+        originSet.add("https://*.vercel.app");
+        originSet.add("https://*.onrender.com");
 
         // Add standard configured origins
         if (allowedOrigins != null && !allowedOrigins.isBlank()) {
@@ -47,6 +56,15 @@ public class WebConfig implements WebMvcConfigurer {
         // Add CORS_ORIGINS if provided
         if (corsOrigins != null && !corsOrigins.isBlank()) {
             Arrays.stream(corsOrigins.split(","))
+                    .map(String::trim)
+                    .map(u -> u.replaceAll("/+$", ""))
+                    .filter(s -> !s.isEmpty())
+                    .forEach(originSet::add);
+        }
+
+        // Add CORS_ALLOWED_ORIGINS if provided
+        if (corsAllowedOrigins != null && !corsAllowedOrigins.isBlank()) {
+            Arrays.stream(corsAllowedOrigins.split(","))
                     .map(String::trim)
                     .map(u -> u.replaceAll("/+$", ""))
                     .filter(s -> !s.isEmpty())

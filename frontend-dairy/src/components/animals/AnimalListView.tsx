@@ -13,10 +13,13 @@ import {
 import { CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Animal } from "@/types/farm";
+import type { Animal, MilkRecord } from "@/types/farm";
+import { CowPerformanceGroupsView } from "./CowPerformanceGroupsView";
+import { Award, ListFilter } from "lucide-react";
 
 interface AnimalListViewProps {
   animals: Animal[];
+  recentMilk?: MilkRecord[];
   onSelectAnimal: (animal: Animal) => void;
   onAddNew: () => void;
   onRecordMilk: (animal: Animal) => void;
@@ -24,10 +27,12 @@ interface AnimalListViewProps {
 
 export function AnimalListView({
   animals,
+  recentMilk = [],
   onSelectAnimal,
   onAddNew,
   onRecordMilk,
 }: AnimalListViewProps) {
+  const [activeTab, setActiveTab] = useState<"inventory" | "performance">("inventory");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("All");
 
@@ -88,7 +93,45 @@ export function AnimalListView({
         </Button>
       </div>
 
-      {/* Summary KPI Cards for Quick Farm Understanding */}
+      {/* Sub-navigation Tabs: Herd Inventory vs Milk Performance Groups */}
+      <div className="flex border-b border-border/80 pb-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("inventory")}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "inventory"
+              ? "bg-emerald-600 text-white shadow-xs font-black"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+          }`}
+        >
+          <ListFilter className="size-3.5" />
+          <span>Herd Inventory ({totalCount})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("performance")}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "performance"
+              ? "bg-emerald-600 text-white shadow-xs font-black"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+          }`}
+        >
+          <Award className="size-3.5" />
+          <span>Milk Performance Groups (A–F)</span>
+        </button>
+      </div>
+
+      {activeTab === "performance" ? (
+        <CowPerformanceGroupsView
+          animals={animals}
+          recentMilk={recentMilk}
+          onSelectAnimal={onSelectAnimal}
+          onRecordMilk={onRecordMilk}
+        />
+      ) : (
+        <>
+          {/* Summary KPI Cards for Quick Farm Understanding */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <button
           type="button"
@@ -439,6 +482,8 @@ export function AnimalListView({
               </table>
             </div>
           </div>
+        </>
+      )}
         </>
       )}
     </div>

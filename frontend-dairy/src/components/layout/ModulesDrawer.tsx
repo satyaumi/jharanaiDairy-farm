@@ -17,6 +17,7 @@ import {
   Settings2,
   X,
   Lock,
+  Award,
 } from "lucide-react";
 import { CowIcon } from "@/components/common/CowBrandLogo";
 import {
@@ -42,6 +43,14 @@ export const CORE_MODULES = [
     icon: CowIcon,
     isCustomIcon: true,
     badge: "128 Head",
+    color: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
+  },
+  {
+    id: "performance",
+    title: "Cow Performance",
+    subtitle: "Automatic milk grading (Excellent, A to F)",
+    icon: Award,
+    badge: "Grades A–F",
     color: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
   },
   {

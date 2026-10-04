@@ -2,6 +2,7 @@ import React from "react";
 import { Bell, Menu, User as UserIcon } from "lucide-react";
 import { CowBrandLogo } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
+import { CloudHealthStatus } from "@/components/common/CloudHealthStatus";
 import { useAuth } from "@/context/AuthContext";
 
 interface MobileHeaderProps {
@@ -47,6 +48,10 @@ export function MobileHeader({
 
       {/* Right Quick Controls */}
       <div className="flex shrink-0 items-center gap-1.5">
+        <div className="hidden sm:block">
+          <CloudHealthStatus />
+        </div>
+
         {/* Alert Bell */}
         <Button
           variant="outline"

@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   ArrowRight,
   Grid,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -33,6 +34,15 @@ export function MoreModulesView({
       heading: "Veterinary, Herd Care & Field Operations",
       description: "Clinical checkups, pasture crops, and livestock feed supply",
       items: [
+        {
+          id: "performance",
+          name: "Milk Performance Groups",
+          icon: Award,
+          desc: "Automated classification of cows into Excellent, A, B, C, D, E, F tiers",
+          badge: "Grades A–F",
+          badgeColor: "bg-emerald-500/15 text-emerald-800",
+          color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
+        },
         {
           id: "health",
           name: "Health & Veterinary",

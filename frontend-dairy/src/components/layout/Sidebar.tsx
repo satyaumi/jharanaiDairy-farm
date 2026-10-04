@@ -11,8 +11,10 @@ import {
   Bell,
   Users2,
   ChevronRight,
+  Award,
 } from "lucide-react";
 import { CowBrandLogo, CowIcon } from "@/components/common/CowBrandLogo";
+import { CloudHealthStatus } from "@/components/common/CloudHealthStatus";
 import { useAuth } from "@/context/AuthContext";
 
 interface SidebarProps {
@@ -30,11 +32,12 @@ export function Sidebar({
 }: SidebarProps) {
   const { user, isWorker, isManager, isOwner } = useAuth();
 
-  // Primary 4 Modules + Dashboard & Analytics
+  // Primary 4 Modules + Dashboard, Analytics & Cow Performance
   const PRIMARY_NAV = [
     { id: "home", label: "Dashboard", icon: House },
     { id: "analytics", label: "Farm Analytics", icon: BarChart3, badge: "Charts" },
     { id: "animals", label: "Herd Management", icon: CowIcon, isCustom: true, badge: "128 Head" },
+    { id: "performance", label: "Cow Performance", icon: Award, badge: "A–F Grades" },
     { id: "milking", label: "Milk Harvest", icon: Milk, badge: "924 L" },
     { id: "equipment", label: "Equipment Status", icon: Tractor, badge: "6 Assets" },
     { id: "feeding", label: "Feed & Rations", icon: Wheat, badge: "Silage" },
@@ -144,7 +147,11 @@ export function Sidebar({
       </div>
 
       {/* User Profile & Account Footer */}
-      <div className="mt-auto border-t border-border/60 pt-3">
+      <div className="mt-auto border-t border-border/60 pt-2.5 space-y-2">
+        <div className="flex justify-center">
+          <CloudHealthStatus />
+        </div>
+
         <button
           type="button"
           onClick={() => onNavigate("settings")}

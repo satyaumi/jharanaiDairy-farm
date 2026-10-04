@@ -9,6 +9,7 @@ import { ModulesDrawer } from "@/components/layout/ModulesDrawer";
 import { QuickAddModal } from "@/components/quick-add/QuickAddModal";
 import { AnimalProfileModal } from "@/components/animals/AnimalProfileModal";
 import { AnimalListView } from "@/components/animals/AnimalListView";
+import { CowPerformanceGroupsView } from "@/components/animals/CowPerformanceGroupsView";
 import { FarmDashboard } from "@/components/dashboard/FarmDashboard";
 import { AnalyticsDashboardView } from "@/components/dashboard/AnalyticsDashboardView";
 import { MilkingModuleView } from "@/components/modules/MilkingModuleView";
@@ -209,8 +210,18 @@ export function FarmApp() {
             {currentPage === "animals" && (
               <AnimalListView
                 animals={animals}
+                recentMilk={recentMilk}
                 onSelectAnimal={setSelectedAnimal}
                 onAddNew={() => handleOpenQuickAdd("add-animal")}
+                onRecordMilk={() => handleOpenQuickAdd("record-milk")}
+              />
+            )}
+
+            {currentPage === "performance" && (
+              <CowPerformanceGroupsView
+                animals={animals}
+                recentMilk={recentMilk}
+                onSelectAnimal={setSelectedAnimal}
                 onRecordMilk={() => handleOpenQuickAdd("record-milk")}
               />
             )}
@@ -224,7 +235,13 @@ export function FarmApp() {
               />
             )}
 
-            {currentPage === "production" && <ProductionModuleView />}
+            {currentPage === "production" && (
+              <ProductionModuleView
+                animals={animals}
+                records={recentMilk}
+                onSelectAnimal={setSelectedAnimal}
+              />
+            )}
 
             {currentPage === "health" && (
               <HealthModuleView
