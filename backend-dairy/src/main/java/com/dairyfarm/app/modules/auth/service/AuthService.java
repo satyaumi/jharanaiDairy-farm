@@ -182,7 +182,24 @@ public class AuthService {
             }
         }
 
-        otpService.verifyOtp(identifier, request.getOtp(), "LOGIN");
+        boolean verified = false;
+        try {
+            verified = otpService.verifyOtp(identifier, request.getOtp(), "LOGIN");
+        } catch (BadRequestException ex) {
+            if (user.getMobileNumber() != null) {
+                try {
+                    verified = otpService.verifyOtp(user.getMobileNumber(), request.getOtp(), "LOGIN");
+                } catch (BadRequestException ignored) {}
+            }
+            if (!verified && user.getEmail() != null) {
+                try {
+                    verified = otpService.verifyOtp(user.getEmail(), request.getOtp(), "LOGIN");
+                } catch (BadRequestException ignored) {}
+            }
+            if (!verified) {
+                throw ex;
+            }
+        }
 
         UserPrincipal principal = UserPrincipal.create(
                 user.getId(),

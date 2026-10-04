@@ -29,6 +29,16 @@ public class OtpService {
     private static final int COOLDOWN_SECONDS = 60;
     private static final int MAX_ATTEMPTS = 5;
 
+    public String normalizeIdentifier(String identifier) {
+        if (identifier == null) return "";
+        String trimmed = identifier.trim().toLowerCase();
+        if (trimmed.contains("@")) {
+            return trimmed;
+        }
+        // Normalize mobile phone: remove all spaces, hyphens, parentheses
+        return trimmed.replaceAll("[\\s\\-\\(\\)]", "");
+    }
+
     /**
      * Generate secure 6-digit OTP, enforce 60s cooldown, hash, store, and dispatch via Resend email
      */
@@ -37,7 +47,7 @@ public class OtpService {
         if (identifier == null || identifier.isBlank()) {
             throw new BadRequestException("Identifier (phone or email) is required");
         }
-        String cleanIdentifier = identifier.trim().toLowerCase();
+        String cleanIdentifier = normalizeIdentifier(identifier);
 
         // 1. Rate-limit cooldown enforcement (60 seconds)
         Optional<AuthOtp> latestOpt = otpRepository.findFirstByIdentifierAndPurposeAndConsumedFalseOrderByCreatedAtDesc(
@@ -96,7 +106,7 @@ public class OtpService {
         if (identifier == null || submittedOtp == null) {
             return false;
         }
-        String cleanIdentifier = identifier.trim().toLowerCase();
+        String cleanIdentifier = normalizeIdentifier(identifier);
         String cleanOtp = submittedOtp.trim();
 
         // Safe demo fallback bypass for testing/development if needed
