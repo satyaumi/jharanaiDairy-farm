@@ -10,6 +10,7 @@ import { QuickAddModal } from "@/components/quick-add/QuickAddModal";
 import { AnimalProfileModal } from "@/components/animals/AnimalProfileModal";
 import { AnimalListView } from "@/components/animals/AnimalListView";
 import { FarmDashboard } from "@/components/dashboard/FarmDashboard";
+import { AnalyticsDashboardView } from "@/components/dashboard/AnalyticsDashboardView";
 import { MilkingModuleView } from "@/components/modules/MilkingModuleView";
 import { HealthModuleView } from "@/components/modules/HealthModuleView";
 import { FeedingModuleView } from "@/components/modules/FeedingModuleView";
@@ -21,6 +22,7 @@ import { AlertsView } from "@/components/alerts/AlertsView";
 import { ReportsView } from "@/components/modules/ReportsView";
 import { TeamView } from "@/components/modules/TeamView";
 import { ProfileModal } from "@/components/auth/ProfileModal";
+import { ExportModal } from "@/components/common/ExportModal";
 import { CowBrandLogo } from "@/components/common/CowBrandLogo";
 import { farmService, INITIAL_FIELDS } from "@/services/farm-service";
 import { useAuth } from "@/context/AuthContext";
@@ -60,6 +62,7 @@ export function FarmApp() {
   const [quickAddInitialAction, setQuickAddInitialAction] = useState<string>("menu");
   const [modulesDrawerOpen, setModulesDrawerOpen] = useState<boolean>(false);
   const [profileModalOpen, setProfileModalOpen] = useState<boolean>(false);
+  const [exportModalOpen, setExportModalOpen] = useState<boolean>(false);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
 
   // Domain Data State
@@ -168,13 +171,15 @@ export function FarmApp() {
 
         {/* Main Application Area */}
         <div className="min-w-0 flex-1 pb-24 lg:pb-6">
-          {/* Mobile Top Header (hidden on desktop) */}
-          <MobileHeader
-            onOpenModules={() => setModulesDrawerOpen(true)}
-            onOpenAlerts={() => handleNavigate("alerts")}
-            onOpenProfile={() => setProfileModalOpen(true)}
-            alertCount={urgentAlertCount}
-          />
+          {/* Mobile Top Header (hidden on desktop, and hidden on home/analytics where the gradient app bar is built-in) */}
+          {currentPage !== "home" && currentPage !== "analytics" && (
+            <MobileHeader
+              onOpenModules={() => setModulesDrawerOpen(true)}
+              onOpenAlerts={() => handleNavigate("alerts")}
+              onOpenProfile={() => setProfileModalOpen(true)}
+              alertCount={urgentAlertCount}
+            />
+          )}
 
           {/* Module Views */}
           <main className="animate-fade-in space-y-4">
@@ -187,6 +192,20 @@ export function FarmApp() {
                 onNavigateModule={handleNavigate}
                 onOpenQuickAdd={handleOpenQuickAdd}
                 onSelectAnimal={setSelectedAnimal}
+                onOpenModulesDrawer={() => setModulesDrawerOpen(true)}
+              />
+            )}
+
+            {currentPage === "analytics" && (
+              <AnalyticsDashboardView
+                animals={animals}
+                alerts={alerts}
+                recentMilk={recentMilk}
+                stockItems={stockItems}
+                onOpenModulesDrawer={() => setModulesDrawerOpen(true)}
+                onOpenQuickRecord={() => handleOpenQuickAdd("record-milk")}
+                onSelectAnimal={setSelectedAnimal}
+                onOpenExport={() => setExportModalOpen(true)}
               />
             )}
 
@@ -264,7 +283,7 @@ export function FarmApp() {
       <MobileBottomNav
         currentPage={currentPage}
         onNavigate={handleNavigate}
-        onOpenQuickAdd={() => handleOpenQuickAdd("menu")}
+        onOpenQuickAdd={() => handleOpenQuickAdd("record-milk")}
         onOpenModules={() => setModulesDrawerOpen(true)}
         onOpenProfile={() => setProfileModalOpen(true)}
         alertCount={urgentAlertCount}
@@ -295,6 +314,13 @@ export function FarmApp() {
       <ProfileModal
         open={profileModalOpen}
         onOpenChange={setProfileModalOpen}
+      />
+
+      <ExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        defaultModule="milk"
+        title="Export Farm Analytics & Certified Records"
       />
     </div>
   );

@@ -27,6 +27,7 @@ interface SidebarProps {
 
 const PRIMARY_NAV = [
   { id: "home", label: "Dashboard", icon: House },
+  { id: "analytics", label: "Analytics", icon: BarChart3, badge: "Live" },
   { id: "animals", label: "Animals", icon: CowIcon, isCustom: true, badge: "128" },
   { id: "milking", label: "Milking", icon: Milk, badge: "924 L" },
   { id: "production", label: "Production", icon: BarChart3 },
