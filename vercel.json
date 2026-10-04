@@ -1,0 +1,15 @@
+{
+  "framework": "vite",
+  "buildCommand": "cd frontend-dairy && npm install && npm run build",
+  "outputDirectory": "frontend-dairy/dist",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://jharanai-backend.onrender.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

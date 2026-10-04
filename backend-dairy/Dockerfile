@@ -1,7 +1,7 @@
 # ==========================================
 # Stage 1: Build Application with Maven
 # ==========================================
-FROM maven:3.9.9-eclipse-temurin-23-alpine AS builder
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /workspace
 
@@ -16,7 +16,7 @@ RUN mvn clean package -DskipTests -B
 # ==========================================
 # Stage 2: Production JRE Runtime
 # ==========================================
-FROM eclipse-temurin:23-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ WORKDIR /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy compiled jar from build stage
-COPY --from=builder /workspace/target/dairy-farm-backend-*.jar app.jar
+COPY --from=builder /workspace/target/app.jar app.jar
 RUN chown -R appuser:appgroup /app
 
 USER appuser
