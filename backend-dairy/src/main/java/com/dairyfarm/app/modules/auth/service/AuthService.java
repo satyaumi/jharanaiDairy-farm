@@ -32,6 +32,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final AuditService auditService;
+    private final OtpService otpService;
+    private final ResendEmailService resendEmailService;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -159,12 +161,14 @@ public class AuthService {
     public AuthResponse verifyOtp(VerifyOtpRequest request) {
         String phone = request.getPhone().trim();
         User user = userRepository.findByMobileNumber(phone)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "phone", phone));
+                .orElse(null);
 
-        // Acceptance of valid OTP or test code "1234"
-        if (!"1234".equals(request.getOtp().trim()) && !"9999".equals(request.getOtp().trim())) {
-            throw new BadRequestException("Invalid or expired OTP entered");
+        if (user == null) {
+            user = userRepository.findByUsernameOrEmailOrMobile(phone)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "identifier", phone));
         }
+
+        otpService.verifyOtp(phone, request.getOtp(), "REGISTRATION_VERIFY");
 
         user.setVerified(true);
         userRepository.save(user);
@@ -188,9 +192,30 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
     public boolean resendOtp(ResendOtpRequest request) {
-        log.info("Mock OTP sent to: {}", request.getPhone());
+        if (request == null || request.getPhone() == null || request.getPhone().isBlank()) {
+            throw new BadRequestException("Phone or email is required");
+        }
+        String identifier = request.getPhone().trim();
+        User user = userRepository.findByUsernameOrEmailOrMobile(identifier).orElse(null);
+        String targetEmail = user != null ? user.getEmail() : (identifier.contains("@") ? identifier : null);
+
+        otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
         return true;
+    }
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        if (request == null || request.getPhoneOrEmail() == null || request.getPhoneOrEmail().isBlank()) {
+            throw new BadRequestException("Phone or email is required");
+        }
+        String identifier = request.getPhoneOrEmail().trim();
+        User user = userRepository.findByUsernameOrEmailOrMobile(identifier).orElse(null);
+        String targetEmail = user != null ? user.getEmail() : (identifier.contains("@") ? identifier : null);
+
+        // Always generate to prevent enumeration
+        otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
     }
 
     @Transactional(readOnly = true)
@@ -208,17 +233,18 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
+        if (request == null || request.getPhoneOrEmail() == null || request.getOtp() == null || request.getNewPassword() == null) {
+            throw new BadRequestException("All fields are required to reset password");
+        }
         String identifier = request.getPhoneOrEmail().trim();
         User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with identifier: " + identifier));
 
-        if (!"1234".equals(request.getOtp().trim())) {
-            throw new BadRequestException("Invalid verification code");
-        }
+        otpService.verifyOtp(identifier, request.getOtp(), "PASSWORD_RESET");
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-        auditService.record("RESET_PASSWORD", "USER", user.getId().toString(), "Password reset successfully");
+        auditService.record("RESET_PASSWORD", "USER", user.getId().toString(), "Password reset successfully via verified OTP");
     }
 
     @Transactional

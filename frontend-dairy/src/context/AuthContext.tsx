@@ -18,7 +18,7 @@ interface AuthContextValue extends AuthState {
   logout: () => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
   resetPassword: (payload: ResetPasswordPayload) => Promise<boolean>;
-  sendResetOtp: (phoneOrEmail: string) => Promise<boolean>;
+  sendResetOtp: (phoneOrEmail: string) => Promise<{ success: boolean; message: string }>;
   isOwner: boolean;
   isManager: boolean;
   isWorker: boolean;
@@ -57,10 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(freshUser);
             setToken(storedToken);
           } catch {
-            // Token invalid or backend rejected session
-            authService.clearSession();
-            setUser(null);
-            setToken(null);
+            if (authService.isTokenExpired(storedToken)) {
+              authService.clearSession();
+              setUser(null);
+              setToken(null);
+            } else if (storedUser) {
+              setUser(storedUser);
+              setToken(storedToken);
+            }
           }
         } else {
           authService.clearSession();

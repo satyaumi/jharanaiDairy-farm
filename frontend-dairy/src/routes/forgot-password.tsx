@@ -41,8 +41,19 @@ export function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isResending, setIsResending] = useState<boolean>(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,16 +67,38 @@ export function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      await sendResetOtp(clean);
+      const res = await sendResetOtp(clean);
       setStep("reset");
-      toast.success("Verification code sent!", {
-        description: "For demo verification, code is 1234",
+      setCooldownSeconds(60);
+      toast.success("Verification code dispatched!", {
+        description: res.message || "A secure 6-digit code was sent to your registered email.",
       });
-    } catch {
-      // Still advance to avoid user enumeration
-      setStep("reset");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to dispatch code. Please try again.";
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (cooldownSeconds > 0 || isResending) return;
+    setIsResending(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await sendResetOtp(identifier.trim());
+      setCooldownSeconds(60);
+      toast.success("New verification code sent!", {
+        description: res.message || "A fresh 6-digit code has been delivered to your email.",
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to resend code.";
+      setErrorMessage(msg);
+      toast.error(msg);
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -235,23 +268,40 @@ export function ForgotPasswordPage() {
                     htmlFor="reset-otp"
                     className="block text-xs font-bold text-foreground"
                   >
-                    Verification Code <span className="text-destructive">*</span>
+                    6-Digit Verification Code <span className="text-destructive">*</span>
                   </label>
-                  <span className="text-[10px] font-semibold text-emerald-600">
-                    Default code: 1234
-                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={cooldownSeconds > 0 || isResending}
+                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isResending ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="size-3 animate-spin" /> Sending...
+                      </span>
+                    ) : cooldownSeconds > 0 ? (
+                      `Resend in ${cooldownSeconds}s`
+                    ) : (
+                      "Resend Code"
+                    )}
+                  </button>
                 </div>
                 <Input
                   id="reset-otp"
                   name="otp"
                   type="text"
                   inputMode="numeric"
-                  placeholder="Enter 4-digit code (e.g. 1234)"
+                  maxLength={6}
+                  placeholder="Enter 6-digit code (e.g. 582914)"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
                   required
                   className="h-12 rounded-2xl bg-background/80 text-center text-lg font-bold tracking-widest"
                 />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Check your inbox for the verification code dispatched via Resend.
+                </p>
               </div>
 
               {/* New Password */}

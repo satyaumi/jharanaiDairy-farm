@@ -66,6 +66,13 @@ public class AuthController {
         return ResponseEntity.ok(user);
     }
 
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request password reset OTP via email or SMS")
+    public ResponseEntity<Map<String, Object>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "If an account exists with this mobile/email, a verification code has been dispatched."));
+    }
+
     @PostMapping("/reset-password")
     @Operation(summary = "Reset password using OTP verification")
     public ResponseEntity<Map<String, Object>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {

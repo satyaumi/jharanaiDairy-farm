@@ -251,31 +251,48 @@ class AuthService {
       throw new Error("Session expired. Please log in again.");
     }
 
-    const response = await fetch(`${this.baseUrl}/me`, {
-      method: "GET",
-      headers: this.getAuthHeaders(),
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}/me`, {
+        method: "GET",
+        headers: this.getAuthHeaders(),
+      });
 
-    if (!response.ok) {
-      this.clearSession();
-      throw new Error("Session expired or unauthorized.");
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          this.clearSession();
+          throw new Error("Session expired or unauthorized.");
+        }
+        // If server 5xx or offline, use stored session if available
+        const stored = this.getStoredUser();
+        if (stored) return stored;
+        throw new Error("Server temporarily unavailable.");
+      }
+
+      const json = await response.json();
+      const payload = json?.data || json;
+
+      const user: User = {
+        id: payload.id,
+        name: payload.name,
+        phone: payload.phone || payload.mobileNumber || "",
+        email: payload.email,
+        role: payload.role,
+        farmName: payload.farmName || "Jharanai Farm",
+        avatarUrl: payload.avatarUrl,
+      };
+
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      return user;
+    } catch (err: unknown) {
+      const stored = this.getStoredUser();
+      if (stored && !this.isTokenExpired(token)) {
+        return stored;
+      }
+      if (err instanceof Error && err.message.includes("Session expired")) {
+        throw err;
+      }
+      throw new Error("Unable to reach server. Please check your connection.");
     }
-
-    const json = await response.json();
-    const payload = json?.data || json;
-
-    const user: User = {
-      id: payload.id,
-      name: payload.name,
-      phone: payload.phone || payload.mobileNumber || "",
-      email: payload.email,
-      role: payload.role,
-      farmName: payload.farmName || "Jharanai Farm",
-      avatarUrl: payload.avatarUrl,
-    };
-
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    return user;
   }
 
   /**
@@ -312,18 +329,29 @@ class AuthService {
   }
 
   /**
-   * Request password reset code
+   * Request password reset code via Resend Email / SMS
    */
-  async sendResetOtp(phoneOrEmail: string): Promise<boolean> {
+  async sendResetOtp(phoneOrEmail: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${this.baseUrl}/resend-otp`, {
+      const response = await fetch(`${this.baseUrl}/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneOrEmail }),
+        body: JSON.stringify({ phoneOrEmail: phoneOrEmail.trim() }),
       });
-      return response.ok;
-    } catch {
-      return false;
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to dispatch verification code.");
+      }
+
+      return {
+        success: true,
+        message: data?.message || "Verification code dispatched successfully to your registered email.",
+      };
+    } catch (err: unknown) {
+      if (err instanceof Error) throw err;
+      throw new Error("Unable to connect to server. Please try again.");
     }
   }
 
