@@ -33,5 +33,5 @@ USER appuser
 ENV PORT=8085
 EXPOSE 8085
 
-# Spring Boot dynamic port binding & container-aware memory configuration
-ENTRYPOINT ["sh", "-c", "exec java -XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom -Dserver.port=${PORT:-8085} -Dserver.address=0.0.0.0 -jar app.jar"]
+# Spring Boot dynamic port binding & container-aware memory configuration for 512MB environments
+ENTRYPOINT ["sh", "-c", "exec java -XX:+UseSerialGC -Xms128m -Xmx300m -XX:MaxMetaspaceSize=128m -XX:CompressedClassSpaceSize=32m -Xss512k -Djava.security.egd=file:/dev/./urandom -Dserver.port=${PORT:-8085} -Dserver.address=0.0.0.0 -jar app.jar"]
