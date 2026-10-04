@@ -35,6 +35,9 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        if (request == null || request.getPhoneOrEmail() == null || request.getPhoneOrEmail().isBlank()) {
+            throw new BadRequestException("Phone number or email is required");
+        }
         String identifier = request.getPhoneOrEmail().trim();
 
         User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
