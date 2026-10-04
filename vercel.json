@@ -1,25 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
   "installCommand": "cd frontend-dairy && npm install --legacy-peer-deps",
   "buildCommand": "cd frontend-dairy && npm run build",
-  "outputDirectory": "frontend-dairy/.output/public",
   "build": {
     "env": {
+      "NITRO_PRESET": "vercel",
       "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
     }
   },
   "env": {
+    "NITRO_PRESET": "vercel",
     "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
-  },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://jharanai-backend.onrender.com/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  }
 }
