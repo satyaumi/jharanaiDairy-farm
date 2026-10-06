@@ -49,12 +49,17 @@ public class ResendEmailService {
 
     private static String sanitizeKey(String key) {
         if (key == null) return "";
-        return key.trim().replaceAll("^[\"']+|[\"']+$", "").trim();
+        return key.replaceAll("[\\s\\u00A0\\u200B\\r\\n]+", "")
+                .replaceAll("^[\"']+|[\"']+$", "")
+                .replaceAll("[\\s\\u00A0\\u200B\\r\\n]+", "");
     }
 
     private static String sanitizeEmail(String email, String defaultEmail) {
         if (email == null || email.isBlank()) return defaultEmail;
-        String cleaned = email.trim().replaceAll("^[\"']+|[\"']+$", "").trim();
+        String cleaned = email.replaceAll("[\\u00A0\\u200B\\r\\n]+", " ")
+                .trim()
+                .replaceAll("^[\"']+|[\"']+$", "")
+                .trim();
         return cleaned.isEmpty() ? defaultEmail : cleaned;
     }
 
