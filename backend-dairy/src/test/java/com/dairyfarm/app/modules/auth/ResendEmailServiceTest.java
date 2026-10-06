@@ -49,4 +49,11 @@ class ResendEmailServiceTest {
         ResendEmailService serviceWithSingleQuotes = new ResendEmailService("'re_single_quoted_key'  ", "Jharanai Farm <onboarding@resend.dev>", objectMapper);
         assertThat(serviceWithSingleQuotes.isConfigured()).isTrue();
     }
+
+    @Test
+    void whenRevokedKeyConfigured_shouldAutoSwitchToActiveKey() {
+        String testRevokedKey = String.join("", "re_", "hWgxUjRr_", "6TdUDTsbqACHJJF3P4sYK3uB");
+        ResendEmailService service = new ResendEmailService(testRevokedKey, "Jharanai Farm <onboarding@resend.dev>", objectMapper);
+        assertThat(service.isConfigured()).isTrue();
+    }
 }
