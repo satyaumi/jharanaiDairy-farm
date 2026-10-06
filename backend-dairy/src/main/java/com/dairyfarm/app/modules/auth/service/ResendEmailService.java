@@ -30,8 +30,8 @@ public class ResendEmailService {
             @Value("${resend.from-email:${RESEND_FROM_EMAIL:Jharanai Farm <onboarding@resend.dev>}}") String fromEmail,
             ObjectMapper objectMapper
     ) {
-        this.resendApiKey = resendApiKey != null ? resendApiKey.trim() : "";
-        this.fromEmail = fromEmail != null && !fromEmail.isBlank() ? fromEmail.trim() : "Jharanai Farm <onboarding@resend.dev>";
+        this.resendApiKey = sanitizeKey(resendApiKey);
+        this.fromEmail = sanitizeEmail(fromEmail, "Jharanai Farm <onboarding@resend.dev>");
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -40,8 +40,22 @@ public class ResendEmailService {
         if (this.resendApiKey.isEmpty()) {
             log.warn("Resend API key is not configured in RESEND_API_KEY. Outgoing emails will return a configuration warning.");
         } else {
-            log.info("Resend Email Service initialized with sender: {}", this.fromEmail);
+            String maskedKey = this.resendApiKey.length() > 8
+                    ? this.resendApiKey.substring(0, 5) + "..." + this.resendApiKey.substring(this.resendApiKey.length() - 4)
+                    : "****";
+            log.info("Resend Email Service initialized with sender: {} and key preview: {}", this.fromEmail, maskedKey);
         }
+    }
+
+    private static String sanitizeKey(String key) {
+        if (key == null) return "";
+        return key.trim().replaceAll("^[\"']+|[\"']+$", "").trim();
+    }
+
+    private static String sanitizeEmail(String email, String defaultEmail) {
+        if (email == null || email.isBlank()) return defaultEmail;
+        String cleaned = email.trim().replaceAll("^[\"']+|[\"']+$", "").trim();
+        return cleaned.isEmpty() ? defaultEmail : cleaned;
     }
 
     public boolean isConfigured() {
@@ -165,6 +179,9 @@ public class ResendEmailService {
                 if (message.contains("testing email address") || message.contains("domains like") || message.contains("only send")) {
                     return "Resend sandbox limitation: onboarding@resend.dev can only send to your verified Resend account email. Please verify your custom domain in Resend to send to other domains.";
                 }
+            }
+            if (statusCode == 401) {
+                return "Resend API key is invalid or rejected (HTTP 401: " + (message.isBlank() ? "Invalid API Key" : message) + "). Please update RESEND_API_KEY in Render environment settings.";
             }
             if (!message.isBlank()) {
                 return message;

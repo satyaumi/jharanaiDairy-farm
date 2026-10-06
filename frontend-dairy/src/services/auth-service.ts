@@ -80,6 +80,27 @@ export const DEMO_CREDENTIALS: Record<Role, { phoneOrEmail: string; password?: s
   },
 };
 
+const AUTH_TIMEOUT_MS = 18000;
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = AUTH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Request timed out after 18s. The server may be waking up, please try again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 class AuthService {
   private baseUrl: string = AUTH_URL;
 
@@ -145,7 +166,7 @@ class AuthService {
    */
   async login(credentials: LoginCredentials): Promise<{ token: string; user: User }> {
     try {
-      const response = await fetch(`${this.baseUrl}/login`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -194,7 +215,7 @@ class AuthService {
    */
   async sendLoginOtp(phoneOrEmail: string, requestedRole?: Role): Promise<{ success: boolean; message: string; email?: string; role?: string }> {
     try {
-      const response = await fetch(`${this.baseUrl}/send-login-otp`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/send-login-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -221,7 +242,7 @@ class AuthService {
    */
   async loginWithOtp(phoneOrEmail: string, otp: string, requestedRole?: Role): Promise<{ token: string; user: User }> {
     try {
-      const response = await fetch(`${this.baseUrl}/login-otp`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/login-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,7 +286,7 @@ class AuthService {
    */
   async signup(payload: SignupPayload): Promise<{ token: string; user: User }> {
     try {
-      const response = await fetch(`${this.baseUrl}/signup`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -323,7 +344,7 @@ class AuthService {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/me`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/me`, {
         method: "GET",
         headers: this.getAuthHeaders(),
       });
@@ -370,7 +391,7 @@ class AuthService {
    * Update permitted profile fields
    */
   async updateProfile(payload: UpdateProfilePayload): Promise<User> {
-    const response = await fetch(`${this.baseUrl}/profile`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/profile`, {
       method: "PUT",
       headers: this.getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -404,7 +425,7 @@ class AuthService {
    */
   async sendResetOtp(phoneOrEmail: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${this.baseUrl}/forgot-password`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneOrEmail: phoneOrEmail.trim() }),
@@ -430,7 +451,7 @@ class AuthService {
    * Reset password with verification code
    */
   async resetPassword(payload: ResetPasswordPayload): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/reset-password`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -449,7 +470,7 @@ class AuthService {
    * Verify OTP
    */
   async verifyOtp(payload: VerifyOtpPayload): Promise<{ token: string; user: User }> {
-    const response = await fetch(`${this.baseUrl}/verify-otp`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -481,10 +502,10 @@ class AuthService {
     try {
       const token = this.getToken();
       if (token) {
-        await fetch(`${this.baseUrl}/logout`, {
+        await fetchWithTimeout(`${this.baseUrl}/logout`, {
           method: "POST",
           headers: this.getAuthHeaders(),
-        });
+        }, 5000);
       }
     } catch {
       // Ignore network errors on logout

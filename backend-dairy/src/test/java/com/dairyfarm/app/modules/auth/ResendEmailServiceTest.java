@@ -40,4 +40,13 @@ class ResendEmailServiceTest {
 
         assertThat(service.isConfigured()).isTrue();
     }
+
+    @Test
+    void whenApiKeyEnclosedInQuotesOrSpaces_shouldSanitizeProperly() {
+        ResendEmailService serviceWithDoubleQuotes = new ResendEmailService("\"re_quoted_key\"", "Jharanai Farm <onboarding@resend.dev>", objectMapper);
+        assertThat(serviceWithDoubleQuotes.isConfigured()).isTrue();
+
+        ResendEmailService serviceWithSingleQuotes = new ResendEmailService("'re_single_quoted_key'  ", "Jharanai Farm <onboarding@resend.dev>", objectMapper);
+        assertThat(serviceWithSingleQuotes.isConfigured()).isTrue();
+    }
 }
