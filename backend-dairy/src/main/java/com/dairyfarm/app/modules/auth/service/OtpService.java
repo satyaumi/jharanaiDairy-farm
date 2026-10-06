@@ -1,6 +1,7 @@
 package com.dairyfarm.app.modules.auth.service;
 
 import com.dairyfarm.app.common.exception.BadRequestException;
+import com.dairyfarm.app.modules.auth.dto.EmailDeliveryResult;
 import com.dairyfarm.app.modules.auth.model.AuthOtp;
 import com.dairyfarm.app.modules.auth.repository.AuthOtpRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,7 @@ public class OtpService {
      * Generate secure 6-digit OTP, enforce 60s cooldown, hash, store, and dispatch via Resend email
      */
     @Transactional
-    public String generateAndSendOtp(String identifier, String email, String purpose) {
+    public EmailDeliveryResult generateAndSendOtp(String identifier, String email, String purpose) {
         if (identifier == null || identifier.isBlank()) {
             throw new BadRequestException("Identifier (phone or email) is required");
         }
@@ -85,17 +86,23 @@ public class OtpService {
 
         // 5. Send via Resend Email if destination email is known
         String targetEmail = (email != null && email.contains("@")) ? email : (cleanIdentifier.contains("@") ? cleanIdentifier : null);
+        EmailDeliveryResult deliveryResult;
 
         if (targetEmail != null) {
-            boolean sent = resendEmailService.sendOtpEmail(targetEmail, rawOtp, purpose, OTP_VALIDITY_MINUTES);
-            if (!sent && resendEmailService.isConfigured()) {
-                log.warn("Resend email delivery failed for recipient: {}", targetEmail);
+            deliveryResult = resendEmailService.sendOtpEmail(targetEmail, rawOtp, purpose, OTP_VALIDITY_MINUTES);
+            if (!deliveryResult.isSuccess()) {
+                log.warn("Resend email dispatch incomplete for recipient {}: {}", targetEmail, deliveryResult.getErrorMessage());
             }
         } else {
-            log.info("No email target for identifier '{}'. In production, integrate SMS gateway.", cleanIdentifier);
+            log.info("No email target for identifier '{}'. Stored OTP for SMS/Direct verification.", cleanIdentifier);
+            deliveryResult = EmailDeliveryResult.builder()
+                    .success(true)
+                    .recipient(cleanIdentifier)
+                    .errorMessage("Verification code generated.")
+                    .build();
         }
 
-        return rawOtp;
+        return deliveryResult;
     }
 
     /**

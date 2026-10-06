@@ -36,6 +36,7 @@ public class UserService {
     private final FarmRepository farmRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final com.dairyfarm.app.modules.auth.service.ResendEmailService resendEmailService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional(readOnly = true)
@@ -151,6 +152,17 @@ public class UserService {
         auditService.record("CREATE_WORKER", "USER", saved.getId().toString(),
                 "Created worker " + saved.getFullName() + " (" + saved.getUsername() + ", ID: " + employeeId + ")");
 
+        if (request.isSendInvitation() && saved.getEmail() != null && !saved.getEmail().isBlank()) {
+            resendEmailService.sendInvitationEmail(
+                    saved.getEmail(),
+                    saved.getFullName(),
+                    saved.getFarm().getName(),
+                    "Dairy Worker",
+                    token,
+                    null
+            );
+        }
+
         return UserResponseDto.fromEntity(saved);
     }
 
@@ -205,6 +217,17 @@ public class UserService {
         User saved = userRepository.save(manager);
         auditService.record("CREATE_MANAGEMENT", "USER", saved.getId().toString(),
                 "Created management member " + saved.getFullName() + " (" + saved.getUsername() + ", ID: " + employeeId + ")");
+
+        if (request.isSendInvitation() && saved.getEmail() != null && !saved.getEmail().isBlank()) {
+            resendEmailService.sendInvitationEmail(
+                    saved.getEmail(),
+                    saved.getFullName(),
+                    saved.getFarm().getName(),
+                    "Operations Manager",
+                    token,
+                    null
+            );
+        }
 
         return UserResponseDto.fromEntity(saved);
     }
@@ -314,6 +337,18 @@ public class UserService {
         User saved = userRepository.save(target);
         auditService.record("RESEND_INVITATION", "USER", saved.getId().toString(),
                 "Resent invitation to " + saved.getUsername() + " (" + saved.getEmail() + ")");
+
+        if (saved.getEmail() != null && !saved.getEmail().isBlank()) {
+            String roleName = saved.getRole() == Role.MANAGER ? "Operations Manager" : "Dairy Worker";
+            resendEmailService.sendInvitationEmail(
+                    saved.getEmail(),
+                    saved.getFullName(),
+                    saved.getFarm().getName(),
+                    roleName,
+                    newToken,
+                    null
+            );
+        }
 
         return UserResponseDto.fromEntity(saved);
     }

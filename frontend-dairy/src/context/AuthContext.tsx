@@ -37,7 +37,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(true);
+  const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
+
+  const isLoading = isRestoringSession || isActionLoading;
 
   // Initialize and validate session on mount
   useEffect(() => {
@@ -78,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setToken(null);
       } finally {
-        setIsLoading(false);
+        setIsRestoringSession(false);
       }
     }
 
@@ -86,13 +89,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    setIsLoading(true);
+    setIsActionLoading(true);
     try {
       const res = await authService.login(credentials);
       setUser(res.user);
       setToken(res.token);
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   }, []);
 
@@ -101,18 +104,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loginWithOtp = useCallback(async (phoneOrEmail: string, otp: string, role?: Role) => {
-    setIsLoading(true);
+    setIsActionLoading(true);
     try {
       const res = await authService.loginWithOtp(phoneOrEmail, otp, role);
       setUser(res.user);
       setToken(res.token);
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   }, []);
 
   const signup = useCallback(async (payload: SignupPayload) => {
-    setIsLoading(true);
+    setIsActionLoading(true);
     try {
       const res = await authService.signup(payload);
       if (res.token) {
@@ -120,29 +123,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(res.token);
       }
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   }, []);
 
   const verifyOtp = useCallback(async (payload: VerifyOtpPayload) => {
-    setIsLoading(true);
+    setIsActionLoading(true);
     try {
       const res = await authService.verifyOtp(payload);
       setUser(res.user);
       setToken(res.token);
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   }, []);
 
   const logout = useCallback(async () => {
-    setIsLoading(true);
+    setIsActionLoading(true);
     try {
       await authService.logout();
     } finally {
       setUser(null);
       setToken(null);
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   }, []);
 
@@ -177,6 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token,
       isAuthenticated: Boolean(user && token),
       isLoading,
+      isRestoringSession,
       login,
       sendLoginOtp,
       loginWithOtp,
@@ -200,6 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       token,
       isLoading,
+      isRestoringSession,
       login,
       sendLoginOtp,
       loginWithOtp,

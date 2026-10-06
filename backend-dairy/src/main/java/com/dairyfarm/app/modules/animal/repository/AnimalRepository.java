@@ -20,9 +20,13 @@ public interface AnimalRepository extends JpaRepository<Animal, UUID>, JpaSpecif
 
     boolean existsByFarmIdAndEarTag(UUID farmId, String earTag);
 
+    boolean existsByFarmIdAndEarTagAndIdNot(UUID farmId, String earTag, UUID id);
+
     Page<Animal> findByFarmIdAndActiveTrue(UUID farmId, Pageable pageable);
 
     List<Animal> findByFarmIdAndActiveTrue(UUID farmId);
+
+    List<Animal> findByFarmId(UUID farmId);
 
     List<Animal> findByActiveTrue();
 }

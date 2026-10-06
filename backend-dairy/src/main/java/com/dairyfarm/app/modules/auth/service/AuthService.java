@@ -133,15 +133,19 @@ public class AuthService {
         }
 
         String targetEmail = user.getEmail();
-        otpService.generateAndSendOtp(identifier, targetEmail, "LOGIN");
+        EmailDeliveryResult delivery = otpService.generateAndSendOtp(identifier, targetEmail, "LOGIN");
 
         String maskedEmail = (targetEmail != null && targetEmail.contains("@"))
                 ? targetEmail.replaceAll("(^[^@]{2})[^@]+(@.*$)", "$1***$2")
                 : identifier;
 
+        if (targetEmail != null && !delivery.isSuccess()) {
+            throw new BadRequestException("Email delivery failed: " + delivery.getErrorMessage());
+        }
+
         return Map.of(
                 "success", true,
-                "message", "Verification code dispatched to " + maskedEmail,
+                "message", "Verification code dispatched via Resend to " + maskedEmail,
                 "email", maskedEmail,
                 "role", user.getRole().name()
         );
@@ -331,7 +335,10 @@ public class AuthService {
         User user = userRepository.findByUsernameOrEmailOrMobile(identifier).orElse(null);
         String targetEmail = user != null ? user.getEmail() : (identifier.contains("@") ? identifier : null);
 
-        otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
+        EmailDeliveryResult delivery = otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
+        if (targetEmail != null && !delivery.isSuccess()) {
+            throw new BadRequestException("Email delivery failed: " + delivery.getErrorMessage());
+        }
         return true;
     }
 
@@ -345,7 +352,10 @@ public class AuthService {
         String targetEmail = user != null ? user.getEmail() : (identifier.contains("@") ? identifier : null);
 
         // Always generate to prevent enumeration
-        otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
+        EmailDeliveryResult delivery = otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
+        if (targetEmail != null && !delivery.isSuccess()) {
+            log.warn("Forgot password email delivery issue for {}: {}", targetEmail, delivery.getErrorMessage());
+        }
     }
 
     @Transactional(readOnly = true)

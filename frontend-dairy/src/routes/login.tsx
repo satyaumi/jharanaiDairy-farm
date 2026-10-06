@@ -41,7 +41,7 @@ export const Route = createFileRoute("/login")({
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login, sendLoginOtp, loginWithOtp, isAuthenticated, isLoading } = useAuth();
+  const { login, sendLoginOtp, loginWithOtp, isAuthenticated, isLoading, isRestoringSession } = useAuth();
 
   // Role Flow Selection (Owner, Management, Worker)
   const [selectedRole, setSelectedRole] = useState<Role>("OWNER");
@@ -64,10 +64,10 @@ export function LoginPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isRestoringSession && isAuthenticated) {
       navigate({ to: "/" });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isRestoringSession, navigate]);
 
   // Cooldown timer effect
   useEffect(() => {
@@ -76,6 +76,32 @@ export function LoginPage() {
       return () => clearTimeout(timer);
     }
   }, [cooldownSeconds]);
+
+  // Clean, non-flickering session restoration screen
+  if (isRestoringSession) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+        <CowBrandLogo size="lg" />
+        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground font-semibold">
+          <Loader2 className="size-4 animate-spin text-emerald-600" />
+          <span>Restoring farm session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Smooth redirect view if user is already authenticated
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+        <CowBrandLogo size="lg" />
+        <div className="mt-4 flex items-center gap-2 text-xs text-emerald-600 font-semibold">
+          <ShieldCheck className="size-4" />
+          <span>Authenticated! Taking you to your dashboard...</span>
+        </div>
+      </div>
+    );
+  }
 
   // 1. Send Login OTP
   const handleSendOtp = async (e?: React.FormEvent) => {

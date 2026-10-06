@@ -4,6 +4,7 @@ import com.dairyfarm.app.common.api.ApiResponse;
 import com.dairyfarm.app.common.api.PagedResponse;
 import com.dairyfarm.app.modules.animal.dto.*;
 import com.dairyfarm.app.modules.animal.model.AnimalType;
+import com.dairyfarm.app.modules.animal.model.LifecycleStatus;
 import com.dairyfarm.app.modules.animal.service.AnimalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,12 +30,14 @@ public class AnimalController {
     private final AnimalService animalService;
 
     @GetMapping
-    @Operation(summary = "Get paginated animals with optional search, status, and breed filters")
+    @Operation(summary = "Get paginated animals with optional search, status, lifecycle, and breed filters")
     public ResponseEntity<ApiResponse<PagedResponse<AnimalDto>>> getAnimals(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) AnimalType type,
             @RequestParam(required = false) String breed,
+            @RequestParam(required = false) LifecycleStatus lifecycleStatus,
+            @RequestParam(required = false) Boolean active,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
@@ -46,14 +49,20 @@ public class AnimalController {
         }
 
         Pageable pageable = PageRequest.of(page, size, sortObj);
-        PagedResponse<AnimalDto> response = animalService.getAnimals(search, status, type, breed, pageable);
+        PagedResponse<AnimalDto> response = animalService.getAnimals(search, status, type, breed, lifecycleStatus, active, pageable);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     @GetMapping("/all")
-    @Operation(summary = "Get all active animals for dropdown selection (e.g. parent selectors)")
-    public ResponseEntity<ApiResponse<List<AnimalDto>>> getAllActiveAnimals() {
-        List<AnimalDto> animals = animalService.getAllActiveAnimals();
+    @Operation(summary = "Get all animals with optional active and lifecycle filters")
+    public ResponseEntity<ApiResponse<List<AnimalDto>>> getAllAnimals(
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) LifecycleStatus lifecycleStatus) {
+        if (active == null && lifecycleStatus == null) {
+            List<AnimalDto> animals = animalService.getAllActiveAnimals();
+            return ResponseEntity.ok(ApiResponse.ok(animals));
+        }
+        List<AnimalDto> animals = animalService.getAllAnimals(active, lifecycleStatus);
         return ResponseEntity.ok(ApiResponse.ok(animals));
     }
 
@@ -82,6 +91,16 @@ public class AnimalController {
         return ResponseEntity.ok(ApiResponse.ok("Animal updated successfully", updated));
     }
 
+    @PatchMapping({"/{id}/lifecycle", "/{id}/status"})
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @Operation(summary = "Change animal lifecycle status (ACTIVE, SICK, SOLD, DECEASED, RETIRED, ARCHIVED) with reason and effective date")
+    public ResponseEntity<ApiResponse<AnimalDto>> changeLifecycleStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody ChangeLifecycleStatusRequest request) {
+        AnimalDto updated = animalService.changeLifecycleStatus(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Animal lifecycle status updated successfully", updated));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
     @Operation(summary = "Soft delete / archive an animal")
@@ -105,5 +124,19 @@ public class AnimalController {
             @Valid @RequestBody CreateHistoryEventRequest request) {
         AnimalHistoryDto history = animalService.addHistoryEvent(id, request);
         return new ResponseEntity<>(ApiResponse.ok("History event recorded successfully", history), HttpStatus.CREATED);
+    }
+
+    @GetMapping("/{id}/milk")
+    @Operation(summary = "Get actual milking records for this animal from the database")
+    public ResponseEntity<ApiResponse<List<AnimalMilkRecordDto>>> getAnimalMilkRecords(@PathVariable UUID id) {
+        List<AnimalMilkRecordDto> records = animalService.getAnimalMilkRecords(id);
+        return ResponseEntity.ok(ApiResponse.ok(records));
+    }
+
+    @GetMapping("/{id}/feed")
+    @Operation(summary = "Get actual feeding records for this animal from the database")
+    public ResponseEntity<ApiResponse<List<AnimalFeedRecordDto>>> getAnimalFeedRecords(@PathVariable UUID id) {
+        List<AnimalFeedRecordDto> records = animalService.getAnimalFeedRecords(id);
+        return ResponseEntity.ok(ApiResponse.ok(records));
     }
 }

@@ -1,5 +1,7 @@
 package com.dairyfarm.app.modules.auth.service;
 
+import com.dairyfarm.app.modules.auth.dto.EmailDeliveryResult;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,7 +38,7 @@ public class ResendEmailService {
                 .build();
 
         if (this.resendApiKey.isEmpty()) {
-            log.warn("Resend API key is not configured. Outgoing authentication emails will be logged locally as fallbacks.");
+            log.warn("Resend API key is not configured in RESEND_API_KEY. Outgoing emails will return a configuration warning.");
         } else {
             log.info("Resend Email Service initialized with sender: {}", this.fromEmail);
         }
@@ -47,12 +49,12 @@ public class ResendEmailService {
     }
 
     /**
-     * Send professional branded OTP verification email
+     * Send branded OTP verification email
      */
-    public boolean sendOtpEmail(String toEmail, String otpCode, String purpose, int validityMinutes) {
+    public EmailDeliveryResult sendOtpEmail(String toEmail, String otpCode, String purpose, int validityMinutes) {
         if (toEmail == null || !toEmail.contains("@")) {
-            log.warn("Invalid recipient email provided for OTP: {}", toEmail);
-            return false;
+            log.warn("Invalid recipient email provided: {}", toEmail);
+            return EmailDeliveryResult.failure("Invalid recipient email address", 400, toEmail);
         }
 
         String subject = "Your Jharanai Farm Verification Code: " + otpCode;
@@ -69,18 +71,52 @@ public class ResendEmailService {
     }
 
     /**
+     * Send team member activation invitation email
+     */
+    public EmailDeliveryResult sendInvitationEmail(
+            String toEmail,
+            String fullName,
+            String farmName,
+            String role,
+            String invitationToken,
+            String activationUrl
+    ) {
+        if (toEmail == null || !toEmail.contains("@")) {
+            return EmailDeliveryResult.failure("Invalid recipient email address", 400, toEmail);
+        }
+
+        String subject = "You're invited to join " + farmName + " on Jharanai Farm Platform";
+        String link = (activationUrl != null && !activationUrl.isBlank())
+                ? activationUrl
+                : "http://localhost:5173/activate-account?token=" + invitationToken;
+
+        String htmlBody = buildInvitationHtmlTemplate(fullName, farmName, role, link);
+        String textBody = "Hello " + fullName + ",\n\n"
+                + "You have been invited to join " + farmName + " as a " + role + ".\n"
+                + "Activate your account and set your password here:\n"
+                + link + "\n\n"
+                + "This invitation link expires in 72 hours.";
+
+        return sendEmail(toEmail, subject, htmlBody, textBody);
+    }
+
+    /**
      * Core email dispatch through Resend REST API
      */
-    public boolean sendEmail(String toEmail, String subject, String htmlContent, String textContent) {
+    public EmailDeliveryResult sendEmail(String toEmail, String subject, String htmlContent, String textContent) {
         if (!isConfigured()) {
-            log.info("Resend not configured: Mock email delivered to {} with subject '{}'", toEmail, subject);
-            return true;
+            log.warn("Resend email requested for {}, but RESEND_API_KEY is not set.", toEmail);
+            return EmailDeliveryResult.failure(
+                    "Resend API key is not configured. Please configure RESEND_API_KEY in environment variables.",
+                    503,
+                    toEmail
+            );
         }
 
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("from", fromEmail);
-            payload.put("to", List.of(toEmail));
+            payload.put("to", List.of(toEmail.trim()));
             payload.put("subject", subject);
             payload.put("html", htmlContent);
             payload.put("text", textContent);
@@ -96,23 +132,50 @@ public class ResendEmailService {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            int statusCode = response.statusCode();
+            String responseBody = response.body();
 
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                log.info("Email delivered via Resend to {} [status: {}]", toEmail, response.statusCode());
-                return true;
+            if (statusCode >= 200 && statusCode < 300) {
+                String messageId = null;
+                try {
+                    JsonNode node = objectMapper.readTree(responseBody);
+                    if (node.has("id")) {
+                        messageId = node.get("id").asText();
+                    }
+                } catch (Exception ignored) {
+                }
+                log.info("Email accepted by Resend for recipient {} [messageId: {}, status: {}]", toEmail, messageId, statusCode);
+                return EmailDeliveryResult.success(messageId, toEmail);
             } else {
-                log.error("Resend API rejected email to {} [status: {}, response: {}]",
-                        toEmail, response.statusCode(), response.body());
-                return false;
+                String humanMessage = extractResendErrorMessage(statusCode, responseBody);
+                log.error("Resend API rejected email to {} [status: {}, error: {}]", toEmail, statusCode, humanMessage);
+                return EmailDeliveryResult.failure(humanMessage, statusCode, toEmail);
             }
         } catch (Exception e) {
-            log.error("Failed to send email via Resend to {}: {}", toEmail, e.getMessage());
-            return false;
+            log.error("Failed to execute Resend HTTP request for {}: {}", toEmail, e.getMessage());
+            return EmailDeliveryResult.failure("Email dispatch failed due to network error: " + e.getMessage(), 500, toEmail);
         }
     }
 
+    private String extractResendErrorMessage(int statusCode, String responseBody) {
+        try {
+            JsonNode node = objectMapper.readTree(responseBody);
+            String message = node.has("message") ? node.get("message").asText() : "";
+            if (statusCode == 403 || statusCode == 422) {
+                if (message.contains("testing email address") || message.contains("domains like") || message.contains("only send")) {
+                    return "Resend sandbox limitation: onboarding@resend.dev can only send to your verified Resend account email. Please verify your custom domain in Resend to send to other domains.";
+                }
+            }
+            if (!message.isBlank()) {
+                return message;
+            }
+        } catch (Exception ignored) {
+        }
+        return "Resend API error with HTTP status " + statusCode;
+    }
+
     /**
-     * Responsive, clean HTML email template
+     * Responsive, clean HTML OTP email template
      */
     private String buildOtpHtmlTemplate(String otpCode, String actionLabel, int validityMinutes) {
         return """
@@ -166,5 +229,61 @@ public class ResendEmailService {
             </body>
             </html>
             """.formatted(actionLabel, otpCode, validityMinutes, java.time.Year.now().toString());
+    }
+
+    /**
+     * Branded HTML team invitation email template
+     */
+    private String buildInvitationHtmlTemplate(String fullName, String farmName, String role, String activationUrl) {
+        return """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Join %s on Jharanai Farm</title>
+              <style>
+                body { margin: 0; padding: 0; background-color: #f4f7f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+                .wrapper { width: 100%%; max-width: 580px; margin: 30px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+                .header { background: linear-gradient(135deg, #059669 0%%, #047857 100%%); padding: 32px 24px; text-align: center; color: #ffffff; }
+                .brand-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
+                .brand-sub { font-size: 13px; opacity: 0.9; margin-top: 4px; font-weight: 500; }
+                .content { padding: 36px 32px; color: #1e293b; line-height: 1.6; }
+                .greeting { font-size: 17px; font-weight: 700; margin-top: 0; color: #0f172a; }
+                .instruction { font-size: 14px; color: #475569; margin-bottom: 24px; }
+                .btn-box { text-align: center; margin: 30px 0; }
+                .btn { display: inline-block; background-color: #059669; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 28px; border-radius: 10px; }
+                .footer { background-color: #f8fafc; padding: 20px 24px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; }
+              </style>
+            </head>
+            <body>
+              <div class="wrapper">
+                <div class="header">
+                  <h1 class="brand-title">Jharanai Farm</h1>
+                  <p class="brand-sub">Commercial Dairy Operations Portal</p>
+                </div>
+                <div class="content">
+                  <p class="greeting">Hello %s,</p>
+                  <p class="instruction">
+                    You have been invited to join <strong>%s</strong> as a <strong>%s</strong> on the Jharanai Farm Management Platform.
+                  </p>
+                  <div class="btn-box">
+                    <a href="%s" class="btn" target="_blank">Activate Your Account</a>
+                  </div>
+                  <p class="instruction" style="font-size: 12px; color: #64748b;">
+                    If the button does not work, copy and paste this link in your browser:<br>
+                    <a href="%s" style="color: #059669; word-break: break-all;">%s</a>
+                  </p>
+                  <p class="instruction" style="font-size: 12px; color: #64748b;">
+                    ⏱ This invitation link expires in 72 hours.
+                  </p>
+                </div>
+                <div class="footer">
+                  &copy; %s Jharanai Dairy Farm. All operational rights reserved.
+                </div>
+              </div>
+            </body>
+            </html>
+            """.formatted(farmName, fullName, farmName, role, activationUrl, activationUrl, activationUrl, java.time.Year.now().toString());
     }
 }

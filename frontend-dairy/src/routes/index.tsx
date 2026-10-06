@@ -8,6 +8,8 @@ import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { ModulesDrawer } from "@/components/layout/ModulesDrawer";
 import { QuickAddModal } from "@/components/quick-add/QuickAddModal";
 import { AnimalProfileModal } from "@/components/animals/AnimalProfileModal";
+import { EditAnimalModal } from "@/components/animals/EditAnimalModal";
+import { LifecycleModal } from "@/components/animals/LifecycleModal";
 import { AnimalListView } from "@/components/animals/AnimalListView";
 import { CowPerformanceGroupsView } from "@/components/animals/CowPerformanceGroupsView";
 import { FarmDashboard } from "@/components/dashboard/FarmDashboard";
@@ -56,7 +58,7 @@ export const Route = createFileRoute("/")({
 
 export function FarmApp() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading, isWorker, isManager, isOwner } = useAuth();
+  const { user, isAuthenticated, isLoading, isRestoringSession, isWorker, isManager, isOwner } = useAuth();
 
   // Navigation & Page State
   const [currentPage, setCurrentPage] = useState<string>("home");
@@ -68,22 +70,28 @@ export function FarmApp() {
   const [profileModalOpen, setProfileModalOpen] = useState<boolean>(false);
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
+  const [editAnimalOpen, setEditAnimalOpen] = useState<boolean>(false);
+  const [animalToEdit, setAnimalToEdit] = useState<Animal | null>(null);
+  const [lifecycleModalOpen, setLifecycleModalOpen] = useState<boolean>(false);
+  const [animalForLifecycle, setAnimalForLifecycle] = useState<Animal | null>(null);
 
-  // Domain Data State
+  // Domain Data State & Background Fetch State
+  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [alerts, setAlerts] = useState<FarmAlert[]>([]);
   const [recentMilk, setRecentMilk] = useState<MilkRecord[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
 
-  // Frontend Route Protection Guard
+  // Frontend Route Protection Guard: wait until session check completes before redirecting
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isRestoringSession && !isAuthenticated) {
       navigate({ to: "/login" });
     }
-  }, [isLoading, isAuthenticated, navigate]);
+  }, [isRestoringSession, isAuthenticated, navigate]);
 
   // Load latest data from reactive farm service
   const loadData = useCallback(async () => {
+    setIsDataLoading(true);
     try {
       const [animalList, alertList, milkList, stockList] = await Promise.all([
         farmService.listAnimals(),
@@ -95,8 +103,10 @@ export function FarmApp() {
       setAlerts(alertList);
       setRecentMilk(milkList);
       setStockItems(stockList);
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.error("Failed to load farm domain data:", err);
+    } finally {
+      setIsDataLoading(false);
     }
   }, []);
 
@@ -126,8 +136,8 @@ export function FarmApp() {
   // Urgent alerts count for header and bottom nav badges
   const urgentAlertCount = alerts.filter((a) => a.level === "Urgent").length;
 
-  // Session verification loading screen
-  if (isLoading) {
+  // Session verification loading screen (only on initial session restoration)
+  if (isRestoringSession) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
         <CowBrandLogo size="lg" />
@@ -187,6 +197,7 @@ export function FarmApp() {
                 alerts={alerts}
                 recentMilk={recentMilk}
                 stockItems={stockItems}
+                isLoading={isDataLoading}
                 onNavigateModule={handleNavigate}
                 onOpenQuickAdd={handleOpenQuickAdd}
                 onSelectAnimal={setSelectedAnimal}
@@ -214,6 +225,14 @@ export function FarmApp() {
                 onSelectAnimal={setSelectedAnimal}
                 onAddNew={() => handleOpenQuickAdd("add-animal")}
                 onRecordMilk={() => handleOpenQuickAdd("record-milk")}
+                onEditAnimal={(a) => {
+                  setAnimalToEdit(a);
+                  setEditAnimalOpen(true);
+                }}
+                onChangeStatus={(a) => {
+                  setAnimalForLifecycle(a);
+                  setLifecycleModalOpen(true);
+                }}
               />
             )}
 
@@ -325,6 +344,41 @@ export function FarmApp() {
         animal={selectedAnimal}
         onOpenChange={(open) => !open && setSelectedAnimal(null)}
         onRecordMilk={() => handleOpenQuickAdd("record-milk")}
+        onEditAnimal={(a) => {
+          setSelectedAnimal(null);
+          setAnimalToEdit(a);
+          setEditAnimalOpen(true);
+        }}
+        onLifecycleChange={(a) => {
+          setSelectedAnimal(null);
+          setAnimalForLifecycle(a);
+          setLifecycleModalOpen(true);
+        }}
+      />
+
+      <EditAnimalModal
+        animal={animalToEdit}
+        open={editAnimalOpen}
+        onOpenChange={setEditAnimalOpen}
+        availableAnimals={animals}
+        onAnimalUpdated={(updated) => {
+          loadData();
+          if (selectedAnimal?.id === updated.id) {
+            setSelectedAnimal(updated);
+          }
+        }}
+      />
+
+      <LifecycleModal
+        animal={animalForLifecycle}
+        open={lifecycleModalOpen}
+        onOpenChange={setLifecycleModalOpen}
+        onStatusChanged={(updated) => {
+          loadData();
+          if (selectedAnimal?.id === updated.id) {
+            setSelectedAnimal(updated);
+          }
+        }}
       />
 
       <ModulesDrawer

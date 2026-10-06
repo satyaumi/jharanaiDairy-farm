@@ -13,6 +13,7 @@ import {
   Grid,
   Calendar,
   Layers,
+  Loader2,
 } from "lucide-react";
 import { CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface FarmDashboardProps {
   alerts: FarmAlert[];
   recentMilk: MilkRecord[];
   stockItems: StockItem[];
+  isLoading?: boolean;
   onNavigateModule: (moduleId: string) => void;
   onOpenQuickAdd: (actionKey?: string) => void;
   onSelectAnimal: (animal: Animal) => void;
@@ -35,6 +37,7 @@ export function FarmDashboard({
   alerts,
   recentMilk,
   stockItems,
+  isLoading,
   onNavigateModule,
   onOpenQuickAdd,
   onSelectAnimal,
@@ -133,16 +136,24 @@ export function FarmDashboard({
             </div>
           </div>
 
-          {/* Quick Record Milk Shortcut */}
-          <Button
-            size="sm"
-            onClick={() => onOpenQuickAdd("record-milk")}
-            className="h-9 gap-1.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 px-3 text-xs font-black shadow-md transition-transform active:scale-95"
-          >
-            <Plus className="size-3.5 stroke-[3]" />
-            <span className="hidden sm:inline">Record Milk</span>
-            <span className="sm:hidden">Log</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {isLoading && (
+              <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 text-[11px] font-semibold backdrop-blur-sm animate-pulse">
+                <Loader2 className="size-3 animate-spin" />
+                <span>Syncing data...</span>
+              </div>
+            )}
+            {/* Quick Record Milk Shortcut */}
+            <Button
+              size="sm"
+              onClick={() => onOpenQuickAdd("record-milk")}
+              className="h-9 gap-1.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 px-3 text-xs font-black shadow-md transition-transform active:scale-95"
+            >
+              <Plus className="size-3.5 stroke-[3]" />
+              <span className="hidden sm:inline">Record Milk</span>
+              <span className="sm:hidden">Log</span>
+            </Button>
+          </div>
         </div>
 
         {/* 2. THE THREE COMPACT KPI CARDS ROW */}

@@ -1,6 +1,14 @@
 export type AnimalStatus = "Healthy" | "Needs check" | "Sick";
 export type AnimalType = "Lactating" | "Pregnant" | "Calf" | "Dry";
 
+export type LifecycleStatus =
+  | "ACTIVE"
+  | "SICK"
+  | "SOLD"
+  | "DECEASED"
+  | "RETIRED"
+  | "ARCHIVED";
+
 export interface TimelineEvent {
   id: string;
   type:
@@ -11,7 +19,11 @@ export interface TimelineEvent {
     | "pregnancy"
     | "calving"
     | "lactation"
-    | "milk";
+    | "milk"
+    | "death"
+    | "sale"
+    | "retirement"
+    | "lifecycle";
   title: string;
   date: string;
   detail: string;
@@ -25,6 +37,11 @@ export interface Animal {
   breed: string;
   type: AnimalType;
   status: AnimalStatus;
+  lifecycleStatus?: LifecycleStatus | undefined;
+  lifecycleDate?: string | undefined;
+  lifecycleReason?: string | undefined;
+  lifecycleNotes?: string | undefined;
+  active?: boolean | undefined;
   age: string;
   weight: number;
   yield: number;
@@ -48,6 +65,62 @@ export interface Animal {
   vaccinations?:
     { name: string; date: string; status: "Done" | "Due" }[] | undefined;
   timeline?: TimelineEvent[] | undefined;
+}
+
+export interface UpdateAnimalData {
+  name?: string | undefined;
+  tag?: string | undefined;
+  breed?: string | undefined;
+  type?: AnimalType | undefined;
+  status?: AnimalStatus | undefined;
+  lifecycleStatus?: LifecycleStatus | undefined;
+  age?: string | undefined;
+  weight?: number | undefined;
+  yield?: number | undefined;
+  pen?: string | undefined;
+  lactationCycle?: number | undefined;
+  feedRation?: string | undefined;
+  dueDate?: string | undefined;
+  birthDate?: string | undefined;
+  birthStatus?: string | undefined;
+  fatherAnimalId?: string | undefined;
+  fatherTag?: string | undefined;
+  fatherName?: string | undefined;
+  motherAnimalId?: string | undefined;
+  motherTag?: string | undefined;
+  motherName?: string | undefined;
+  aiDate?: string | undefined;
+  lastVaccinationDate?: string | undefined;
+  lastHealthCheck?: string | undefined;
+  active?: boolean | undefined;
+}
+
+export interface ChangeLifecycleStatusData {
+  status: LifecycleStatus;
+  effectiveDate?: string | undefined;
+  reason?: string | undefined;
+  notes?: string | undefined;
+}
+
+export interface AnimalMilkRecordItem {
+  id: string;
+  recordDate: string;
+  shift: string;
+  litres: number;
+  quality?: string;
+  fatPercentage?: number;
+  snfPercentage?: number;
+  notes?: string;
+}
+
+export interface AnimalFeedRecordItem {
+  id: string;
+  recordDate: string;
+  feedType: string;
+  groupName: string;
+  quantityKg: number;
+  recordedBy?: string;
+  notes?: string;
 }
 
 export interface MilkRecord {

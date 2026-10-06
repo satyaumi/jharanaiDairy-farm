@@ -280,4 +280,91 @@ class AnimalControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.active").value(false));
     }
+
+    @Test
+    void updateAnimal_ChangeTagToDuplicate_ShouldReturn409Conflict() throws Exception {
+        // Create animal 1
+        CreateAnimalRequest cow1 = CreateAnimalRequest.builder()
+                .name("Cow One")
+                .tag("C-DUP-A")
+                .breed("Jersey")
+                .build();
+        mockMvc.perform(post("/api/animals")
+                        .header("Authorization", "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(cow1)))
+                .andExpect(status().isCreated());
+
+        // Create animal 2
+        CreateAnimalRequest cow2 = CreateAnimalRequest.builder()
+                .name("Cow Two")
+                .tag("C-DUP-B")
+                .breed("Holstein")
+                .build();
+        MvcResult res2 = mockMvc.perform(post("/api/animals")
+                        .header("Authorization", "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(cow2)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String cow2Id = objectMapper.readTree(res2.getResponse().getContentAsString())
+                .get("data").get("id").asText();
+
+        // Try updating cow2 tag to cow1's tag "C-DUP-A"
+        UpdateAnimalRequest conflictReq = UpdateAnimalRequest.builder()
+                .tag("C-DUP-A")
+                .build();
+
+        mockMvc.perform(put("/api/animals/" + cow2Id)
+                        .header("Authorization", "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(conflictReq)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Animal with ear tag 'C-DUP-A' already exists on this farm"));
+    }
+
+    @Test
+    void changeLifecycleStatus_ToDeceased_ShouldDeactivateAndRecordHistory() throws Exception {
+        CreateAnimalRequest req = CreateAnimalRequest.builder()
+                .name("Elder Cow")
+                .tag("C-DECEASED-01")
+                .breed("Holstein")
+                .build();
+
+        MvcResult res = mockMvc.perform(post("/api/animals")
+                        .header("Authorization", "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String animalId = objectMapper.readTree(res.getResponse().getContentAsString())
+                .get("data").get("id").asText();
+
+        // Change lifecycle to DECEASED with reason and notes
+        com.dairyfarm.app.modules.animal.dto.ChangeLifecycleStatusRequest lifecycleReq =
+                com.dairyfarm.app.modules.animal.dto.ChangeLifecycleStatusRequest.builder()
+                        .status(com.dairyfarm.app.modules.animal.model.LifecycleStatus.DECEASED)
+                        .effectiveDate(LocalDate.now())
+                        .reason("Old age natural demise")
+                        .notes("Survived 4 successful calving cycles.")
+                        .build();
+
+        mockMvc.perform(patch("/api/animals/" + animalId + "/lifecycle")
+                        .header("Authorization", "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(lifecycleReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.lifecycleStatus").value("DECEASED"))
+                .andExpect(jsonPath("$.data.active").value(false))
+                .andExpect(jsonPath("$.data.lifecycleReason").value("Old age natural demise"));
+
+        // Verify history has an automatic DEATH record
+        mockMvc.perform(get("/api/animals/" + animalId + "/history")
+                        .header("Authorization", "Bearer " + authToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].eventType").value("DEATH"))
+                .andExpect(jsonPath("$.data[0].title").value("Animal Deceased"));
+    }
 }

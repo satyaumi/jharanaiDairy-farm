@@ -14,5 +14,7 @@ public interface FeedRecordRepository extends JpaRepository<FeedRecord, UUID> {
     List<FeedRecord> findByFarmIdAndRecordDateBetweenOrderByRecordDateDescCreatedAtDesc(
             UUID farmId, LocalDate startDate, LocalDate endDate);
 
+    List<FeedRecord> findByFarmIdAndAnimalIdOrderByRecordDateDescCreatedAtDesc(UUID farmId, UUID animalId);
+
     List<FeedRecord> findByFarmIdOrderByRecordDateDescCreatedAtDesc(UUID farmId);
 }

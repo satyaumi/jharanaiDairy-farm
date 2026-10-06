@@ -530,7 +530,9 @@ class FarmStore {
 
   saveAnimal(animal: Animal): Animal[] {
     const list = this.getAnimals();
-    const existingIndex = list.findIndex((a) => a.id === animal.id);
+    const existingIndex = list.findIndex(
+      (a) => a.id === animal.id || (a.tag && animal.tag && a.tag.toUpperCase() === animal.tag.toUpperCase()),
+    );
     let updated: Animal[];
     if (existingIndex >= 0) {
       updated = [...list];

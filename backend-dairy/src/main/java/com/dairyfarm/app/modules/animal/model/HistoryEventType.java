@@ -10,5 +10,9 @@ public enum HistoryEventType {
     PREGNANCY,
     WEIGHT,
     MILK,
+    LIFECYCLE_CHANGE,
+    DEATH,
+    SALE,
+    RETIREMENT,
     OTHER
 }

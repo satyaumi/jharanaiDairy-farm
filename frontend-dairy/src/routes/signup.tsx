@@ -34,7 +34,7 @@ export const Route = createFileRoute("/signup")({
 
 export function SignupPage() {
   const navigate = useNavigate();
-  const { signup, isAuthenticated, isLoading } = useAuth();
+  const { signup, isAuthenticated, isLoading, isRestoringSession } = useAuth();
 
   const [fullName, setFullName] = useState<string>("");
   const [countryCode, setCountryCode] = useState<string>("+91");
@@ -49,12 +49,38 @@ export function SignupPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated and not showing the success screen
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isRestoringSession && isAuthenticated && !isSuccess) {
       navigate({ to: "/" });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isRestoringSession, isSuccess, navigate]);
+
+  // Clean, non-flickering session restoration screen
+  if (isRestoringSession) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+        <CowBrandLogo size="lg" />
+        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground font-semibold">
+          <Loader2 className="size-4 animate-spin text-emerald-600" />
+          <span>Restoring farm session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Smooth redirect view if user is already authenticated
+  if (isAuthenticated && !isSuccess) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+        <CowBrandLogo size="lg" />
+        <div className="mt-4 flex items-center gap-2 text-xs text-emerald-600 font-semibold">
+          <ShieldCheck className="size-4" />
+          <span>Session active. Taking you to your dashboard...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Password strength calculator
   const getPasswordStrength = (pass: string) => {
@@ -122,13 +148,13 @@ export function SignupPage() {
 
       setIsSuccess(true);
       toast.success("Account created successfully!", {
-        description: "Your dairy farm has been registered. Please sign in.",
+        description: "Welcome to Jharanai Farm! Taking you to your farm dashboard.",
       });
 
-      // Redirect to login after 2 seconds
+      // Smooth transition to farm dashboard
       setTimeout(() => {
-        navigate({ to: "/login" });
-      }, 2000);
+        navigate({ to: "/" });
+      }, 1500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create account. Please try again.";
       setErrorMessage(msg);
@@ -153,14 +179,14 @@ export function SignupPage() {
           </p>
           <div className="mt-6 flex justify-center items-center gap-2 text-xs text-muted-foreground font-semibold">
             <Loader2 className="size-4 animate-spin text-emerald-600" />
-            <span>Redirecting you to sign in...</span>
+            <span>Taking you to your farm dashboard...</span>
           </div>
           <div className="mt-4">
             <Button
-              onClick={() => navigate({ to: "/login" })}
+              onClick={() => navigate({ to: "/" })}
               className="w-full h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
             >
-              Sign In Now
+              Enter Farm Dashboard Now
             </Button>
           </div>
         </div>
@@ -428,7 +454,7 @@ export function SignupPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  <span>Registering Farm...</span>
+                  <span>Creating your account...</span>
                 </>
               ) : (
                 <>

@@ -111,6 +111,20 @@ public class Animal extends AuditableEntity {
     @Column(name = "last_health_check")
     private LocalDate lastHealthCheck;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lifecycle_status", nullable = false, length = 50)
+    @Builder.Default
+    private LifecycleStatus lifecycleStatus = LifecycleStatus.ACTIVE;
+
+    @Column(name = "lifecycle_date")
+    private LocalDate lifecycleDate;
+
+    @Column(name = "lifecycle_reason", length = 255)
+    private String lifecycleReason;
+
+    @Column(name = "lifecycle_notes", columnDefinition = "TEXT")
+    private String lifecycleNotes;
+
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;

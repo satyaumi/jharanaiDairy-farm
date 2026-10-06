@@ -378,7 +378,7 @@ export function ForgotPasswordPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="size-4 animate-spin mr-1" />
-                      Saving...
+                      Resetting Password...
                     </>
                   ) : (
                     "Reset Password"

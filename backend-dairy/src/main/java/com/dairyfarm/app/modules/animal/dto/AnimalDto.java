@@ -2,12 +2,14 @@ package com.dairyfarm.app.modules.animal.dto;
 
 import com.dairyfarm.app.modules.animal.model.Animal;
 import com.dairyfarm.app.modules.animal.model.AnimalType;
+import com.dairyfarm.app.modules.animal.model.LifecycleStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,12 +27,19 @@ public class AnimalDto {
     private String breed;
     private AnimalType type;
     private String status;
+    private LifecycleStatus lifecycleStatus;
+    private LocalDate lifecycleDate;
+    private String lifecycleReason;
+    private String lifecycleNotes;
     private String age;
     private BigDecimal weight;
     private BigDecimal yield;
     private String pen;
     private Integer lactationCycle;
     private String feedRation;
+    private LocalDate dueDate;
+    private Instant lastMilkingDate;
+    private LocalDate lastHealthCheck;
 
     // Animal History details
     private LocalDate birthDate;
@@ -66,12 +75,19 @@ public class AnimalDto {
                 .breed(animal.getBreed())
                 .type(animal.getAnimalType())
                 .status(animal.getStatus())
+                .lifecycleStatus(animal.getLifecycleStatus())
+                .lifecycleDate(animal.getLifecycleDate())
+                .lifecycleReason(animal.getLifecycleReason())
+                .lifecycleNotes(animal.getLifecycleNotes())
                 .age(animal.getAge())
                 .weight(animal.getWeight())
                 .yield(animal.getMilkYield())
                 .pen(animal.getPen())
                 .lactationCycle(animal.getLactationCycle())
                 .feedRation(animal.getFeedRation())
+                .dueDate(animal.getDueDate())
+                .lastMilkingDate(animal.getLastMilkingDate())
+                .lastHealthCheck(animal.getLastHealthCheck())
                 .birthDate(animal.getBirthDate())
                 .birthStatus(animal.getBirthStatus())
                 .fatherAnimalId(animal.getFather() != null ? animal.getFather().getId() : null)
