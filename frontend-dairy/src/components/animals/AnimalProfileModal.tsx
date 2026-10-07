@@ -131,12 +131,16 @@ export function AnimalProfileModal({
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <DialogTitle className="text-xl font-extrabold text-foreground">
-                    {animal.name}
+                  <DialogTitle className="text-xl font-extrabold text-foreground flex items-center gap-2">
+                    <span className="font-black text-emerald-800 dark:text-emerald-300 bg-emerald-500/15 px-2.5 py-0.5 rounded-xl">
+                      {animal.tag}
+                    </span>
+                    {animal.name && animal.name !== animal.tag && (
+                      <span className="text-sm font-semibold text-muted-foreground">
+                        ({animal.name})
+                      </span>
+                    )}
                   </DialogTitle>
-                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold text-secondary-foreground">
-                    {animal.tag}
-                  </span>
                   {lifecycle !== "ACTIVE" && (
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${

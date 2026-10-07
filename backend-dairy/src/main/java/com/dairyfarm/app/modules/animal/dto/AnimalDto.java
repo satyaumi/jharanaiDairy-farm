@@ -35,6 +35,8 @@ public class AnimalDto {
     private BigDecimal weight;
     private BigDecimal yield;
     private String pen;
+    private UUID groupId;
+    private String groupName;
     private Integer lactationCycle;
     private String feedRation;
     private LocalDate dueDate;
@@ -83,6 +85,8 @@ public class AnimalDto {
                 .weight(animal.getWeight())
                 .yield(animal.getMilkYield())
                 .pen(animal.getPen())
+                .groupId(animal.getGroup() != null ? animal.getGroup().getId() : null)
+                .groupName(animal.getGroup() != null ? animal.getGroup().getName() : (animal.getPen() != null ? animal.getPen() : null))
                 .lactationCycle(animal.getLactationCycle())
                 .feedRation(animal.getFeedRation())
                 .dueDate(animal.getDueDate())

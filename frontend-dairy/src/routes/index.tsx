@@ -249,6 +249,7 @@ export function FarmApp() {
               <MilkingModuleView
                 records={recentMilk}
                 animals={animals}
+                onRefresh={loadData}
                 onOpenQuickRecord={() => handleOpenQuickAdd("record-milk")}
                 onRecordForAnimal={() => handleOpenQuickAdd("record-milk")}
               />
@@ -288,6 +289,7 @@ export function FarmApp() {
             {currentPage === "stock" && (
               <StockModuleView
                 stockItems={stockItems}
+                animals={animals}
                 onOpenQuickStock={() => handleOpenQuickAdd("stock")}
               />
             )}

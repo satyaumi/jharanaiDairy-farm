@@ -28,5 +28,9 @@ public interface AnimalRepository extends JpaRepository<Animal, UUID>, JpaSpecif
 
     List<Animal> findByFarmId(UUID farmId);
 
+    List<Animal> findByFarmIdAndGroupIdAndActiveTrue(UUID farmId, UUID groupId);
+
+    long countByFarmIdAndGroupId(UUID farmId, UUID groupId);
+
     List<Animal> findByActiveTrue();
 }

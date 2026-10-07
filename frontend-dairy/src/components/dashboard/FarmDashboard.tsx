@@ -64,36 +64,36 @@ export function FarmDashboard({
         )
       : 0;
 
-  // 1. THE FOUR PRIMARY OPERATIONAL MODULES (Section 1 Core Focus)
+  // 1. THE FOUR PRIMARY OPERATIONAL MODULES (Feeding, Milk, Stock, Animals)
   const PRIMARY_FOUR_MODULES = [
     {
-      id: "animals",
-      name: "Herd Management",
-      icon: CowIcon,
-      isCustomIcon: true,
-      badge: `${animals.length} Head`,
-      subtitle: "Registry, breeds, lactating & calf care",
+      id: "feeding",
+      name: "ଖାଦ୍ୟ (Feeding)",
+      icon: Wheat,
+      badge: "Active",
+      subtitle: "Bilingual rations & automatic stock deduction",
     },
     {
       id: "milking",
-      name: "Milk Harvest",
+      name: "ଦୁଗ୍ଧ (Milk)",
       icon: Milk,
       badge: todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(1)} L Today` : "0.0 L",
-      subtitle: "Shift collection, quality logs & yields",
+      subtitle: "Shift collection, fast group entry & yields",
     },
     {
-      id: "equipment",
-      name: "Equipment Status",
-      icon: Tractor,
-      badge: "6 Assets",
-      subtitle: "Milking machines, chillers & tractors",
+      id: "stock",
+      name: "ଷ୍ଟକ୍ (Stock)",
+      icon: Package,
+      badge: "Ledger",
+      subtitle: "Opening + Added − Consumed strict ledger & medicines",
     },
     {
-      id: "feeding",
-      name: "Feed & Rations",
-      icon: Wheat,
-      badge: stockItems.length > 0 ? `${feedStockPercent}% Silo` : "0% Silo",
-      subtitle: "Daily intake, concentrate & silage storage",
+      id: "animals",
+      name: "ଗୋପାଳନ (Animals)",
+      icon: CowIcon,
+      isCustomIcon: true,
+      badge: `${animals.length} Cows`,
+      subtitle: "Tag-first herd registry, groups & status",
     },
   ];
 

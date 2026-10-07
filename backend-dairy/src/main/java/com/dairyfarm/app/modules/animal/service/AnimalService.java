@@ -8,6 +8,7 @@ import com.dairyfarm.app.common.exception.DuplicateResourceException;
 import com.dairyfarm.app.common.exception.ResourceNotFoundException;
 import com.dairyfarm.app.modules.animal.dto.*;
 import com.dairyfarm.app.modules.animal.model.*;
+import com.dairyfarm.app.modules.animal.repository.AnimalGroupRepository;
 import com.dairyfarm.app.modules.animal.repository.AnimalHistoryRepository;
 import com.dairyfarm.app.modules.animal.repository.AnimalRepository;
 import com.dairyfarm.app.modules.farm.model.Farm;
@@ -37,6 +38,7 @@ import java.util.UUID;
 public class AnimalService {
 
     private final AnimalRepository animalRepository;
+    private final AnimalGroupRepository groupRepository;
     private final AnimalHistoryRepository historyRepository;
     private final FarmRepository farmRepository;
     private final UserRepository userRepository;
@@ -229,10 +231,27 @@ public class AnimalService {
             age = String.format("%dy %dm", period.getYears(), period.getMonths());
         }
 
+        // Resolve Animal Group
+        AnimalGroup group = null;
+        if (request.getGroupId() != null) {
+            group = groupRepository.findByIdAndFarmId(request.getGroupId(), farmId).orElse(null);
+        } else if (request.getGroupName() != null && !request.getGroupName().isBlank()) {
+            String gName = request.getGroupName().trim();
+            group = groupRepository.findByFarmIdOrderByNameAsc(farmId).stream()
+                    .filter(g -> g.getName().equalsIgnoreCase(gName))
+                    .findFirst()
+                    .orElseGet(() -> groupRepository.save(AnimalGroup.builder().farm(farm).name(gName).active(true).build()));
+        }
+
+        String animalName = (request.getName() != null && !request.getName().isBlank())
+                ? request.getName().trim()
+                : earTag;
+
         Animal animal = Animal.builder()
                 .farm(farm)
-                .animalName(request.getName().trim())
+                .animalName(animalName)
                 .earTag(earTag)
+                .group(group)
                 .breed(request.getBreed().trim())
                 .animalType(request.getType() != null ? request.getType() : AnimalType.Lactating)
                 .status(request.getStatus() != null ? request.getStatus() : "Healthy")
@@ -240,7 +259,7 @@ public class AnimalService {
                 .age(age)
                 .weight(request.getWeight())
                 .milkYield(request.getYield())
-                .pen(request.getPen())
+                .pen(group != null ? group.getName() : request.getPen())
                 .lactationCycle(request.getLactationCycle())
                 .feedRation(request.getFeedRation())
                 .birthDate(birthDate)
@@ -364,6 +383,19 @@ public class AnimalService {
         }
         if (request.getPen() != null) {
             animal.setPen(request.getPen());
+        }
+        if (request.getGroupId() != null) {
+            AnimalGroup grp = groupRepository.findByIdAndFarmId(request.getGroupId(), farmId).orElse(null);
+            animal.setGroup(grp);
+            if (grp != null) animal.setPen(grp.getName());
+        } else if (request.getGroupName() != null && !request.getGroupName().isBlank()) {
+            String gName = request.getGroupName().trim();
+            AnimalGroup grp = groupRepository.findByFarmIdOrderByNameAsc(farmId).stream()
+                    .filter(g -> g.getName().equalsIgnoreCase(gName))
+                    .findFirst()
+                    .orElseGet(() -> groupRepository.save(AnimalGroup.builder().farm(animal.getFarm()).name(gName).active(true).build()));
+            animal.setGroup(grp);
+            animal.setPen(grp.getName());
         }
         if (request.getLactationCycle() != null) {
             animal.setLactationCycle(request.getLactationCycle());

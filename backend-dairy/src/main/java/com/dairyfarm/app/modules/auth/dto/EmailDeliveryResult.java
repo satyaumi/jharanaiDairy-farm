@@ -16,6 +16,10 @@ public class EmailDeliveryResult {
     private Integer statusCode;
     private String errorMessage;
     private String recipient;
+    @Builder.Default
+    private boolean sandboxFallback = false;
+    private String fallbackRecipient;
+    private String otpCode;
 
     public static EmailDeliveryResult success(String messageId, String recipient) {
         return EmailDeliveryResult.builder()
@@ -23,6 +27,18 @@ public class EmailDeliveryResult {
                 .messageId(messageId)
                 .statusCode(200)
                 .recipient(recipient)
+                .build();
+    }
+
+    public static EmailDeliveryResult sandboxSuccess(String messageId, String recipient, String fallbackRecipient, String otpCode) {
+        return EmailDeliveryResult.builder()
+                .success(true)
+                .sandboxFallback(true)
+                .messageId(messageId)
+                .statusCode(200)
+                .recipient(recipient)
+                .fallbackRecipient(fallbackRecipient)
+                .otpCode(otpCode)
                 .build();
     }
 

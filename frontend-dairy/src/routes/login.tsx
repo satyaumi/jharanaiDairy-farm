@@ -120,9 +120,17 @@ export function LoginPage() {
       setDispatchedEmail(res.email || cleanId);
       setOtpStep("enter_otp");
       setCooldownSeconds(60);
-      toast.success("Verification Code Dispatched", {
-        description: res.message || "A 6-digit code was sent to your verified contact method.",
-      });
+      if (res.sandboxOtp) {
+        setOtpCode(res.sandboxOtp);
+        toast.info(`Verification Code: ${res.sandboxOtp}`, {
+          description: "Delivered to admin email satyamlkinf@gmail.com and pre-filled for testing.",
+          duration: 12000,
+        });
+      } else {
+        toast.success("Verification Code Dispatched", {
+          description: res.message || "A 6-digit code was sent to your verified contact method.",
+        });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to dispatch verification code.";
       setErrorMessage(msg);

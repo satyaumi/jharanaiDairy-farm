@@ -213,7 +213,7 @@ class AuthService {
   /**
    * Request OTP for role-based account login
    */
-  async sendLoginOtp(phoneOrEmail: string, requestedRole?: Role): Promise<{ success: boolean; message: string; email?: string; role?: string }> {
+  async sendLoginOtp(phoneOrEmail: string, requestedRole?: Role): Promise<{ success: boolean; message: string; email?: string; role?: string; sandboxOtp?: string }> {
     try {
       const response = await fetchWithTimeout(`${this.baseUrl}/send-login-otp`, {
         method: "POST",

@@ -145,11 +145,12 @@ export function CowBrandLogo({
       </div>
       {showText && (
         <div className="min-w-0 leading-tight">
-          <p className="truncate font-extrabold tracking-tight text-foreground text-sm sm:text-base">
-            Jharanai <span className="text-emerald-700 dark:text-emerald-400">Farm</span>
+          <p className="truncate font-extrabold tracking-tight text-foreground text-sm sm:text-base flex items-center gap-1.5">
+            <span className="font-bold text-emerald-800 dark:text-emerald-300">ଝରଣାଇ</span>
+            <span className="text-muted-foreground font-semibold text-xs sm:text-sm">(Jharanai)</span>
           </p>
-          <p className="truncate text-[11px] font-medium text-muted-foreground">
-            {subtitle}
+          <p className="truncate text-[10px] sm:text-[11px] font-medium text-muted-foreground">
+            {subtitle || "Dairy Farm · ଦୁଗ୍ଧ ଫାର୍ମ"}
           </p>
         </div>
       )}

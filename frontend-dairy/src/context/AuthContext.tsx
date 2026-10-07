@@ -13,7 +13,7 @@ import { authService } from "@/services/auth-service";
 
 interface AuthContextValue extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
-  sendLoginOtp: (phoneOrEmail: string, role?: Role) => Promise<{ success: boolean; message: string; email?: string; role?: string }>;
+  sendLoginOtp: (phoneOrEmail: string, role?: Role) => Promise<{ success: boolean; message: string; email?: string; role?: string; sandboxOtp?: string }>;
   loginWithOtp: (phoneOrEmail: string, otp: string, role?: Role) => Promise<void>;
   signup: (payload: SignupPayload) => Promise<void>;
   verifyOtp: (payload: VerifyOtpPayload) => Promise<void>;

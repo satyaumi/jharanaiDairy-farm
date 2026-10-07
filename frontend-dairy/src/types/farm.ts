@@ -212,3 +212,97 @@ export interface FarmAlert {
   targetModule: string;
   date: string;
 }
+
+export interface AnimalGroup {
+  id: string;
+  farmId?: string;
+  name: string;
+  code?: string;
+  description?: string;
+  animalCount?: number;
+  active?: boolean;
+}
+
+export interface FeedItem {
+  id: string;
+  farmId?: string;
+  englishName: string;
+  localName: string;
+  displayName?: string;
+  category: string;
+  unit: string;
+  defaultDailyKg?: number;
+  active?: boolean;
+}
+
+export interface StockBalance {
+  feedItemId: string;
+  englishName: string;
+  localName: string;
+  displayName: string;
+  category: string;
+  unit: string;
+  openingStock: number;
+  totalAdded: number;
+  totalConsumed: number;
+  currentStock: number;
+  minimumThreshold?: number;
+  lowStock?: boolean;
+}
+
+export interface StockTransaction {
+  id: string;
+  feedItemId: string;
+  feedItemName: string;
+  transactionType: "OPENING" | "ADD" | "CONSUME" | "ADJUSTMENT";
+  quantity: number;
+  unit: string;
+  referenceType?: string;
+  referenceId?: string;
+  notes?: string;
+  transactionDate: string;
+  createdAt?: string;
+}
+
+export interface Medicine {
+  id: string;
+  name: string;
+  genericName?: string;
+  category?: string;
+  unit: string;
+  currentStock: number;
+  minimumThreshold: number;
+  batchNumber?: string;
+  expiryDate?: string;
+  lowStock?: boolean;
+  expired?: boolean;
+}
+
+export interface MedicineTransaction {
+  id: string;
+  medicineId: string;
+  medicineName: string;
+  transactionType: "RECEIPT" | "USAGE" | "DISCARD";
+  quantity: number;
+  unit: string;
+  animalId?: string;
+  animalTag?: string;
+  reason?: string;
+  notes?: string;
+  transactionDate: string;
+}
+
+export interface MilkSummary {
+  todayLitres: number;
+  morningLitres: number;
+  eveningLitres: number;
+  lactatingCowsCount: number;
+  averagePerCow: number;
+}
+
+export interface BulkMilkRecordItem {
+  animalId: string;
+  animalTag: string;
+  litres: number;
+}
+

@@ -22,6 +22,10 @@ public interface MilkRecordRepository extends JpaRepository<MilkRecord, UUID> {
 
     List<MilkRecord> findByFarmIdAndAnimalIdOrderByRecordDateDescCreatedAtDesc(UUID farmId, UUID animalId);
 
+    List<MilkRecord> findByFarmIdAndRecordDateOrderByRecordDateDescCreatedAtDesc(UUID farmId, LocalDate recordDate);
+
+    List<MilkRecord> findByFarmIdAndRecordDateAndShift(UUID farmId, LocalDate recordDate, String shift);
+
     List<MilkRecord> findByFarmIdOrderByRecordDateDescCreatedAtDesc(UUID farmId);
 
     @Query("SELECT r FROM MilkRecord r JOIN FETCH r.animal WHERE r.farm.id = :farmId AND r.recordDate BETWEEN :startDate AND :endDate ORDER BY r.recordDate DESC, r.shift ASC")

@@ -27,6 +27,8 @@ public class UpdateAnimalRequest {
     private BigDecimal weight;
     private BigDecimal yield;
     private String pen;
+    private UUID groupId;
+    private String groupName;
     private Integer lactationCycle;
     private String feedRation;
     private LocalDate dueDate;

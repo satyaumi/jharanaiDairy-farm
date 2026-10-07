@@ -19,7 +19,6 @@ import java.util.UUID;
 public class CreateAnimalRequest {
 
     // 1. FAST 1-MINUTE ENTRY FIELDS (Mandatory for farmer workflow)
-    @NotBlank(message = "Animal name is required")
     @JsonAlias({"animalName"})
     private String name;
 
@@ -29,6 +28,9 @@ public class CreateAnimalRequest {
 
     @NotBlank(message = "Breed is required")
     private String breed;
+
+    private UUID groupId;
+    private String groupName;
 
     // Optional operational defaults
     @Builder.Default

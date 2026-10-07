@@ -31,7 +31,11 @@ public class Animal extends AuditableEntity {
     @JoinColumn(name = "farm_id", nullable = false)
     private Farm farm;
 
-    @Column(name = "animal_name", nullable = false, length = 100)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    private AnimalGroup group;
+
+    @Column(name = "animal_name", length = 100)
     private String animalName;
 
     @Column(name = "ear_tag", nullable = false, length = 100)

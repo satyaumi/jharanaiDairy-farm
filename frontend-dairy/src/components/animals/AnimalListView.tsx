@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Animal, MilkRecord } from "@/types/farm";
 import { CowPerformanceGroupsView } from "./CowPerformanceGroupsView";
+import { useAuth } from "@/context/AuthContext";
 
 interface AnimalListViewProps {
   animals: Animal[];
@@ -39,6 +40,7 @@ export function AnimalListView({
   onEditAnimal,
   onChangeStatus,
 }: AnimalListViewProps) {
+  const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<"inventory" | "performance">("inventory");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("Active");
@@ -123,13 +125,15 @@ export function AnimalListView({
           </p>
         </div>
 
-        <Button
-          onClick={onAddNew}
-          className="h-11 gap-2 rounded-2xl bg-emerald-600 px-4 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95"
-        >
-          <Plus className="size-4.5 stroke-[2.5]" />
-          Add Animal to Herd
-        </Button>
+        {role !== "OWNER" && (
+          <Button
+            onClick={onAddNew}
+            className="h-11 gap-2 rounded-2xl bg-emerald-600 px-4 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95"
+          >
+            <Plus className="size-4.5 stroke-[2.5]" />
+            Add Animal to Herd
+          </Button>
+        )}
       </div>
 
       {/* Sub-navigation Tabs: Herd Inventory vs Milk Performance Groups */}
@@ -378,12 +382,14 @@ export function AnimalListView({
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-extrabold text-foreground text-sm truncate">
-                                {animal.name}
-                              </span>
-                              <span className="rounded-md bg-secondary px-1.5 py-0.2 text-[11px] font-bold text-secondary-foreground">
+                              <span className="font-black text-emerald-800 dark:text-emerald-300 text-sm bg-emerald-500/15 px-2 py-0.5 rounded-lg">
                                 {animal.tag}
                               </span>
+                              {animal.name && animal.name !== animal.tag && (
+                                <span className="font-semibold text-foreground text-xs truncate">
+                                  ({animal.name})
+                                </span>
+                              )}
                             </div>
                             <p className="truncate text-[11px] text-muted-foreground">
                               {animal.breed} · {animal.age} · {animal.pen || "Unassigned"}
@@ -502,12 +508,14 @@ export function AnimalListView({
                                   <CowIcon className="size-6" />
                                 </span>
                                 <div>
-                                  <p className="font-bold text-foreground text-sm">
-                                    {animal.name}
-                                  </p>
-                                  <p className="text-[11px] font-semibold text-muted-foreground">
+                                  <p className="font-black text-emerald-800 dark:text-emerald-300 text-sm">
                                     {animal.tag}
                                   </p>
+                                  {animal.name && animal.name !== animal.tag && (
+                                    <p className="text-[11px] font-semibold text-muted-foreground">
+                                      {animal.name}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             </td>
