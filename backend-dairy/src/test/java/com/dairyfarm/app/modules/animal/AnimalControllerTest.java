@@ -282,6 +282,58 @@ class AnimalControllerTest {
     }
 
     @Test
+    void updateAnimal_WhenCalledByWorker_ShouldSucceed() throws Exception {
+        // Create worker user
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 8);
+        SignupRequest signup = SignupRequest.builder()
+                .name("Worker " + randomSuffix)
+                .phone("+91 966" + randomSuffix)
+                .password("Pass@123")
+                .farmName("Worker Farm " + randomSuffix)
+                .role(Role.WORKER)
+                .build();
+
+        MvcResult result = mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(signup)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String workerToken = objectMapper.readTree(result.getResponse().getContentAsString()).get("token").asText();
+
+        // Create cow
+        CreateAnimalRequest cow = CreateAnimalRequest.builder()
+                .name("Worker Cow")
+                .tag("C-WRK-" + randomSuffix.substring(0, 4))
+                .breed("Jersey")
+                .build();
+        MvcResult cowRes = mockMvc.perform(post("/api/animals")
+                        .header("Authorization", "Bearer " + workerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(cow)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String cowId = objectMapper.readTree(cowRes.getResponse().getContentAsString())
+                .get("data").get("id").asText();
+
+        // Worker updates cow
+        UpdateAnimalRequest updateReq = UpdateAnimalRequest.builder()
+                .name("Worker Cow Updated")
+                .weight(BigDecimal.valueOf(450))
+                .pen("Pen 4B")
+                .build();
+
+        mockMvc.perform(put("/api/animals/" + cowId)
+                        .header("Authorization", "Bearer " + workerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Worker Cow Updated"))
+                .andExpect(jsonPath("$.data.pen").value("Pen 4B"));
+    }
+
+    @Test
     void updateAnimal_ChangeTagToDuplicate_ShouldReturn409Conflict() throws Exception {
         // Create animal 1
         CreateAnimalRequest cow1 = CreateAnimalRequest.builder()

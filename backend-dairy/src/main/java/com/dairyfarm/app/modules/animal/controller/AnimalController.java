@@ -82,7 +82,7 @@ public class AnimalController {
     }
 
     @PutMapping("/{idOrTag}")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Update core animal details by ID or Cow Number")
     public ResponseEntity<ApiResponse<AnimalDto>> updateAnimal(
             @PathVariable String idOrTag,
@@ -92,7 +92,7 @@ public class AnimalController {
     }
 
     @PatchMapping({"/{idOrTag}/lifecycle", "/{idOrTag}/status"})
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Change animal lifecycle status (ACTIVE, SICK, SOLD, DECEASED, RETIRED, ARCHIVED) with reason and effective date")
     public ResponseEntity<ApiResponse<AnimalDto>> changeLifecycleStatus(
             @PathVariable String idOrTag,
@@ -103,7 +103,7 @@ public class AnimalController {
     }
 
     @DeleteMapping("/{idOrTag}")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Soft delete / archive an animal")
     public ResponseEntity<ApiResponse<Void>> deactivateAnimal(@PathVariable String idOrTag) {
         UUID id = animalService.resolveAnimalId(idOrTag);

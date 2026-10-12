@@ -328,14 +328,22 @@ export function FarmApp() {
                 onSelectAnimal={handleSelectAnimal}
                 onAddNew={() => handleOpenQuickAdd("add-animal")}
                 onRecordMilk={() => handleOpenQuickAdd("record-milk")}
-                onEditAnimal={(a) => {
-                  setAnimalToEdit(a);
-                  setEditAnimalOpen(true);
-                }}
-                onChangeStatus={(a) => {
-                  setAnimalForLifecycle(a);
-                  setLifecycleModalOpen(true);
-                }}
+                onEditAnimal={
+                  !isOwner
+                    ? (a) => {
+                        setAnimalToEdit(a);
+                        setEditAnimalOpen(true);
+                      }
+                    : undefined
+                }
+                onChangeStatus={
+                  !isOwner
+                    ? (a) => {
+                        setAnimalForLifecycle(a);
+                        setLifecycleModalOpen(true);
+                      }
+                    : undefined
+                }
               />
             )}
 
@@ -449,16 +457,24 @@ export function FarmApp() {
         animal={selectedAnimal}
         onOpenChange={(open) => !open && handleSelectAnimal(null)}
         onRecordMilk={() => handleOpenQuickAdd("record-milk")}
-        onEditAnimal={(a) => {
-          handleSelectAnimal(null);
-          setAnimalToEdit(a);
-          setEditAnimalOpen(true);
-        }}
-        onLifecycleChange={(a) => {
-          handleSelectAnimal(null);
-          setAnimalForLifecycle(a);
-          setLifecycleModalOpen(true);
-        }}
+        onEditAnimal={
+          !isOwner
+            ? (a) => {
+                handleSelectAnimal(null);
+                setAnimalToEdit(a);
+                setEditAnimalOpen(true);
+              }
+            : undefined
+        }
+        onLifecycleChange={
+          !isOwner
+            ? (a) => {
+                handleSelectAnimal(null);
+                setAnimalForLifecycle(a);
+                setLifecycleModalOpen(true);
+              }
+            : undefined
+        }
       />
 
       <EditAnimalModal
