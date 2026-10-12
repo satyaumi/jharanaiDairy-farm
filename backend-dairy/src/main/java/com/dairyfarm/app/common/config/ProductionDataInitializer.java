@@ -36,22 +36,22 @@ public class ProductionDataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (initialOwnerPassword != null && !initialOwnerPassword.isBlank()) {
+        if ((initialOwnerPassword != null && !initialOwnerPassword.isBlank()) ||
+            (initialOwnerEmail != null && !initialOwnerEmail.isBlank())) {
             log.info("Configuring Farm Owner production credentials from environment variable...");
-            Optional<User> ownerOpt = userRepository.findByUsername("priya");
-            if (ownerOpt.isEmpty()) {
-                ownerOpt = userRepository.findAll().stream()
-                        .filter(u -> u.getRole() == Role.OWNER)
-                        .findFirst();
-            }
+            Optional<User> ownerOpt = userRepository.findAll().stream()
+                    .filter(u -> u.getRole() == Role.OWNER)
+                    .findFirst();
 
             ownerOpt.ifPresent(owner -> {
-                owner.setPasswordHash(passwordEncoder.encode(initialOwnerPassword.trim()));
+                if (initialOwnerPassword != null && !initialOwnerPassword.isBlank()) {
+                    owner.setPasswordHash(passwordEncoder.encode(initialOwnerPassword.trim()));
+                }
                 if (initialOwnerEmail != null && !initialOwnerEmail.isBlank()) {
                     owner.setEmail(initialOwnerEmail.trim());
                 }
                 userRepository.save(owner);
-                log.info("Secure production Farm Owner password configured successfully.");
+                log.info("Secure production Farm Owner credentials configured successfully.");
             });
         }
     }

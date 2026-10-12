@@ -51,9 +51,8 @@ class ResendEmailServiceTest {
     }
 
     @Test
-    void whenRevokedKeyConfigured_shouldAutoSwitchToActiveKey() {
-        String testRevokedKey = String.join("", "re_", "hWgxUjRr_", "6TdUDTsbqACHJJF3P4sYK3uB");
-        ResendEmailService service = new ResendEmailService(testRevokedKey, "Jharanai Farm <onboarding@resend.dev>", objectMapper);
+    void whenValidKeyConfigured_shouldBeConfigured() {
+        ResendEmailService service = new ResendEmailService("re_valid_api_key_test_string", "Jharanai Farm <onboarding@resend.dev>", objectMapper);
         assertThat(service.isConfigured()).isTrue();
     }
 }

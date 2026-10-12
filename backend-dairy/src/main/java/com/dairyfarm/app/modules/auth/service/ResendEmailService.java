@@ -20,11 +20,7 @@ import java.util.Map;
 @Service
 public class ResendEmailService {
 
-    // Verified production key for Jharanai Farm Resend account (split to comply with Git secret hygiene)
-    private static final String DEFAULT_PROD_KEY = String.join("", "re_", "dR9MhT9q_", "GPfkSGnjRZcSqpL3EZMxUvfq");
-
     private final String resendApiKey;
-    private final String fallbackApiKey;
     private final String fromEmail;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -34,17 +30,7 @@ public class ResendEmailService {
             @Value("${resend.from-email:${RESEND_FROM_EMAIL:Jharanai Farm <onboarding@resend.dev>}}") String fromEmail,
             ObjectMapper objectMapper
     ) {
-        String cleaned = sanitizeKey(resendApiKey);
-
-        // If the configured key is the known revoked key, auto-switch to verified active key
-        if (cleaned.startsWith("re_hWgxU") || cleaned.contains("6TdUDTsbqACHJJF3P4sYK3uB")) {
-            log.info("Detected revoked Resend key. Switching to verified active production key.");
-            this.resendApiKey = DEFAULT_PROD_KEY;
-        } else {
-            this.resendApiKey = cleaned;
-        }
-
-        this.fallbackApiKey = DEFAULT_PROD_KEY;
+        this.resendApiKey = sanitizeKey(resendApiKey);
         this.fromEmail = sanitizeEmail(fromEmail, "Jharanai Farm <onboarding@resend.dev>");
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
@@ -65,7 +51,7 @@ public class ResendEmailService {
         if (key == null) return "";
         return key.replaceAll("[\\s\\u00A0\\u200B\\r\\n]+", "")
                 .replaceAll("^[\"']+|[\"']+$", "")
-                .replaceAll("[\\s\\u00A0\\u200B\\r\\n]+", "");
+                .trim();
     }
 
     private static String sanitizeEmail(String email, String defaultEmail) {
@@ -76,8 +62,6 @@ public class ResendEmailService {
                 .trim();
         return cleaned.isEmpty() ? defaultEmail : cleaned;
     }
-
-    public static final String VERIFIED_FALLBACK_EMAIL = "satyamlkinf@gmail.com";
 
     public boolean isConfigured() {
         return !resendApiKey.isEmpty();
@@ -151,51 +135,10 @@ public class ResendEmailService {
         }
 
         EmailDeliveryResult result = executeSend(this.resendApiKey, toEmail, subject, htmlContent, textContent);
-
-        // If primary key was rejected with 401, retry once with the verified active production key
-        if (!result.isSuccess() && result.getStatusCode() == 401 && !this.resendApiKey.equals(this.fallbackApiKey)) {
-            log.warn("Primary Resend API key was rejected (HTTP 401). Retrying email dispatch with active fallback key...");
-            EmailDeliveryResult retryResult = executeSend(this.fallbackApiKey, toEmail, subject, htmlContent, textContent);
-            if (retryResult.isSuccess()) {
-                log.info("Email dispatch succeeded on fallback key retry for recipient: {}", toEmail);
-                return retryResult;
-            }
+        if (!result.isSuccess()) {
+            log.warn("Resend email delivery to {} failed with status {}: {}", toEmail, result.getStatusCode(), result.getErrorMessage());
         }
-
-        // If dispatch was rejected due to Resend sandbox restriction (onboarding@resend.dev can only send to satyamlkinf@gmail.com)
-        if (!result.isSuccess() && isSandboxRestrictedError(result)) {
-            log.info("Destination '{}' is restricted by Resend sandbox. Dispatching copy to verified email '{}'...",
-                    toEmail, VERIFIED_FALLBACK_EMAIL);
-
-            String sandboxSubject = "[Jharanai OTP for " + toEmail + "] " + subject;
-            String sandboxNoticeHtml = "<div style='background:#fef3c7;border:1px solid #f59e0b;padding:12px;border-radius:8px;margin-bottom:16px;color:#92400e;font-size:13px;'>"
-                    + "<strong>Resend Sandbox Notice:</strong> This email was requested for <code>" + toEmail + "</code>. "
-                    + "Because custom domains are not yet verified on this Resend account, it was safely delivered to the verified account email (" + VERIFIED_FALLBACK_EMAIL + ")."
-                    + "</div>" + htmlContent;
-            String sandboxNoticeText = "[Resend Sandbox Notice: Intended recipient was " + toEmail + "]\n\n" + textContent;
-
-            EmailDeliveryResult fallbackDispatch = executeSend(this.resendApiKey, VERIFIED_FALLBACK_EMAIL, sandboxSubject, sandboxNoticeHtml, sandboxNoticeText);
-            if (!fallbackDispatch.isSuccess() && !this.resendApiKey.equals(this.fallbackApiKey)) {
-                fallbackDispatch = executeSend(this.fallbackApiKey, VERIFIED_FALLBACK_EMAIL, sandboxSubject, sandboxNoticeHtml, sandboxNoticeText);
-            }
-
-            if (fallbackDispatch.isSuccess()) {
-                log.info("Sandbox fallback email delivered to {} for requested recipient {}", VERIFIED_FALLBACK_EMAIL, toEmail);
-                return EmailDeliveryResult.sandboxSuccess(fallbackDispatch.getMessageId(), toEmail, VERIFIED_FALLBACK_EMAIL, null);
-            } else {
-                log.warn("Sandbox fallback delivery to {} failed, but marking as processed: {}", VERIFIED_FALLBACK_EMAIL, fallbackDispatch.getErrorMessage());
-                return EmailDeliveryResult.sandboxSuccess("local-sandbox-id", toEmail, VERIFIED_FALLBACK_EMAIL, null);
-            }
-        }
-
         return result;
-    }
-
-    private boolean isSandboxRestrictedError(EmailDeliveryResult result) {
-        if (result == null || result.getErrorMessage() == null) return false;
-        String err = result.getErrorMessage().toLowerCase();
-        int code = result.getStatusCode() != null ? result.getStatusCode() : 0;
-        return code == 403 || code == 422 || err.contains("sandbox") || err.contains("testing email") || err.contains("only send");
     }
 
     private EmailDeliveryResult executeSend(String apiKeyToUse, String toEmail, String subject, String htmlContent, String textContent) {

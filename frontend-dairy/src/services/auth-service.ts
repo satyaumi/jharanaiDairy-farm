@@ -13,74 +13,10 @@ export const USER_KEY = "dairy_farm_auth_user";
 
 import { getApiBase } from "@/lib/api-config";
 
-// Support production VITE_API_BASE_URL / VITE_API_URL or local Vite proxy fallback
+// API base URL configuration
 const AUTH_URL = `${getApiBase()}/auth`;
 
-// Pre-seeded team users from DB migration V5 for team directory reference
-export const DEMO_USERS: Record<Role, User> = {
-  OWNER: {
-    id: "b0000000-0000-0000-0000-000000000001",
-    name: "Priya Mehta",
-    phone: "+91 98765 43210",
-    email: "priya@jharanai.com",
-    role: "OWNER",
-    farmName: "Jharanai Farm",
-  },
-  MANAGER: {
-    id: "b0000000-0000-0000-0000-000000000002",
-    name: "Rajesh Kumar",
-    phone: "+91 98765 12345",
-    email: "rajesh@jharanai.com",
-    role: "MANAGER",
-    farmName: "Jharanai Farm",
-  },
-  WORKER: {
-    id: "b0000000-0000-0000-0000-000000000003",
-    name: "Suresh Patil",
-    phone: "+91 98765 67890",
-    email: "suresh@jharanai.com",
-    role: "WORKER",
-    farmName: "Jharanai Farm",
-  },
-  ADMIN: {
-    id: "b0000000-0000-0000-0000-000000000004",
-    name: "Farm Administrator",
-    phone: "+91 98765 00000",
-    email: "admin@dairyplatform.com",
-    role: "ADMIN",
-    farmName: "Jharanai Farm",
-  },
-};
-
-// Demo credentials for easy testing across roles (mapped to seeded DB users)
-export const DEMO_CREDENTIALS: Record<Role, { phoneOrEmail: string; password?: string; label: string; roleName: string }> = {
-  OWNER: {
-    phoneOrEmail: "+91 98765 43210",
-    password: "password123",
-    label: "Priya Mehta",
-    roleName: "Farm Owner",
-  },
-  MANAGER: {
-    phoneOrEmail: "+91 98765 12345",
-    password: "password123",
-    label: "Rajesh Kumar",
-    roleName: "Farm Manager",
-  },
-  WORKER: {
-    phoneOrEmail: "+91 98765 67890",
-    password: "password123",
-    label: "Suresh Patil",
-    roleName: "Dairy Worker",
-  },
-  ADMIN: {
-    phoneOrEmail: "admin@dairyplatform.com",
-    password: "password123",
-    label: "Administrator",
-    roleName: "Platform Admin",
-  },
-};
-
-const AUTH_TIMEOUT_MS = 18000;
+const AUTH_TIMEOUT_MS = 45000;
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = AUTH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -93,7 +29,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
     return response;
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") {
-      throw new Error("Request timed out after 18s. The server may be waking up, please try again.");
+      throw new Error("Request timed out. The server may be starting up, please try again.");
     }
     throw err;
   } finally {

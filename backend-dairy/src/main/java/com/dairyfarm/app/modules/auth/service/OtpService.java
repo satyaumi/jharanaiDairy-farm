@@ -91,14 +91,13 @@ public class OtpService {
         if (targetEmail != null) {
             deliveryResult = resendEmailService.sendOtpEmail(targetEmail, rawOtp, purpose, OTP_VALIDITY_MINUTES);
             if (!deliveryResult.isSuccess()) {
-                log.warn("Resend email dispatch incomplete for recipient {}: {}", targetEmail, deliveryResult.getErrorMessage());
+                log.warn("Resend email dispatch failed for recipient {}: {}", targetEmail, deliveryResult.getErrorMessage());
             }
         } else {
-            log.info("No email target for identifier '{}'. Stored OTP for SMS/Direct verification.", cleanIdentifier);
             deliveryResult = EmailDeliveryResult.builder()
-                    .success(true)
+                    .success(false)
                     .recipient(cleanIdentifier)
-                    .errorMessage("Verification code generated.")
+                    .errorMessage("No registered email address found for this identifier. Please register an email or contact farm administrator.")
                     .build();
         }
 
@@ -115,12 +114,6 @@ public class OtpService {
         }
         String cleanIdentifier = normalizeIdentifier(identifier);
         String cleanOtp = submittedOtp.trim();
-
-        // Safe demo fallback bypass for testing/development if needed
-        if ("1234".equals(cleanOtp) || "9999".equals(cleanOtp) || "123456".equals(cleanOtp)) {
-            log.info("Test master code accepted for {}", cleanIdentifier);
-            return true;
-        }
 
         Optional<AuthOtp> otpOpt = otpRepository.findFirstByIdentifierAndPurposeAndConsumedFalseOrderByCreatedAtDesc(
                 cleanIdentifier, purpose);

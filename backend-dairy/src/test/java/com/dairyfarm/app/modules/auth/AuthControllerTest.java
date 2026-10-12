@@ -112,4 +112,45 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.phone").value("+91 98888 22222"))
                 .andExpect(jsonPath("$.farmName").value("Green Meadows Dairy"));
     }
+
+    @Test
+    void sendLoginOtp_UnknownUser_ShouldReturnGenericSuccessMessageWithoutAccountEnumeration() throws Exception {
+        mockMvc.perform(post("/api/auth/send-login-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phoneOrEmail\":\"nonexistent@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("If an account exists with this email or mobile, a verification code has been dispatched."));
+    }
+
+    @Test
+    void loginWithOtp_InvalidCode_ShouldReturnBadRequestOrUnauthorized() throws Exception {
+        // Create user first
+        SignupRequest signup = SignupRequest.builder()
+                .name("Rohan Das")
+                .phone("+91 97777 33333")
+                .email("rohan@rohanfarm.com")
+                .password("Rohan@123")
+                .farmName("Rohan Dairy")
+                .role(Role.OWNER)
+                .build();
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(signup)))
+                .andExpect(status().isCreated());
+
+        // Attempt OTP login with invalid code
+        mockMvc.perform(post("/api/auth/login-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phoneOrEmail\":\"+91 97777 33333\",\"otp\":\"000000\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void logout_ShouldReturnSuccess() throws Exception {
+        mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
 }

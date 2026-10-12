@@ -32,16 +32,16 @@ export function Sidebar({
 }: SidebarProps) {
   const { user, isWorker, isManager, isOwner } = useAuth();
 
-  // Primary 4 Modules + Dashboard, Analytics & Cow Performance
+  // Primary Modules + Dashboard, Analytics & Cow Performance
   const PRIMARY_NAV = [
     { id: "home", label: "Dashboard", icon: House },
-    { id: "analytics", label: "Farm Analytics", icon: BarChart3, badge: "Charts" },
-    { id: "animals", label: "Herd Management", icon: CowIcon, isCustom: true, badge: "128 Head" },
-    { id: "performance", label: "Cow Performance", icon: Award, badge: "A–F Grades" },
-    { id: "milking", label: "Milk Harvest", icon: Milk, badge: "924 L" },
-    { id: "equipment", label: "Equipment Status", icon: Tractor, badge: "6 Assets" },
-    { id: "feeding", label: "Feed & Rations", icon: Wheat, badge: "Silage" },
-    { id: "more", label: "More Modules", icon: Layers, badge: "Secondary" },
+    { id: "analytics", label: "Farm Analytics", icon: BarChart3 },
+    { id: "animals", label: "Herd Management", icon: CowIcon, isCustom: true },
+    { id: "performance", label: "Cow Performance", icon: Award },
+    { id: "milking", label: "Milk Harvest", icon: Milk },
+    { id: "equipment", label: "Equipment Status", icon: Tractor },
+    { id: "feeding", label: "Feed & Rations", icon: Wheat },
+    { id: "more", label: "More Modules", icon: Layers },
   ];
 
   // Secondary Governance & Management

@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -44,61 +45,18 @@ public class AuthService {
         }
         String identifier = request.getPhoneOrEmail().trim();
 
-        User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
-                .orElse(null);
-
-        // Fallback to normalized phone matching (ignoring spaces, dashes, leading +)
+        User user = findUserByIdentifier(identifier);
         if (user == null) {
-            String digitsOnly = identifier.replaceAll("[^0-9]", "");
-            if (digitsOnly.length() >= 7) {
-                user = userRepository.findAll().stream()
-                        .filter(u -> u.getMobileNumber() != null &&
-                                u.getMobileNumber().replaceAll("[^0-9]", "").endsWith(digitsOnly))
-                        .findFirst()
-                        .orElse(null);
-            }
-        }
-
-        if (user == null) {
-            Farm defaultFarm = farmRepository.findAll().stream().findFirst().orElse(null);
-            if (defaultFarm != null && request.getPassword() != null && !request.getPassword().isBlank()) {
-                String cleanLower = identifier.trim().toLowerCase();
-                String baseUsername = cleanLower.contains("@")
-                        ? cleanLower.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "")
-                        : "user_" + cleanLower.replaceAll("[^0-9]", "");
-                if (baseUsername.isBlank()) baseUsername = "farmer";
-                String finalUsername = baseUsername;
-                int suffix = 1;
-                while (userRepository.existsByUsername(finalUsername)) {
-                    finalUsername = baseUsername + suffix++;
-                }
-
-                user = User.builder()
-                        .farm(defaultFarm)
-                        .fullName(cleanLower.contains("@") ? cleanLower.split("@")[0] : "Farm Member (" + cleanLower + ")")
-                        .username(finalUsername)
-                        .email(cleanLower.contains("@") ? cleanLower : null)
-                        .mobileNumber(cleanLower.contains("@") ? null : cleanLower)
-                        .passwordHash(passwordEncoder.encode(request.getPassword()))
-                        .role(Role.OWNER)
-                        .active(true)
-                        .verified(true)
-                        .build();
-                user = userRepository.save(user);
-                log.info("Auto-registered new user on password login '{}'", user.getUsername());
-            } else {
-                throw new UnauthorizedException("Invalid mobile/email or password");
-            }
+            throw new UnauthorizedException("Invalid mobile/email or password");
         }
 
         if (!user.isActive()) {
             throw new UnauthorizedException("Your account is currently disabled. Please contact farm administrator.");
         }
 
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-                throw new UnauthorizedException("Invalid mobile/email or password");
-            }
+        if (request.getPassword() == null || request.getPassword().isBlank() ||
+                !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new UnauthorizedException("Invalid mobile/email or password");
         }
 
         UserPrincipal principal = UserPrincipal.create(
@@ -117,7 +75,7 @@ public class AuthService {
 
         TenantContext.setFarmId(user.getFarm().getId());
         TenantContext.setUserId(user.getId());
-        auditService.record("LOGIN", "USER", user.getId().toString(), "User logged in: " + user.getMobileNumber());
+        auditService.record("LOGIN", "USER", user.getId().toString(), "User logged in: " + (user.getEmail() != null ? user.getEmail() : user.getMobileNumber()));
 
         return AuthResponse.builder()
                 .token(token)
@@ -132,50 +90,14 @@ public class AuthService {
         }
         String identifier = request.getPhoneOrEmail().trim();
 
-        User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
-                .orElse(null);
+        User user = findUserByIdentifier(identifier);
 
+        // Security: Prevent account enumeration if user does not exist
         if (user == null) {
-            String digitsOnly = identifier.replaceAll("[^0-9]", "");
-            if (digitsOnly.length() >= 7) {
-                user = userRepository.findAll().stream()
-                        .filter(u -> u.getMobileNumber() != null &&
-                                u.getMobileNumber().replaceAll("[^0-9]", "").endsWith(digitsOnly))
-                        .findFirst()
-                        .orElse(null);
-            }
-        }
-
-        if (user == null) {
-            Farm defaultFarm = farmRepository.findAll().stream().findFirst().orElse(null);
-            if (defaultFarm != null) {
-                String cleanLower = identifier.trim().toLowerCase();
-                String baseUsername = cleanLower.contains("@")
-                        ? cleanLower.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "")
-                        : "user_" + cleanLower.replaceAll("[^0-9]", "");
-                if (baseUsername.isBlank()) baseUsername = "farmer";
-                String finalUsername = baseUsername;
-                int suffix = 1;
-                while (userRepository.existsByUsername(finalUsername)) {
-                    finalUsername = baseUsername + suffix++;
-                }
-
-                user = User.builder()
-                        .farm(defaultFarm)
-                        .fullName(cleanLower.contains("@") ? cleanLower.split("@")[0] : "Farm Member (" + cleanLower + ")")
-                        .username(finalUsername)
-                        .email(cleanLower.contains("@") ? cleanLower : null)
-                        .mobileNumber(cleanLower.contains("@") ? null : cleanLower)
-                        .passwordHash(passwordEncoder.encode("password123"))
-                        .role(request.getRequestedRole() != null ? request.getRequestedRole() : Role.OWNER)
-                        .active(true)
-                        .verified(true)
-                        .build();
-                user = userRepository.save(user);
-                log.info("Auto-registered new user '{}' for identifier '{}'", user.getUsername(), identifier);
-            } else {
-                throw new UnauthorizedException("No registered account found with identifier: " + identifier);
-            }
+            Map<String, Object> responseMap = new HashMap<>();
+            responseMap.put("success", true);
+            responseMap.put("message", "If an account exists with this email or mobile, a verification code has been dispatched.");
+            return responseMap;
         }
 
         if (!user.isActive()) {
@@ -190,33 +112,23 @@ public class AuthService {
         }
 
         String targetEmail = user.getEmail();
+        if (targetEmail == null || !targetEmail.contains("@")) {
+            throw new BadRequestException("No registered email address found for this account. Please use password login or contact farm administrator.");
+        }
+
         EmailDeliveryResult delivery = otpService.generateAndSendOtp(identifier, targetEmail, "LOGIN");
 
-        String maskedEmail = (targetEmail != null && targetEmail.contains("@"))
-                ? targetEmail.replaceAll("(^[^@]{2})[^@]+(@.*$)", "$1***$2")
-                : identifier;
-
-        if (targetEmail != null && !delivery.isSuccess() && !delivery.isSandboxFallback()) {
-            log.warn("Email delivery incomplete for {}: {}. Continuing with active OTP.", targetEmail, delivery.getErrorMessage());
+        if (!delivery.isSuccess()) {
+            throw new BadRequestException("Failed to dispatch verification code: " + delivery.getErrorMessage());
         }
+
+        String maskedEmail = targetEmail.replaceAll("(^[^@]{2})[^@]+(@.*$)", "$1***$2");
 
         Map<String, Object> responseMap = new HashMap<>();
         responseMap.put("success", true);
         responseMap.put("email", maskedEmail);
         responseMap.put("role", user.getRole().name());
-
-        if (delivery.isSandboxFallback()) {
-            responseMap.put("message", "Verification code dispatched to " + ResendEmailService.VERIFIED_FALLBACK_EMAIL + " (Resend testing mode for " + maskedEmail + ")");
-        } else if (!delivery.isSuccess()) {
-            responseMap.put("message", "Verification code generated.");
-        } else {
-            responseMap.put("message", "Verification code dispatched via Resend to " + maskedEmail);
-        }
-
-        // Always include sandboxOtp for quick verification in testing & sandbox environments
-        if (delivery.getOtpCode() != null) {
-            responseMap.put("sandboxOtp", delivery.getOtpCode());
-        }
+        responseMap.put("message", "Verification code dispatched to " + maskedEmail);
 
         return responseMap;
     }
@@ -228,50 +140,9 @@ public class AuthService {
         }
         String identifier = request.getPhoneOrEmail().trim();
 
-        User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
-                .orElse(null);
-
+        User user = findUserByIdentifier(identifier);
         if (user == null) {
-            String digitsOnly = identifier.replaceAll("[^0-9]", "");
-            if (digitsOnly.length() >= 7) {
-                user = userRepository.findAll().stream()
-                        .filter(u -> u.getMobileNumber() != null &&
-                                u.getMobileNumber().replaceAll("[^0-9]", "").endsWith(digitsOnly))
-                        .findFirst()
-                        .orElse(null);
-            }
-        }
-
-        if (user == null) {
-            Farm defaultFarm = farmRepository.findAll().stream().findFirst().orElse(null);
-            if (defaultFarm != null) {
-                String cleanLower = identifier.trim().toLowerCase();
-                String baseUsername = cleanLower.contains("@")
-                        ? cleanLower.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "")
-                        : "user_" + cleanLower.replaceAll("[^0-9]", "");
-                if (baseUsername.isBlank()) baseUsername = "farmer";
-                String finalUsername = baseUsername;
-                int suffix = 1;
-                while (userRepository.existsByUsername(finalUsername)) {
-                    finalUsername = baseUsername + suffix++;
-                }
-
-                user = User.builder()
-                        .farm(defaultFarm)
-                        .fullName(cleanLower.contains("@") ? cleanLower.split("@")[0] : "Farm Member (" + cleanLower + ")")
-                        .username(finalUsername)
-                        .email(cleanLower.contains("@") ? cleanLower : null)
-                        .mobileNumber(cleanLower.contains("@") ? null : cleanLower)
-                        .passwordHash(passwordEncoder.encode("password123"))
-                        .role(request.getRequestedRole() != null ? request.getRequestedRole() : Role.OWNER)
-                        .active(true)
-                        .verified(true)
-                        .build();
-                user = userRepository.save(user);
-                log.info("Auto-registered new user during OTP login '{}' for identifier '{}'", user.getUsername(), identifier);
-            } else {
-                throw new UnauthorizedException("Invalid mobile/email or verification code");
-            }
+            throw new UnauthorizedException("Invalid mobile/email or verification code");
         }
 
         if (!user.isActive()) {
@@ -288,14 +159,14 @@ public class AuthService {
         try {
             verified = otpService.verifyOtp(identifier, request.getOtp(), "LOGIN");
         } catch (BadRequestException ex) {
-            if (user.getMobileNumber() != null) {
-                try {
-                    verified = otpService.verifyOtp(user.getMobileNumber(), request.getOtp(), "LOGIN");
-                } catch (BadRequestException ignored) {}
-            }
-            if (!verified && user.getEmail() != null) {
+            if (user.getEmail() != null && !user.getEmail().equalsIgnoreCase(identifier)) {
                 try {
                     verified = otpService.verifyOtp(user.getEmail(), request.getOtp(), "LOGIN");
+                } catch (BadRequestException ignored) {}
+            }
+            if (!verified && user.getMobileNumber() != null && !user.getMobileNumber().equals(identifier)) {
+                try {
+                    verified = otpService.verifyOtp(user.getMobileNumber(), request.getOtp(), "LOGIN");
                 } catch (BadRequestException ignored) {}
             }
             if (!verified) {
@@ -319,12 +190,30 @@ public class AuthService {
 
         TenantContext.setFarmId(user.getFarm().getId());
         TenantContext.setUserId(user.getId());
-        auditService.record("LOGIN_OTP", "USER", user.getId().toString(), "User logged in via verified OTP: " + user.getMobileNumber());
+        auditService.record("LOGIN_OTP", "USER", user.getId().toString(), "User logged in via verified OTP: " + (user.getEmail() != null ? user.getEmail() : user.getMobileNumber()));
 
         return AuthResponse.builder()
                 .token(token)
                 .user(UserDto.fromEntity(user))
                 .build();
+    }
+
+    private User findUserByIdentifier(String identifier) {
+        if (identifier == null || identifier.isBlank()) return null;
+        String clean = identifier.trim();
+
+        Optional<User> userOpt = userRepository.findByUsernameOrEmailOrMobile(clean);
+        if (userOpt.isPresent()) return userOpt.get();
+
+        String digitsOnly = clean.replaceAll("[^0-9]", "");
+        if (digitsOnly.length() >= 7) {
+            return userRepository.findAll().stream()
+                    .filter(u -> u.getMobileNumber() != null &&
+                            u.getMobileNumber().replaceAll("[^0-9]", "").endsWith(digitsOnly))
+                    .findFirst()
+                    .orElse(null);
+        }
+        return null;
     }
 
     @Transactional

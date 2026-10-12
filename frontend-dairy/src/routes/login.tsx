@@ -22,7 +22,6 @@ import { CowBrandLogo, CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { DEMO_CREDENTIALS } from "@/services/auth-service";
 import type { Role } from "@/types/auth";
 import { toast } from "sonner";
 
@@ -120,17 +119,9 @@ export function LoginPage() {
       setDispatchedEmail(res.email || cleanId);
       setOtpStep("enter_otp");
       setCooldownSeconds(60);
-      if (res.sandboxOtp) {
-        setOtpCode(res.sandboxOtp);
-        toast.info(`Verification Code: ${res.sandboxOtp}`, {
-          description: "Delivered to admin email satyamlkinf@gmail.com and pre-filled for testing.",
-          duration: 12000,
-        });
-      } else {
-        toast.success("Verification Code Dispatched", {
-          description: res.message || "A 6-digit code was sent to your verified contact method.",
-        });
-      }
+      toast.success("Verification Code Dispatched", {
+        description: res.message || "A 6-digit code was sent to your registered address.",
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to dispatch verification code.";
       setErrorMessage(msg);
@@ -202,51 +193,26 @@ export function LoginPage() {
     }
   };
 
-  // Quick 1-click test helper
-  const handleQuickFill = (role: Role) => {
-    setSelectedRole(role);
-    const cred = DEMO_CREDENTIALS[role];
-    setIdentifier(cred.phoneOrEmail);
-    setPassword(cred.password || "password123");
-    setErrorMessage(null);
-    setOtpStep("input_id");
-  };
-
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Ambient Backdrop */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-500/5" />
-        <div className="absolute -right-24 top-20 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl dark:bg-teal-500/5" />
-        <div className="absolute -bottom-24 left-1/3 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl dark:bg-cyan-500/5" />
-      </div>
-
-      <div className="relative mx-auto w-full max-w-md sm:max-w-lg">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-md sm:max-w-lg">
         {/* Brand Header */}
-        <div className="text-center mb-5">
+        <div className="text-center mb-6">
           <div className="inline-flex justify-center mb-2">
             <CowBrandLogo size="lg" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-            Jharanai Farm
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Jharanaai Farm
           </h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Secure Role-Based Authentication & Operations Portal
-          </p>
         </div>
 
         {/* Main Card */}
-        <div className="farm-glass-strong rounded-3xl border border-border/80 p-5 sm:p-7 shadow-2xl backdrop-blur-xl">
-          {/* STEP 1: PREDEFINED ROLE SELECTION */}
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
+          {/* Role Flow Selection */}
           <div className="space-y-2 mb-5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
-                Step 1: Select Your Assigned Role Flow
-              </label>
-              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
-                Verified by Database
-              </span>
-            </div>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Role
+            </label>
 
             <div className="grid grid-cols-3 gap-2">
               {/* Owner */}
@@ -557,41 +523,6 @@ export function LoginPage() {
             </form>
           )}
 
-          {/* Quick-fill helper for reviewer testing */}
-          <div className="mt-5 border-t border-border/60 pt-4">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-2 text-center">
-              Quick Test Credentials (Pre-seeded Accounts)
-            </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickFill("OWNER")}
-                className="h-8 rounded-xl text-[10px] font-bold border-border"
-              >
-                Priya (Owner)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickFill("MANAGER")}
-                className="h-8 rounded-xl text-[10px] font-bold border-border"
-              >
-                Rajesh (Manager)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickFill("WORKER")}
-                className="h-8 rounded-xl text-[10px] font-bold border-border"
-              >
-                Suresh (Worker)
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Footer info */}
