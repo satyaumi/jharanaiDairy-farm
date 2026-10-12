@@ -23,7 +23,6 @@ public class ResendEmailService {
 
     private final String resendApiKey;
     private final String fromEmail;
-    private final String sandboxFallbackEmail;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
@@ -31,12 +30,10 @@ public class ResendEmailService {
     public ResendEmailService(
             @Value("${resend.api-key:${RESEND_API_KEY:}}") String resendApiKey,
             @Value("${resend.from-email:${RESEND_FROM_EMAIL:Jharanai Farm <onboarding@resend.dev>}}") String fromEmail,
-            @Value("${resend.sandbox-fallback-email:${RESEND_FALLBACK_EMAIL:satyamlkinf@gmail.com}}") String sandboxFallbackEmail,
             ObjectMapper objectMapper
     ) {
         this.resendApiKey = sanitizeKey(resendApiKey);
         this.fromEmail = sanitizeEmail(fromEmail, "Jharanai Farm <onboarding@resend.dev>");
-        this.sandboxFallbackEmail = sanitizeEmail(sandboxFallbackEmail, "satyamlkinf@gmail.com");
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -48,13 +45,16 @@ public class ResendEmailService {
             String maskedKey = this.resendApiKey.length() > 8
                     ? this.resendApiKey.substring(0, 5) + "..." + this.resendApiKey.substring(this.resendApiKey.length() - 4)
                     : "****";
-            log.info("Resend Email Service initialized with sender: {}, fallback recipient: {}, key preview: {}",
-                    this.fromEmail, this.sandboxFallbackEmail, maskedKey);
+            log.info("Resend Email Service initialized with sender: {}, key preview: {}",
+                    this.fromEmail, maskedKey);
         }
     }
 
-    public ResendEmailService(String resendApiKey, String fromEmail, ObjectMapper objectMapper) {
-        this(resendApiKey, fromEmail, "satyamlkinf@gmail.com", objectMapper);
+    public ResendEmailService(String resendApiKey, String fromEmail, ObjectMapper objectMapper, HttpClient httpClient) {
+        this.resendApiKey = sanitizeKey(resendApiKey);
+        this.fromEmail = sanitizeEmail(fromEmail, "Jharanai Farm <onboarding@resend.dev>");
+        this.objectMapper = objectMapper;
+        this.httpClient = httpClient != null ? httpClient : HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     }
 
     private static String sanitizeKey(String key) {
@@ -152,21 +152,13 @@ public class ResendEmailService {
     }
 
     private EmailDeliveryResult executeSend(String apiKeyToUse, String toEmail, String subject, String htmlContent, String textContent) {
-        return executeSendInternal(apiKeyToUse, toEmail, subject, htmlContent, textContent, true);
-    }
+        String cleanRecipient = toEmail != null ? toEmail.trim() : "";
+        String maskedRecipient = maskEmail(cleanRecipient);
 
-    private EmailDeliveryResult executeSendInternal(
-            String apiKeyToUse,
-            String toEmail,
-            String subject,
-            String htmlContent,
-            String textContent,
-            boolean allowSandboxFallback
-    ) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("from", fromEmail);
-            payload.put("to", List.of(toEmail.trim()));
+            payload.put("to", List.of(cleanRecipient));
             payload.put("subject", subject);
             payload.put("html", htmlContent);
             payload.put("text", textContent);
@@ -194,49 +186,24 @@ public class ResendEmailService {
                     }
                 } catch (Exception ignored) {
                 }
-                log.info("Email accepted by Resend for recipient {} [messageId: {}, status: {}]", toEmail, messageId, statusCode);
-                return EmailDeliveryResult.success(messageId, toEmail);
+                log.info("Email accepted by Resend for recipient {} [messageId: {}, status: {}]", maskedRecipient, messageId, statusCode);
+                return EmailDeliveryResult.success(messageId, cleanRecipient);
             } else {
-                // Check if this is a Resend sandbox restriction (HTTP 403 / 422 with testing email limitation)
-                if (allowSandboxFallback && (statusCode == 403 || statusCode == 422) && isSandboxRestriction(responseBody)) {
-                    if (!toEmail.trim().equalsIgnoreCase(sandboxFallbackEmail.trim())) {
-                        log.warn("Resend test sandbox restriction hit for {}. Forwarding test message to verified developer address: {}", toEmail, sandboxFallbackEmail);
-                        String forwardedSubject = "[Dev Sandbox for " + toEmail + "] " + subject;
-                        String sandboxBanner = """
-                            <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px 18px; margin: 0 0 20px 0; font-family: sans-serif; font-size: 13px; color: #166534; line-height: 1.5;">
-                              <strong>📬 Dev Sandbox Test Forwarding:</strong> This message was requested for <strong>%s</strong>.<br/>
-                              Because Resend is operating with the default testing sender (<code>onboarding@resend.dev</code>), Resend only permits live delivery to your verified developer email (<code>%s</code>).<br/>
-                              <em>To send directly to customer/team email addresses, verify a custom domain at <a href="https://resend.com/domains" style="color: #15803d; font-weight: 600;">resend.com/domains</a>.</em>
-                            </div>
-                            """.formatted(toEmail, sandboxFallbackEmail);
-                        String forwardedHtml = sandboxBanner + htmlContent;
-                        String forwardedText = "[Resend Sandbox Test Forwarding for " + toEmail + "]\n\n" + textContent;
-
-                        EmailDeliveryResult fallbackResult = executeSendInternal(apiKeyToUse, sandboxFallbackEmail, forwardedSubject, forwardedHtml, forwardedText, false);
-                        if (fallbackResult.isSuccess()) {
-                            log.info("Sandbox fallback delivered successfully to {} for intended recipient {} [messageId: {}]",
-                                    sandboxFallbackEmail, toEmail, fallbackResult.getMessageId());
-                            return EmailDeliveryResult.sandboxSuccess(fallbackResult.getMessageId(), toEmail, sandboxFallbackEmail, null);
-                        }
-                    }
-                }
-
                 String humanMessage = extractResendErrorMessage(statusCode, responseBody);
-                log.error("Resend API rejected email to {} [status: {}, error: {}]", toEmail, statusCode, humanMessage);
-                return EmailDeliveryResult.failure(humanMessage, statusCode, toEmail);
+                log.error("Resend API rejected email to {} [status: {}, error: {}]", maskedRecipient, statusCode, humanMessage);
+                return EmailDeliveryResult.failure(humanMessage, statusCode, cleanRecipient);
             }
         } catch (Exception e) {
-            log.error("Failed to execute Resend HTTP request for {}: {}", toEmail, e.getMessage());
-            return EmailDeliveryResult.failure("Email dispatch failed due to network error: " + e.getMessage(), 500, toEmail);
+            log.error("Failed to execute Resend HTTP request for {}: {}", maskedRecipient, e.getMessage());
+            return EmailDeliveryResult.failure("Email dispatch failed due to network error: " + e.getMessage(), 500, cleanRecipient);
         }
     }
 
-    private boolean isSandboxRestriction(String responseBody) {
-        if (responseBody == null) return false;
-        String lower = responseBody.toLowerCase();
-        return lower.contains("only send testing emails") ||
-               lower.contains("testing email address") ||
-               lower.contains("resend.com/domains");
+    private static String maskEmail(String email) {
+        if (email == null || email.isBlank()) return "null";
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 1) return "***" + (atIndex >= 0 ? email.substring(atIndex) : "");
+        return email.substring(0, 1) + "***" + email.substring(atIndex);
     }
 
     private String extractResendErrorMessage(int statusCode, String responseBody) {

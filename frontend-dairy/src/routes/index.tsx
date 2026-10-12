@@ -42,9 +42,9 @@ export interface FarmSearch {
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>): FarmSearch => ({
-    page: typeof search.page === "string" ? search.page : undefined,
-    action: typeof search.action === "string" ? search.action : undefined,
-    cow: typeof search.cow === "string" ? search.cow : undefined,
+    page: typeof search?.page === "string" ? search.page : undefined,
+    action: typeof search?.action === "string" ? search.action : undefined,
+    cow: typeof search?.cow === "string" ? search.cow : undefined,
   }),
   head: () => ({
     meta: [
@@ -243,9 +243,17 @@ export function FarmApp() {
     );
   }
 
-  // If not authenticated, return null while redirecting
+  // If not authenticated, show graceful transition while redirecting
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+        <CowBrandLogo size="lg" />
+        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground font-semibold">
+          <Loader2 className="size-4 animate-spin text-emerald-600" />
+          <span>Redirecting to Sign In...</span>
+        </div>
+      </div>
+    );
   }
 
   return (

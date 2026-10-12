@@ -323,8 +323,9 @@ public class AuthService {
         String targetEmail = user != null ? user.getEmail() : (identifier.contains("@") ? identifier : null);
 
         EmailDeliveryResult delivery = otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
-        if (targetEmail != null && !delivery.isSuccess() && !delivery.isSandboxFallback()) {
+        if (targetEmail != null && !delivery.isSuccess()) {
             log.warn("Email delivery incomplete: {}", delivery.getErrorMessage());
+            throw new BadRequestException("Failed to dispatch verification code: " + delivery.getErrorMessage());
         }
         return true;
     }
@@ -336,12 +337,23 @@ public class AuthService {
         }
         String identifier = request.getPhoneOrEmail().trim();
         User user = userRepository.findByUsernameOrEmailOrMobile(identifier).orElse(null);
-        String targetEmail = user != null ? user.getEmail() : (identifier.contains("@") ? identifier : null);
 
-        // Always generate to prevent enumeration
+        // Security check: if user does not exist, return silently for anti-enumeration
+        // and NEVER dispatch emails to unverified arbitrary addresses
+        if (user == null) {
+            log.info("Password reset requested for non-existent identifier; returning silently for enumeration protection.");
+            return;
+        }
+
+        String targetEmail = user.getEmail();
+        if (targetEmail == null || !targetEmail.contains("@")) {
+            throw new BadRequestException("No registered email address found for this account. Please contact farm administrator.");
+        }
+
         EmailDeliveryResult delivery = otpService.generateAndSendOtp(identifier, targetEmail, "PASSWORD_RESET");
-        if (targetEmail != null && !delivery.isSuccess()) {
-            log.warn("Forgot password email delivery issue for {}: {}", targetEmail, delivery.getErrorMessage());
+        if (!delivery.isSuccess()) {
+            log.warn("Forgot password email delivery issue: {}", delivery.getErrorMessage());
+            throw new BadRequestException("Failed to dispatch verification code: " + delivery.getErrorMessage());
         }
     }
 
@@ -365,9 +377,26 @@ public class AuthService {
         }
         String identifier = request.getPhoneOrEmail().trim();
         User user = userRepository.findByUsernameOrEmailOrMobile(identifier)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with identifier: " + identifier));
+                .orElseThrow(() -> new BadRequestException("Invalid mobile/email or verification code"));
 
-        otpService.verifyOtp(identifier, request.getOtp(), "PASSWORD_RESET");
+        boolean verified = false;
+        try {
+            verified = otpService.verifyOtp(identifier, request.getOtp(), "PASSWORD_RESET");
+        } catch (BadRequestException ex) {
+            if (user.getEmail() != null && !user.getEmail().equalsIgnoreCase(identifier)) {
+                try {
+                    verified = otpService.verifyOtp(user.getEmail(), request.getOtp(), "PASSWORD_RESET");
+                } catch (BadRequestException ignored) {}
+            }
+            if (!verified && user.getMobileNumber() != null && !user.getMobileNumber().equals(identifier)) {
+                try {
+                    verified = otpService.verifyOtp(user.getMobileNumber(), request.getOtp(), "PASSWORD_RESET");
+                } catch (BadRequestException ignored) {}
+            }
+            if (!verified) {
+                throw ex;
+            }
+        }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);

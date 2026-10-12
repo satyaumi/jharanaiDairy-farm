@@ -148,6 +148,24 @@ class AuthControllerTest {
     }
 
     @Test
+    void forgotPassword_UnknownUser_ShouldReturnGenericMessageWithoutLeakingAccount() throws Exception {
+        mockMvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phoneOrEmail\":\"nobody@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void resetPassword_InvalidCode_ShouldReturnBadRequest() throws Exception {
+        // Attempt reset password with wrong code
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phoneOrEmail\":\"nobody@example.com\",\"otp\":\"000000\",\"newPassword\":\"NewSecret@123\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void logout_ShouldReturnSuccess() throws Exception {
         mockMvc.perform(post("/api/auth/logout"))
                 .andExpect(status().isOk())

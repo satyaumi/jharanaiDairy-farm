@@ -42,6 +42,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const displayMessage = error?.message && !error.message.includes("Object")
+    ? error.message
+    : "Something went wrong on our end. You can try refreshing or signing in to access your farm.";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -49,7 +53,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {displayMessage}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -62,10 +66,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             Try again
           </button>
           <a
-            href="/"
+            href="/login"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Go to Sign In
           </a>
         </div>
       </div>
