@@ -118,14 +118,14 @@ CREATE TABLE IF NOT EXISTS medicine_transactions (
 CREATE INDEX IF NOT EXISTS idx_med_tx_farm_date ON medicine_transactions(farm_id, transaction_date DESC);
 CREATE INDEX IF NOT EXISTS idx_med_tx_medicine ON medicine_transactions(medicine_id);
 
--- Seed Initial Groups for Demo Farm
+-- Seed Initial Groups for Farm
 INSERT INTO animal_groups (id, farm_id, name, code, description, active)
 VALUES 
 ('d0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Group A', 'GRP-A', 'High yield lactating herd', TRUE),
-('d0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'Group B', 'GRP-B', 'Mid yield cows', TRUE),
-('d0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', 'Pregnant', 'GRP-PREG', 'Expecting cows nearing dry cycle', TRUE),
-('d0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000004', 'Calf', 'GRP-CALF', 'Young stock & heifers', TRUE),
-('d0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000005', 'Bull', 'GRP-BULL', 'Breeding bulls pen', TRUE)
+('d0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'Group B', 'GRP-B', 'Mid yield cows', TRUE),
+('d0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'Pregnant', 'GRP-PREG', 'Expecting cows nearing dry cycle', TRUE),
+('d0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'Calf', 'GRP-CALF', 'Young stock & heifers', TRUE),
+('d0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', 'Bull', 'GRP-BULL', 'Breeding bulls pen', TRUE)
 ON CONFLICT (farm_id, name) DO NOTHING;
 
 -- Link demo animals to groups

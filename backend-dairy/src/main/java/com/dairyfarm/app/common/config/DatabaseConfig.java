@@ -115,4 +115,19 @@ public class DatabaseConfig {
 
         return new HikariDataSource(config);
     }
+
+    @Bean
+    public org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy flywayMigrationStrategy() {
+        return flyway -> {
+            log.info("Executing Flyway repair to heal any failed migration states in schema history...");
+            try {
+                flyway.repair();
+            } catch (Exception e) {
+                log.warn("Flyway repair encountered an issue, proceeding with migrate: {}", e.getMessage());
+            }
+            log.info("Executing Flyway migrate...");
+            flyway.migrate();
+            log.info("Flyway migration completed successfully.");
+        };
+    }
 }
