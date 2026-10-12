@@ -4,6 +4,7 @@ import com.dairyfarm.app.modules.auth.dto.EmailDeliveryResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ public class ResendEmailService {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public ResendEmailService(
             @Value("${resend.api-key:${RESEND_API_KEY:}}") String resendApiKey,
             @Value("${resend.from-email:${RESEND_FROM_EMAIL:Jharanai Farm <onboarding@resend.dev>}}") String fromEmail,
