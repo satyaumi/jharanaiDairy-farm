@@ -1,6 +1,7 @@
 package com.dairyfarm.app.modules.stock.service;
 
 import com.dairyfarm.app.common.context.TenantContext;
+import com.dairyfarm.app.common.exception.BadRequestException;
 import com.dairyfarm.app.common.exception.ResourceNotFoundException;
 import com.dairyfarm.app.modules.farm.model.Farm;
 import com.dairyfarm.app.modules.farm.repository.FarmRepository;
@@ -129,6 +130,27 @@ public class StockService {
         return list.stream().map(StockTransactionDto::fromEntity).toList();
     }
 
+    @Transactional(readOnly = true)
+    public BigDecimal getAvailableStock(UUID farmId, UUID stockItemId) {
+        List<StockTransaction> txs = transactionRepository.findByFarmIdAndStockItemIdOrderByTransactionDateDescCreatedAtDesc(farmId, stockItemId);
+        BigDecimal totalAdded = BigDecimal.ZERO;
+        BigDecimal totalConsumed = BigDecimal.ZERO;
+
+        for (StockTransaction tx : txs) {
+            String type = tx.getTransactionType() != null ? tx.getTransactionType().toUpperCase() : "";
+            BigDecimal qty = tx.getQuantity() != null ? tx.getQuantity() : BigDecimal.ZERO;
+
+            if ("OPENING".equals(type) || "PURCHASE".equals(type) || "RECEIVED".equals(type) || "ADJUSTMENT_IN".equals(type)) {
+                totalAdded = totalAdded.add(qty);
+            } else if ("CONSUMPTION".equals(type) || "ADJUSTMENT_OUT".equals(type) || "WASTE".equals(type)) {
+                totalConsumed = totalConsumed.add(qty);
+            }
+        }
+
+        BigDecimal balance = totalAdded.subtract(totalConsumed);
+        return balance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : balance;
+    }
+
     /**
      * Record a stock ledger movement (PURCHASE, RECEIVED, CONSUMPTION, ADJUSTMENT_IN, ADJUSTMENT_OUT).
      */
@@ -150,6 +172,21 @@ public class StockService {
         User currentUser = currentUserId != null ? userRepository.findById(currentUserId).orElse(null) : null;
         Farm farm = farmRepository.findById(farmId)
                 .orElseThrow(() -> new ResourceNotFoundException("Farm", "id", farmId));
+
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Transaction quantity must be greater than zero");
+        }
+
+        // Idempotency: prevent double-deducting or duplicate ledger entries on retries
+        if (referenceId != null && referenceType != null) {
+            Optional<StockTransaction> existing = transactionRepository
+                    .findFirstByFarmIdAndReferenceTypeAndReferenceId(farmId, referenceType, referenceId);
+            if (existing.isPresent()) {
+                log.info("Stock transaction already recorded for reference {}/{}, returning existing transaction",
+                        referenceType, referenceId);
+                return StockTransactionDto.fromEntity(existing.get());
+            }
+        }
 
         StockItem item = null;
         if (stockItemId != null) {
@@ -190,12 +227,23 @@ public class StockService {
             throw new ResourceNotFoundException("StockItem", "id", stockItemId);
         }
 
+        // Validate stock availability before consumption
+        String typeUpper = transactionType != null ? transactionType.toUpperCase() : "CONSUMPTION";
+        if ("CONSUMPTION".equals(typeUpper) || "ADJUSTMENT_OUT".equals(typeUpper)) {
+            BigDecimal available = getAvailableStock(farmId, item.getId());
+            if (available.compareTo(quantity.abs()) < 0) {
+                throw new BadRequestException(String.format(
+                        "Insufficient stock for %s. Current available: %s %s, requested deduction: %s %s",
+                        item.getItemName(), available, item.getUnit(), quantity.abs(), item.getUnit()));
+            }
+        }
+
         String recordedByName = currentUser != null ? currentUser.getFullName() : "Farm Team";
 
         StockTransaction tx = StockTransaction.builder()
                 .farm(farm)
                 .stockItem(item)
-                .transactionType(transactionType.toUpperCase())
+                .transactionType(typeUpper)
                 .quantity(quantity.abs())
                 .unit(unit != null ? unit : item.getUnit())
                 .transactionDate(transactionDate != null ? transactionDate : LocalDate.now())

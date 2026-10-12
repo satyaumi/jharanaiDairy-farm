@@ -321,7 +321,7 @@ class AnimalControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(conflictReq)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Animal with ear tag 'C-DUP-A' already exists on this farm"));
+                .andExpect(jsonPath("$.message").value("Cow Number 'C-DUP-A' already exists on this farm. Please use a unique Cow Number."));
     }
 
     @Test

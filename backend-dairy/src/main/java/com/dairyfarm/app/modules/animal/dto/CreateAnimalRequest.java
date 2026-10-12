@@ -22,8 +22,8 @@ public class CreateAnimalRequest {
     @JsonAlias({"animalName"})
     private String name;
 
-    @NotBlank(message = "Ear tag / animal number is required")
-    @JsonAlias({"animalNumber", "earTag"})
+    @NotBlank(message = "Cow Number is required")
+    @JsonAlias({"animalNumber", "earTag", "cowNumber", "cowNo"})
     private String tag;
 
     @NotBlank(message = "Breed is required")

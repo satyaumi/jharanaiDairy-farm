@@ -78,6 +78,21 @@ export function QuickAddModal({
   const [aiDate, setAiDate] = useState<string>("");
   const [lastVaccinationDate, setLastVaccinationDate] = useState<string>("");
 
+  // Sync currentAction when dialog opens or initialAction changes
+  useEffect(() => {
+    if (open) {
+      setCurrentAction((initialAction as ActionKey) || "menu");
+    }
+  }, [open, initialAction]);
+
+  const handleModalBack = () => {
+    if (initialAction !== "menu" && currentAction === initialAction) {
+      handleOpenChange(false);
+    } else {
+      setCurrentAction("menu");
+    }
+  };
+
   // Reset to menu when dialog closes
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
@@ -197,8 +212,8 @@ export function QuickAddModal({
                   variant="ghost"
                   size="icon"
                   className="size-8 rounded-full"
-                  onClick={() => setCurrentAction("menu")}
-                  aria-label="Back to Quick Actions"
+                  onClick={handleModalBack}
+                  aria-label="Back"
                 >
                   <ChevronLeft className="size-5" />
                 </Button>
@@ -312,7 +327,7 @@ export function QuickAddModal({
               <div className="relative mt-1.5">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search cow name or tag..."
+                  placeholder="Search by Cow Number (e.g. C-1024)..."
                   value={animalSearch}
                   onChange={(e) => setAnimalSearch(e.target.value)}
                   className="h-10 rounded-xl bg-background pl-9 text-xs"
@@ -336,12 +351,12 @@ export function QuickAddModal({
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-600/15 text-xs font-extrabold text-emerald-800 dark:text-emerald-300">
-                          {a.name.slice(0, 1)}
+                          <CowIcon className="size-5" />
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-bold">{a.name}</p>
+                          <p className="truncate text-xs font-bold text-foreground">Cow #{a.tag}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {a.tag} · {a.type}
+                            {a.breed} · {a.type}
                           </p>
                         </div>
                       </div>
@@ -421,16 +436,28 @@ export function QuickAddModal({
             onSubmit={async (e) => {
               e.preventDefault();
               const form = new FormData(e.currentTarget);
-              const name = String(form.get("name") || "").trim();
               const tag = String(form.get("tag") || "")
                 .trim()
                 .toUpperCase();
               const breed = String(form.get("breed") || "Holstein");
 
-              if (!name || !tag) {
-                toast.error("Please provide both animal name and tag.");
+              if (!tag) {
+                toast.error("Please enter a valid Cow Number.");
                 return;
               }
+
+              // Duplicate check
+              const isDuplicate = animals.some(
+                (a) => (a.tag || "").toUpperCase() === tag,
+              );
+              if (isDuplicate) {
+                toast.error("Duplicate Cow Number", {
+                  description: `Cow Number '${tag}' already exists. Please use a unique Cow Number.`,
+                });
+                return;
+              }
+
+              const name = tag;
 
               // History extraction & parent resolution
               const todayStr = new Date().toISOString().split("T")[0]!;
@@ -645,22 +672,10 @@ export function QuickAddModal({
             }}
             className="space-y-4 pt-1"
           >
-            {/* --- BASIC 3 FIELDS (KEEP EXACTLY AS-IS) --- */}
+            {/* --- COW NUMBER & BREED --- */}
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Animal Name
-              </label>
-              <Input
-                name="name"
-                placeholder="e.g. Ganga, Bessie, Kamla"
-                className="mt-1 h-12 rounded-xl text-sm"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Ear Tag / Animal Number
+                Cow Number *
               </label>
               <Input
                 name="tag"

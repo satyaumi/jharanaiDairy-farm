@@ -133,25 +133,20 @@ export function EditAnimalModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const trimmedName = name.trim();
     const trimmedTag = tag.trim().toUpperCase();
 
-    if (!trimmedName) {
-      toast.error("Validation Error", { description: "Animal name cannot be empty." });
-      return;
-    }
     if (!trimmedTag) {
-      toast.error("Validation Error", { description: "Ear tag / animal number cannot be empty." });
+      toast.error("Validation Error", { description: "Cow Number is required." });
       return;
     }
 
-    // Client-side ear tag duplicate check (excluding self)
-    const duplicateLocal = availableAnimals.find(
-      (a) => a.id !== animal.id && a.tag.toUpperCase() === trimmedTag,
+    // Client-side Cow Number duplicate check (excluding self)
+    const isDuplicate = availableAnimals.some(
+      (a) => a.id !== animal.id && (a.tag || "").toUpperCase() === trimmedTag,
     );
-    if (duplicateLocal) {
-      toast.error("Duplicate Tag Detected", {
-        description: `Another animal (${duplicateLocal.name}) already has ear tag ${trimmedTag}. Ear tags must be unique.`,
+    if (isDuplicate) {
+      toast.error("Duplicate Cow Number", {
+        description: `Cow Number '${trimmedTag}' already exists. Please choose a unique number.`,
       });
       return;
     }
@@ -221,7 +216,7 @@ export function EditAnimalModal({
     }
 
     const payload: UpdateAnimalData = {
-      name: trimmedName,
+      name: trimmedTag,
       tag: trimmedTag,
       breed: breed.trim(),
       type: animalType,
@@ -248,7 +243,7 @@ export function EditAnimalModal({
     try {
       const updated = await farmService.updateAnimal(animal.id, payload);
       toast.success("Animal Record Saved", {
-        description: `Successfully updated ${updated.name} (${updated.tag}).`,
+        description: `Successfully updated Cow #${updated.tag}.`,
       });
       onAnimalUpdated(updated);
       onOpenChange(false);
@@ -272,43 +267,28 @@ export function EditAnimalModal({
             </div>
             <div>
               <DialogTitle className="text-lg sm:text-xl font-extrabold text-foreground">
-                Edit Animal Profile: {animal.name}
+                Edit Animal: Cow #{tag || animal.tag}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Update ear tag, status, parentage, health, and dairy production details.
+                Update Cow Number, status, parentage, health, and dairy production details.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          {/* SECTION 1: ESSENTIAL FARMER FIELDS */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                Animal Name *
-              </label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Bessie, Ganga"
-                className="mt-1 h-11 rounded-xl text-sm font-bold"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                Ear Tag / ID *
-              </label>
-              <Input
-                value={tag}
-                onChange={(e) => setTag(e.target.value.toUpperCase())}
-                placeholder="e.g. C-1024"
-                className="mt-1 h-11 rounded-xl text-sm font-black uppercase text-emerald-800 dark:text-emerald-300"
-                required
-              />
-            </div>
+          {/* SECTION 1: ESSENTIAL COW NUMBER */}
+          <div>
+            <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
+              Cow Number *
+            </label>
+            <Input
+              value={tag}
+              onChange={(e) => setTag(e.target.value.toUpperCase())}
+              placeholder="e.g. C-1024"
+              className="mt-1 h-11 rounded-xl text-sm font-black uppercase text-emerald-800 dark:text-emerald-300"
+              required
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

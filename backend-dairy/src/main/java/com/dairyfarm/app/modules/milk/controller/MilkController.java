@@ -1,6 +1,7 @@
 package com.dairyfarm.app.modules.milk.controller;
 
 import com.dairyfarm.app.common.context.TenantContext;
+import com.dairyfarm.app.common.exception.BadRequestException;
 import com.dairyfarm.app.common.exception.ResourceNotFoundException;
 import com.dairyfarm.app.modules.animal.model.Animal;
 import com.dairyfarm.app.modules.animal.repository.AnimalRepository;
@@ -40,18 +41,46 @@ public class MilkController {
         return farmId;
     }
 
+    private Animal resolveAnimal(UUID farmId, String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new BadRequestException("Cow Number is required to record milk");
+        }
+        String clean = identifier.trim();
+        try {
+            UUID id = UUID.fromString(clean);
+            Optional<Animal> aOpt = animalRepository.findByIdAndFarmId(id, farmId);
+            if (aOpt.isPresent()) return aOpt.get();
+        } catch (IllegalArgumentException ignored) {}
+
+        return animalRepository.findByFarmIdAndEarTagIgnoreCase(farmId, clean)
+                .orElseThrow(() -> new BadRequestException("No animal found with Cow Number '" + clean + "' on this farm"));
+    }
+
     @GetMapping
     @Operation(summary = "Get milking records")
     public ResponseEntity<Map<String, Object>> getRecords(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) String shift,
-            @RequestParam(required = false) UUID animalId
+            @RequestParam(required = false) String animalId,
+            @RequestParam(required = false) String cowNumber
     ) {
         UUID farmId = getTenantFarmId();
         List<MilkRecord> records;
 
-        if (animalId != null) {
-            records = milkRecordRepository.findByFarmIdAndAnimalIdOrderByRecordDateDescCreatedAtDesc(farmId, animalId);
+        String targetAnimalIdent = (cowNumber != null && !cowNumber.isBlank()) ? cowNumber : animalId;
+        UUID targetAnimalId = null;
+        if (targetAnimalIdent != null && !targetAnimalIdent.isBlank()) {
+            try {
+                Animal a = resolveAnimal(farmId, targetAnimalIdent);
+                targetAnimalId = a.getId();
+            } catch (BadRequestException e) {
+                // If nonexistent animal is queried, return empty list
+                return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
+            }
+        }
+
+        if (targetAnimalId != null) {
+            records = milkRecordRepository.findByFarmIdAndAnimalIdOrderByRecordDateDescCreatedAtDesc(farmId, targetAnimalId);
         } else if (date != null && shift != null && !shift.isBlank()) {
             records = milkRecordRepository.findByFarmIdAndRecordDateAndShift(farmId, date, shift);
         } else if (date != null) {
@@ -109,13 +138,29 @@ public class MilkController {
         Farm farm = farmRepository.findById(farmId)
                 .orElseThrow(() -> new ResourceNotFoundException("Farm", "id", farmId));
 
-        UUID animalId = UUID.fromString(body.get("animalId").toString());
-        Animal animal = animalRepository.findByIdAndFarmId(animalId, farmId)
-                .orElseThrow(() -> new ResourceNotFoundException("Animal", "id", animalId));
+        Object rawCowIdent = body.get("cowNumber");
+        if (rawCowIdent == null) rawCowIdent = body.get("animalNumber");
+        if (rawCowIdent == null) rawCowIdent = body.get("earTag");
+        if (rawCowIdent == null) rawCowIdent = body.get("tag");
+        if (rawCowIdent == null) rawCowIdent = body.get("animalId");
+
+        if (rawCowIdent == null || rawCowIdent.toString().isBlank()) {
+            throw new BadRequestException("Cow Number is required to record milk");
+        }
+
+        Animal animal = resolveAnimal(farmId, rawCowIdent.toString());
+        UUID animalId = animal.getId();
 
         LocalDate date = body.get("recordDate") != null ? LocalDate.parse(body.get("recordDate").toString()) : LocalDate.now();
         String shift = body.get("shift") != null ? body.get("shift").toString() : "Morning";
+
+        if (body.get("litres") == null) {
+            throw new BadRequestException("Litres amount is required");
+        }
         BigDecimal litres = new BigDecimal(body.get("litres").toString());
+        if (litres.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Litres must be non-negative");
+        }
 
         // Check if record exists for animal/date/shift
         Optional<MilkRecord> existingOpt = milkRecordRepository.findByFarmIdAndAnimalIdAndRecordDateAndShift(farmId, animalId, date, shift);
@@ -170,13 +215,23 @@ public class MilkController {
         BigDecimal bulkTotal = BigDecimal.ZERO;
 
         for (Map<String, Object> entry : entries) {
-            if (entry.get("animalId") == null || entry.get("litres") == null) continue;
-            UUID animalId = UUID.fromString(entry.get("animalId").toString());
+            Object rawIdent = entry.get("cowNumber");
+            if (rawIdent == null) rawIdent = entry.get("animalNumber");
+            if (rawIdent == null) rawIdent = entry.get("earTag");
+            if (rawIdent == null) rawIdent = entry.get("tag");
+            if (rawIdent == null) rawIdent = entry.get("animalId");
+            if (rawIdent == null || entry.get("litres") == null) continue;
+
+            Animal animal;
+            try {
+                animal = resolveAnimal(farmId, rawIdent.toString());
+            } catch (BadRequestException e) {
+                continue;
+            }
+
             BigDecimal litres = new BigDecimal(entry.get("litres").toString());
             if (litres.compareTo(BigDecimal.ZERO) < 0) continue;
-
-            Animal animal = animalRepository.findByIdAndFarmId(animalId, farmId).orElse(null);
-            if (animal == null) continue;
+            UUID animalId = animal.getId();
 
             Optional<MilkRecord> existingOpt = milkRecordRepository.findByFarmIdAndAnimalIdAndRecordDateAndShift(farmId, animalId, date, shift);
             MilkRecord record;

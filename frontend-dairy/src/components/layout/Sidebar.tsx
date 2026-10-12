@@ -39,7 +39,7 @@ export function Sidebar({
     { id: "animals", label: "Herd Management", icon: CowIcon, isCustom: true },
     { id: "performance", label: "Cow Performance", icon: Award },
     { id: "milking", label: "Milk Harvest", icon: Milk },
-    { id: "equipment", label: "Equipment Status", icon: Tractor },
+    { id: "equipment", label: "Equipment Status", icon: Tractor, badge: "Soon" },
     { id: "feeding", label: "Feed & Rations", icon: Wheat },
     { id: "more", label: "More Modules", icon: Layers },
   ];

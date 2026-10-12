@@ -1,5 +1,5 @@
 import React from "react";
-import { Bell, Menu, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Bell, Menu, User as UserIcon } from "lucide-react";
 import { CowBrandLogo } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
 import { CloudHealthStatus } from "@/components/common/CloudHealthStatus";
@@ -9,6 +9,7 @@ interface MobileHeaderProps {
   onOpenModules: () => void;
   onOpenAlerts: () => void;
   onOpenProfile: () => void;
+  onBack?: () => void;
   alertCount?: number;
 }
 
@@ -16,14 +17,26 @@ export function MobileHeader({
   onOpenModules,
   onOpenAlerts,
   onOpenProfile,
+  onBack,
   alertCount = 3,
 }: MobileHeaderProps) {
   const { user } = useAuth();
 
   return (
     <header className="sticky top-2 z-20 mb-3 flex min-h-[56px] items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-border/80 dark:bg-card/95 lg:hidden">
-      {/* Left: Hamburger Menu & Jharanai Farm Brand */}
-      <div className="flex min-w-0 items-center gap-2.5">
+      {/* Left: Back / Hamburger Menu & Jharanai Farm Brand */}
+      <div className="flex min-w-0 items-center gap-1.5">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="grid size-9 place-items-center rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 dark:bg-muted dark:text-foreground transition-all active:scale-95"
+            aria-label="Go Back"
+            title="Go Back"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenModules}

@@ -1,7 +1,6 @@
 import type { Animal, MilkRecord } from "@/types/farm";
 
 export type PerformanceGrade =
-  | "Excellent"
   | "A"
   | "B"
   | "C"
@@ -11,18 +10,16 @@ export type PerformanceGrade =
   | "Insufficient Data";
 
 export interface PerformanceThresholds {
-  excellentMin: number; // e.g. 20.0 L
-  aMin: number;         // e.g. 16.0 L
-  bMin: number;         // e.g. 13.0 L
-  cMin: number;         // e.g. 10.0 L
-  dMin: number;         // e.g. 7.0 L
-  eMin: number;         // e.g. 4.0 L
+  aMin: number; // e.g. 18.0 L (Group A: >= 18.0 L)
+  bMin: number; // e.g. 14.0 L (Group B: 14.0 - 17.9 L)
+  cMin: number; // e.g. 10.0 L (Group C: 10.0 - 13.9 L)
+  dMin: number; // e.g. 7.0 L  (Group D: 7.0 - 9.9 L)
+  eMin: number; // e.g. 4.0 L  (Group E: 4.0 - 6.9 L; Group F: < 4.0 L)
 }
 
 export const DEFAULT_THRESHOLDS: PerformanceThresholds = {
-  excellentMin: 20.0,
-  aMin: 16.0,
-  bMin: 13.0,
+  aMin: 18.0,
+  bMin: 14.0,
   cMin: 10.0,
   dMin: 7.0,
   eMin: 4.0,
@@ -37,7 +34,6 @@ export function getStoredThresholds(): PerformanceThresholds {
     if (!raw) return DEFAULT_THRESHOLDS;
     const parsed = JSON.parse(raw) as Partial<PerformanceThresholds>;
     return {
-      excellentMin: Number(parsed.excellentMin ?? DEFAULT_THRESHOLDS.excellentMin),
       aMin: Number(parsed.aMin ?? DEFAULT_THRESHOLDS.aMin),
       bMin: Number(parsed.bMin ?? DEFAULT_THRESHOLDS.bMin),
       cMin: Number(parsed.cMin ?? DEFAULT_THRESHOLDS.cMin),
@@ -118,33 +114,18 @@ export function evaluateCowGrade(
     };
   }
 
-  // Grade classification based on configured thresholds
-  if (dailyYield >= thresholds.excellentMin) {
-    return {
-      grade: "Excellent",
-      dailyYield,
-      totalPeriodYield,
-      validRecordCount,
-      explanation: `Top-tier yield of ${dailyYield.toFixed(1)} L/day surpasses the Excellent threshold (≥ ${thresholds.excellentMin.toFixed(1)} L/day).`,
-      badgeBg: "bg-emerald-500/15 dark:bg-emerald-500/25",
-      badgeText: "text-emerald-700 dark:text-emerald-300 font-black",
-      badgeBorder: "border-emerald-500/30",
-      trend: "rising",
-      lastMilkingTimestamp,
-    };
-  }
-
+  // Exactly six groups: A, B, C, D, E, F
   if (dailyYield >= thresholds.aMin) {
     return {
       grade: "A",
       dailyYield,
       totalPeriodYield,
       validRecordCount,
-      explanation: `Strong commercial yield of ${dailyYield.toFixed(1)} L/day meets Grade A standard (${thresholds.aMin.toFixed(1)} – ${(thresholds.excellentMin - 0.1).toFixed(1)} L/day).`,
-      badgeBg: "bg-teal-500/15 dark:bg-teal-500/25",
-      badgeText: "text-teal-700 dark:text-teal-300 font-black",
-      badgeBorder: "border-teal-500/30",
-      trend: "steady",
+      explanation: `Top-tier yield of ${dailyYield.toFixed(1)} L/day meets Group A standard (≥ ${thresholds.aMin.toFixed(1)} L/day).`,
+      badgeBg: "bg-emerald-500/15 dark:bg-emerald-500/25",
+      badgeText: "text-emerald-700 dark:text-emerald-300 font-black",
+      badgeBorder: "border-emerald-500/30",
+      trend: "rising",
       lastMilkingTimestamp,
     };
   }
@@ -155,10 +136,10 @@ export function evaluateCowGrade(
       dailyYield,
       totalPeriodYield,
       validRecordCount,
-      explanation: `Consistent yield of ${dailyYield.toFixed(1)} L/day meets Grade B standard (${thresholds.bMin.toFixed(1)} – ${(thresholds.aMin - 0.1).toFixed(1)} L/day).`,
-      badgeBg: "bg-sky-500/15 dark:bg-sky-500/25",
-      badgeText: "text-sky-700 dark:text-sky-300 font-black",
-      badgeBorder: "border-sky-500/30",
+      explanation: `High commercial yield of ${dailyYield.toFixed(1)} L/day meets Group B standard (${thresholds.bMin.toFixed(1)} – ${(thresholds.aMin - 0.1).toFixed(1)} L/day).`,
+      badgeBg: "bg-teal-500/15 dark:bg-teal-500/25",
+      badgeText: "text-teal-700 dark:text-teal-300 font-black",
+      badgeBorder: "border-teal-500/30",
       trend: "steady",
       lastMilkingTimestamp,
     };
@@ -170,10 +151,10 @@ export function evaluateCowGrade(
       dailyYield,
       totalPeriodYield,
       validRecordCount,
-      explanation: `Moderate yield of ${dailyYield.toFixed(1)} L/day meets Grade C standard (${thresholds.cMin.toFixed(1)} – ${(thresholds.bMin - 0.1).toFixed(1)} L/day).`,
-      badgeBg: "bg-amber-500/15 dark:bg-amber-500/25",
-      badgeText: "text-amber-700 dark:text-amber-300 font-black",
-      badgeBorder: "border-amber-500/30",
+      explanation: `Moderate yield of ${dailyYield.toFixed(1)} L/day meets Group C standard (${thresholds.cMin.toFixed(1)} – ${(thresholds.bMin - 0.1).toFixed(1)} L/day).`,
+      badgeBg: "bg-sky-500/15 dark:bg-sky-500/25",
+      badgeText: "text-sky-700 dark:text-sky-300 font-black",
+      badgeBorder: "border-sky-500/30",
       trend: "steady",
       lastMilkingTimestamp,
     };
@@ -185,10 +166,10 @@ export function evaluateCowGrade(
       dailyYield,
       totalPeriodYield,
       validRecordCount,
-      explanation: `Below-average yield of ${dailyYield.toFixed(1)} L/day is in Grade D range (${thresholds.dMin.toFixed(1)} – ${(thresholds.cMin - 0.1).toFixed(1)} L/day). Review feed ration.`,
-      badgeBg: "bg-orange-500/15 dark:bg-orange-500/25",
-      badgeText: "text-orange-700 dark:text-orange-300 font-black",
-      badgeBorder: "border-orange-500/30",
+      explanation: `Average yield of ${dailyYield.toFixed(1)} L/day is in Group D range (${thresholds.dMin.toFixed(1)} – ${(thresholds.cMin - 0.1).toFixed(1)} L/day).`,
+      badgeBg: "bg-amber-500/15 dark:bg-amber-500/25",
+      badgeText: "text-amber-700 dark:text-amber-300 font-black",
+      badgeBorder: "border-amber-500/30",
       trend: "declining",
       lastMilkingTimestamp,
     };
@@ -200,10 +181,10 @@ export function evaluateCowGrade(
       dailyYield,
       totalPeriodYield,
       validRecordCount,
-      explanation: `Low production of ${dailyYield.toFixed(1)} L/day is in Grade E range (${thresholds.eMin.toFixed(1)} – ${(thresholds.dMin - 0.1).toFixed(1)} L/day). Check for mastitis or health stress.`,
-      badgeBg: "bg-rose-500/15 dark:bg-rose-500/25",
-      badgeText: "text-rose-700 dark:text-rose-300 font-black",
-      badgeBorder: "border-rose-500/30",
+      explanation: `Below-average yield of ${dailyYield.toFixed(1)} L/day is in Group E range (${thresholds.eMin.toFixed(1)} – ${(thresholds.dMin - 0.1).toFixed(1)} L/day). Check ration & comfort.`,
+      badgeBg: "bg-orange-500/15 dark:bg-orange-500/25",
+      badgeText: "text-orange-700 dark:text-orange-300 font-black",
+      badgeBorder: "border-orange-500/30",
       trend: "declining",
       lastMilkingTimestamp,
     };
@@ -214,7 +195,7 @@ export function evaluateCowGrade(
     dailyYield,
     totalPeriodYield,
     validRecordCount,
-    explanation: `Critical low yield of ${dailyYield.toFixed(1)} L/day is in Grade F range (< ${thresholds.eMin.toFixed(1)} L/day). Immediate veterinary & lactation evaluation advised.`,
+    explanation: `Low production of ${dailyYield.toFixed(1)} L/day is in Group F range (< ${thresholds.eMin.toFixed(1)} L/day). Check for health or lactation issues.`,
     badgeBg: "bg-red-500/20 dark:bg-red-500/30",
     badgeText: "text-red-700 dark:text-red-300 font-black",
     badgeBorder: "border-red-500/40",
@@ -224,8 +205,6 @@ export function evaluateCowGrade(
 }
 
 export interface GroupSummaryCounts {
-  eligibleCount: number;
-  excellentCount: number;
   aCount: number;
   bCount: number;
   cCount: number;
@@ -241,8 +220,6 @@ export function computeGroupSummary(
   milkRecords: MilkRecord[],
   thresholds: PerformanceThresholds = getStoredThresholds()
 ): GroupSummaryCounts {
-  let eligibleCount = 0;
-  let excellentCount = 0;
   let aCount = 0;
   let bCount = 0;
   let cCount = 0;
@@ -253,39 +230,32 @@ export function computeGroupSummary(
 
   for (const animal of animals) {
     const evalResult = evaluateCowGrade(animal, milkRecords, thresholds);
-    if (evalResult.grade === "Insufficient Data") {
-      insufficientCount++;
-    } else {
-      eligibleCount++;
-      switch (evalResult.grade) {
-        case "Excellent":
-          excellentCount++;
-          break;
-        case "A":
-          aCount++;
-          break;
-        case "B":
-          bCount++;
-          break;
-        case "C":
-          cCount++;
-          break;
-        case "D":
-          dCount++;
-          break;
-        case "E":
-          eCount++;
-          break;
-        case "F":
-          fCount++;
-          break;
-      }
+    switch (evalResult.grade) {
+      case "A":
+        aCount++;
+        break;
+      case "B":
+        bCount++;
+        break;
+      case "C":
+        cCount++;
+        break;
+      case "D":
+        dCount++;
+        break;
+      case "E":
+        eCount++;
+        break;
+      case "F":
+        fCount++;
+        break;
+      case "Insufficient Data":
+        insufficientCount++;
+        break;
     }
   }
 
   return {
-    eligibleCount,
-    excellentCount,
     aCount,
     bCount,
     cCount,

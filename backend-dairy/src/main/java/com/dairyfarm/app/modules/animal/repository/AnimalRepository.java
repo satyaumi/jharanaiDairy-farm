@@ -17,10 +17,13 @@ public interface AnimalRepository extends JpaRepository<Animal, UUID>, JpaSpecif
     Optional<Animal> findByIdAndFarmId(UUID id, UUID farmId);
 
     Optional<Animal> findByFarmIdAndEarTag(UUID farmId, String earTag);
+    Optional<Animal> findByFarmIdAndEarTagIgnoreCase(UUID farmId, String earTag);
 
     boolean existsByFarmIdAndEarTag(UUID farmId, String earTag);
+    boolean existsByFarmIdAndEarTagIgnoreCase(UUID farmId, String earTag);
 
     boolean existsByFarmIdAndEarTagAndIdNot(UUID farmId, String earTag, UUID id);
+    boolean existsByFarmIdAndEarTagIgnoreCaseAndIdNot(UUID farmId, String earTag, UUID id);
 
     Page<Animal> findByFarmIdAndActiveTrue(UUID farmId, Pageable pageable);
 

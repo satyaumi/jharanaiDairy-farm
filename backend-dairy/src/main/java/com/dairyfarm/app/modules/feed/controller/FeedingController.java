@@ -66,6 +66,7 @@ public class FeedingController {
     }
 
     @PostMapping
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     @Operation(summary = "Record group or individual animal feeding round and auto-deduct stock consumption")
     public ResponseEntity<Map<String, Object>> recordFeeding(@RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();
@@ -82,11 +83,29 @@ public class FeedingController {
         if (body.get("quantityKg") != null) {
             qty = new BigDecimal(body.get("quantityKg").toString());
         }
+        if (qty.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new com.dairyfarm.app.common.exception.BadRequestException("Feeding quantity must be greater than zero");
+        }
 
+        // Resolve animal by Cow Number (ear tag) or animalId
         Animal animal = null;
-        if (body.get("animalId") != null && !body.get("animalId").toString().isBlank()) {
-            UUID aId = UUID.fromString(body.get("animalId").toString());
-            animal = animalRepository.findByIdAndFarmId(aId, farmId).orElse(null);
+        Object rawCowIdent = body.get("cowNumber");
+        if (rawCowIdent == null) rawCowIdent = body.get("animalNumber");
+        if (rawCowIdent == null) rawCowIdent = body.get("earTag");
+        if (rawCowIdent == null) rawCowIdent = body.get("tag");
+        if (rawCowIdent == null) rawCowIdent = body.get("animalId");
+
+        if (rawCowIdent != null && !rawCowIdent.toString().isBlank()) {
+            String ident = rawCowIdent.toString().trim();
+            try {
+                UUID aId = UUID.fromString(ident);
+                animal = animalRepository.findByIdAndFarmId(aId, farmId).orElse(null);
+            } catch (IllegalArgumentException ignored) {}
+
+            if (animal == null) {
+                animal = animalRepository.findByFarmIdAndEarTagIgnoreCase(farmId, ident)
+                        .orElseThrow(() -> new com.dairyfarm.app.common.exception.BadRequestException("No animal found with Cow Number '" + ident + "' on this farm"));
+            }
         }
 
         String notes = body.get("notes") != null ? body.get("notes").toString() : null;
@@ -123,7 +142,7 @@ public class FeedingController {
                 date,
                 "FEEDING",
                 saved.getId(),
-                "Feeding for " + groupName + (animal != null ? " (Animal " + animal.getEarTag() + ")" : "")
+                "Feeding for " + groupName + (animal != null ? " (Cow #" + animal.getEarTag() + ")" : "")
         );
 
         return new ResponseEntity<>(Map.of("success", true, "data", saved, "message", "Feeding recorded and stock deducted."), HttpStatus.CREATED);

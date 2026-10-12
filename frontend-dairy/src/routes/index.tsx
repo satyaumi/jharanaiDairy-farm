@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Toaster, toast } from "sonner";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -34,7 +34,18 @@ import { farmService, INITIAL_FIELDS } from "@/services/farm-service";
 import { useAuth } from "@/context/AuthContext";
 import type { Animal, FarmAlert, MilkRecord, StockItem } from "@/types/farm";
 
+export interface FarmSearch {
+  page?: string;
+  action?: string;
+  cow?: string;
+}
+
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): FarmSearch => ({
+    page: typeof search.page === "string" ? search.page : undefined,
+    action: typeof search.action === "string" ? search.action : undefined,
+    cow: typeof search.cow === "string" ? search.cow : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Jharanai Farm | Dairy Farm Management" },
@@ -58,18 +69,27 @@ export const Route = createFileRoute("/")({
 
 export function FarmApp() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { user, isAuthenticated, isLoading, isRestoringSession, isWorker, isManager, isOwner } = useAuth();
 
-  // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<string>("home");
+  // Navigation & Page State driven by URL search params
+  const currentPage = search.page || "home";
+  const actionParam = search.action;
+  const cowParam = search.cow;
 
-  // Modals
-  const [quickAddOpen, setQuickAddOpen] = useState<boolean>(false);
-  const [quickAddInitialAction, setQuickAddInitialAction] = useState<string>("menu");
+  // Modals state synced with URL search params
+  const [localQuickAddOpen, setLocalQuickAddOpen] = useState<boolean>(false);
+  const [localQuickAddAction, setLocalQuickAddAction] = useState<string>("menu");
+  const quickAddOpen = Boolean(actionParam) || localQuickAddOpen;
+  const quickAddInitialAction = actionParam || localQuickAddAction;
+
   const [modulesDrawerOpen, setModulesDrawerOpen] = useState<boolean>(false);
   const [profileModalOpen, setProfileModalOpen] = useState<boolean>(false);
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false);
-  const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
+
+  // Selected Animal state synced with ?cow=...
+  const [localSelectedAnimal, setLocalSelectedAnimal] = useState<Animal | null>(null);
+
   const [editAnimalOpen, setEditAnimalOpen] = useState<boolean>(false);
   const [animalToEdit, setAnimalToEdit] = useState<Animal | null>(null);
   const [lifecycleModalOpen, setLifecycleModalOpen] = useState<boolean>(false);
@@ -81,6 +101,20 @@ export function FarmApp() {
   const [alerts, setAlerts] = useState<FarmAlert[]>([]);
   const [recentMilk, setRecentMilk] = useState<MilkRecord[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
+
+  // Resolve selected animal from URL search parameter ?cow=... or fallback to local
+  const selectedAnimal = useMemo(() => {
+    if (cowParam) {
+      return (
+        animals.find(
+          (a) =>
+            a.tag?.toLowerCase() === cowParam.toLowerCase() ||
+            a.id === cowParam
+        ) || localSelectedAnimal
+      );
+    }
+    return localSelectedAnimal;
+  }, [cowParam, animals, localSelectedAnimal]);
 
   // Frontend Route Protection Guard: wait until session check completes before redirecting
   useEffect(() => {
@@ -116,7 +150,7 @@ export function FarmApp() {
     }
   }, [isAuthenticated, loadData]);
 
-  // RBAC Navigation Guard
+  // RBAC Navigation Guard & Search Params Push
   const handleNavigate = (page: string) => {
     if (isWorker && page === "users") {
       toast.error("Access Restricted", {
@@ -124,13 +158,73 @@ export function FarmApp() {
       });
       return;
     }
-    setCurrentPage(page);
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        page: page === "home" ? undefined : page,
+      }),
+    });
   };
 
-  // Open Quick Add with specific preselected action
+  // Open Quick Add with specific preselected action (pushes ?action=...)
   const handleOpenQuickAdd = (actionKey?: string) => {
-    setQuickAddInitialAction(actionKey || "menu");
-    setQuickAddOpen(true);
+    const act = actionKey || "menu";
+    setLocalQuickAddAction(act);
+    setLocalQuickAddOpen(true);
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        action: act,
+      }),
+    });
+  };
+
+  const handleCloseQuickAdd = (open: boolean) => {
+    if (!open) {
+      setLocalQuickAddOpen(false);
+      navigate({
+        search: (prev) => {
+          const next: FarmSearch = { ...prev };
+          delete next.action;
+          return next;
+        },
+      });
+    }
+  };
+
+  // Select Animal (pushes ?cow=...)
+  const handleSelectAnimal = (animal: Animal | null) => {
+    setLocalSelectedAnimal(animal);
+    navigate({
+      search: (prev) => {
+        const next: FarmSearch = { ...prev };
+        if (animal) {
+          next.cow = animal.tag || animal.id;
+        } else {
+          delete next.cow;
+        }
+        return next;
+      },
+    });
+  };
+
+  // In-app Back Navigation
+  const handleBack = () => {
+    if (actionParam) {
+      handleCloseQuickAdd(false);
+      return;
+    }
+    if (cowParam) {
+      handleSelectAnimal(null);
+      return;
+    }
+    if (currentPage !== "home") {
+      handleNavigate("home");
+      return;
+    }
+    if (window.history.length > 1) {
+      window.history.back();
+    }
   };
 
   // Urgent alerts count for header and bottom nav badges
@@ -185,6 +279,7 @@ export function FarmApp() {
               onOpenModules={() => setModulesDrawerOpen(true)}
               onOpenAlerts={() => handleNavigate("alerts")}
               onOpenProfile={() => setProfileModalOpen(true)}
+              onBack={handleBack}
               alertCount={urgentAlertCount}
             />
           )}
@@ -200,7 +295,7 @@ export function FarmApp() {
                 isLoading={isDataLoading}
                 onNavigateModule={handleNavigate}
                 onOpenQuickAdd={handleOpenQuickAdd}
-                onSelectAnimal={setSelectedAnimal}
+                onSelectAnimal={handleSelectAnimal}
                 onOpenModulesDrawer={() => setModulesDrawerOpen(true)}
               />
             )}
@@ -213,7 +308,7 @@ export function FarmApp() {
                 stockItems={stockItems}
                 onOpenModulesDrawer={() => setModulesDrawerOpen(true)}
                 onOpenQuickRecord={() => handleOpenQuickAdd("record-milk")}
-                onSelectAnimal={setSelectedAnimal}
+                onSelectAnimal={handleSelectAnimal}
                 onOpenExport={() => setExportModalOpen(true)}
               />
             )}
@@ -222,7 +317,7 @@ export function FarmApp() {
               <AnimalListView
                 animals={animals}
                 recentMilk={recentMilk}
-                onSelectAnimal={setSelectedAnimal}
+                onSelectAnimal={handleSelectAnimal}
                 onAddNew={() => handleOpenQuickAdd("add-animal")}
                 onRecordMilk={() => handleOpenQuickAdd("record-milk")}
                 onEditAnimal={(a) => {
@@ -240,7 +335,7 @@ export function FarmApp() {
               <CowPerformanceGroupsView
                 animals={animals}
                 recentMilk={recentMilk}
-                onSelectAnimal={setSelectedAnimal}
+                onSelectAnimal={handleSelectAnimal}
                 onRecordMilk={() => handleOpenQuickAdd("record-milk")}
               />
             )}
@@ -259,7 +354,7 @@ export function FarmApp() {
               <ProductionModuleView
                 animals={animals}
                 records={recentMilk}
-                onSelectAnimal={setSelectedAnimal}
+                onSelectAnimal={handleSelectAnimal}
               />
             )}
 
@@ -267,7 +362,7 @@ export function FarmApp() {
               <HealthModuleView
                 animals={animals}
                 onOpenQuickHealth={() => handleOpenQuickAdd("health")}
-                onSelectAnimal={setSelectedAnimal}
+                onSelectAnimal={handleSelectAnimal}
               />
             )}
 
@@ -336,7 +431,7 @@ export function FarmApp() {
       {/* Global Modals & Drawers */}
       <QuickAddModal
         open={quickAddOpen}
-        onOpenChange={setQuickAddOpen}
+        onOpenChange={handleCloseQuickAdd}
         animals={animals}
         initialAction={quickAddInitialAction}
         onDataUpdated={loadData}
@@ -344,15 +439,15 @@ export function FarmApp() {
 
       <AnimalProfileModal
         animal={selectedAnimal}
-        onOpenChange={(open) => !open && setSelectedAnimal(null)}
+        onOpenChange={(open) => !open && handleSelectAnimal(null)}
         onRecordMilk={() => handleOpenQuickAdd("record-milk")}
         onEditAnimal={(a) => {
-          setSelectedAnimal(null);
+          handleSelectAnimal(null);
           setAnimalToEdit(a);
           setEditAnimalOpen(true);
         }}
         onLifecycleChange={(a) => {
-          setSelectedAnimal(null);
+          handleSelectAnimal(null);
           setAnimalForLifecycle(a);
           setLifecycleModalOpen(true);
         }}
@@ -366,7 +461,7 @@ export function FarmApp() {
         onAnimalUpdated={(updated) => {
           loadData();
           if (selectedAnimal?.id === updated.id) {
-            setSelectedAnimal(updated);
+            handleSelectAnimal(updated);
           }
         }}
       />
@@ -378,7 +473,7 @@ export function FarmApp() {
         onStatusChanged={(updated) => {
           loadData();
           if (selectedAnimal?.id === updated.id) {
-            setSelectedAnimal(updated);
+            handleSelectAnimal(updated);
           }
         }}
       />

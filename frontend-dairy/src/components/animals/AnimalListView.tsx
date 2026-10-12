@@ -81,7 +81,7 @@ export function AnimalListView({
 
   const filteredAnimals = animals.filter((animal) => {
     const matchesSearch =
-      `${animal.name} ${animal.tag} ${animal.breed}`
+      `${animal.tag} ${animal.breed}`
         .toLowerCase()
         .includes(search.toLowerCase());
 
@@ -291,7 +291,7 @@ export function AnimalListView({
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-1/2 size-4.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search by animal name, tag number (e.g. C-1024), or breed..."
+                  placeholder="Search by Cow Number (e.g. C-1024) or breed..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="h-11 rounded-xl bg-background/80 pl-10 text-xs sm:text-sm"
@@ -383,13 +383,8 @@ export function AnimalListView({
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-black text-emerald-800 dark:text-emerald-300 text-sm bg-emerald-500/15 px-2 py-0.5 rounded-lg">
-                                {animal.tag}
+                                Cow #{animal.tag}
                               </span>
-                              {animal.name && animal.name !== animal.tag && (
-                                <span className="font-semibold text-foreground text-xs truncate">
-                                  ({animal.name})
-                                </span>
-                              )}
                             </div>
                             <p className="truncate text-[11px] text-muted-foreground">
                               {animal.breed} · {animal.age} · {animal.pen || "Unassigned"}
@@ -480,7 +475,7 @@ export function AnimalListView({
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-border/80 bg-muted/30 text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                        <th className="px-4 py-3.5">Animal Name & Tag</th>
+                        <th className="px-4 py-3.5">Cow Number</th>
                         <th className="px-4 py-3.5">Breed & Age</th>
                         <th className="px-4 py-3.5">Herd Group</th>
                         <th className="px-4 py-3.5">Status</th>
@@ -509,13 +504,8 @@ export function AnimalListView({
                                 </span>
                                 <div>
                                   <p className="font-black text-emerald-800 dark:text-emerald-300 text-sm">
-                                    {animal.tag}
+                                    Cow #{animal.tag}
                                   </p>
-                                  {animal.name && animal.name !== animal.tag && (
-                                    <p className="text-[11px] font-semibold text-muted-foreground">
-                                      {animal.name}
-                                    </p>
-                                  )}
                                 </div>
                               </div>
                             </td>

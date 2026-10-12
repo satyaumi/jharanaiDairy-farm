@@ -20,6 +20,7 @@ import {
   Award,
 } from "lucide-react";
 import { CowIcon } from "@/components/common/CowBrandLogo";
+import { useAuth } from "@/context/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +49,7 @@ export const CORE_MODULES = [
   {
     id: "performance",
     title: "Cow Performance",
-    subtitle: "Automatic milk grading (Excellent, A to F)",
+    subtitle: "Production performance grouping (Groups A to F)",
     icon: Award,
     badge: "Grades A–F",
     color: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
@@ -64,9 +65,9 @@ export const CORE_MODULES = [
   {
     id: "equipment",
     title: "Equipment",
-    subtitle: "Milking machines, chillers & tractors",
+    subtitle: "Equipment tracking & care (Coming Soon)",
     icon: Tractor,
-    badge: "6 Units",
+    badge: "Coming Soon",
     color: "bg-teal-500/15 text-teal-800 dark:text-teal-300 border-teal-500/30",
   },
   {
@@ -112,9 +113,9 @@ export const CORE_MODULES = [
   {
     id: "supply",
     title: "Supply",
-    subtitle: "Dairy tanker dispatch & milk collections",
+    subtitle: "Dairy tanker dispatch (Coming Soon)",
     icon: Truck,
-    badge: "2 Pickups",
+    badge: "Coming Soon",
     color: "bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-500/30",
   },
 ];
@@ -134,6 +135,9 @@ export function ModulesDrawer({
   onSelectModule,
   currentModule,
 }: ModulesDrawerProps) {
+  const { isWorker } = useAuth();
+  const visibleModules = CORE_MODULES.filter((m) => !(isWorker && m.id === "supply"));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto rounded-3xl border-border/80 bg-background/95 p-4 sm:p-6">
@@ -143,7 +147,7 @@ export function ModulesDrawer({
               Farm Modules
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Direct access to all 8 operational dairy modules
+              Direct access to operational dairy modules
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -154,7 +158,7 @@ export function ModulesDrawer({
             Core Dairy Operations
           </p>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {CORE_MODULES.map((mod) => {
+            {visibleModules.map((mod) => {
               const isSelected = currentModule === mod.id;
               const Icon = mod.icon;
               return (

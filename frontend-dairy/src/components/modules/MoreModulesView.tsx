@@ -38,7 +38,7 @@ export function MoreModulesView({
           id: "performance",
           name: "Milk Performance Groups",
           icon: Award,
-          desc: "Automated classification of cows into Excellent, A, B, C, D, E, F tiers",
+          desc: "Automated classification of cows into Groups A, B, C, D, E, F",
           badge: "Grades A–F",
           badgeColor: "bg-emerald-500/15 text-emerald-800",
           color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
@@ -74,14 +74,14 @@ export function MoreModulesView({
     },
     {
       heading: "Dairy Processing & Distribution",
-      description: "Commercial bulk cooling, tanker pickups, and retail routes",
+      description: "Commercial bulk cooling, storage, and distribution routes",
       items: [
         {
           id: "production",
           name: "Dairy Processing Facilities",
           icon: Factory,
-          desc: "Bulk tank chilling (4°C), pasteurization, bottling & storage",
-          badge: "Chilling Active",
+          desc: "Bulk tank chilling, pasteurization & storage facilities",
+          badge: "Active",
           badgeColor: "bg-indigo-500/15 text-indigo-800",
           color: "text-indigo-700 bg-indigo-50 dark:bg-indigo-950/30",
         },
@@ -90,9 +90,10 @@ export function MoreModulesView({
           name: "Supply & Route Deliveries",
           icon: Truck,
           desc: "Milk tanker dispatch routes, wholesale buyers & retail billing",
-          badge: "Dispatch Ready",
-          badgeColor: "bg-blue-500/15 text-blue-800",
-          color: "text-blue-700 bg-blue-50 dark:bg-blue-950/30",
+          badge: "Coming Soon",
+          badgeColor: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+          color: "text-amber-700 bg-amber-50 dark:bg-amber-950/30",
+          hideForWorker: true,
         },
       ],
     },
@@ -159,7 +160,7 @@ export function MoreModulesView({
       <div className="space-y-6">
         {MODULE_CATEGORIES.map((cat) => {
           const visibleItems = cat.items.filter((item) => {
-            if (isWorker && item.requiresManagement) return false;
+            if (isWorker && ((item as any).hideForWorker || item.requiresManagement)) return false;
             if (search.trim()) {
               return (
                 item.name.toLowerCase().includes(search.toLowerCase()) ||

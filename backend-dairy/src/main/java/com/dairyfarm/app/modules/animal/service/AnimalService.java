@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -141,11 +142,40 @@ public class AnimalService {
     }
 
     @Transactional(readOnly = true)
+    public Animal resolveAnimalEntity(UUID farmId, String idOrTag) {
+        if (idOrTag == null || idOrTag.isBlank()) {
+            throw new BadRequestException("Cow identifier is required");
+        }
+        String clean = idOrTag.trim();
+        try {
+            UUID id = UUID.fromString(clean);
+            Optional<Animal> aOpt = animalRepository.findByIdAndFarmId(id, farmId);
+            if (aOpt.isPresent()) return aOpt.get();
+        } catch (IllegalArgumentException ignored) {}
+
+        return animalRepository.findByFarmIdAndEarTagIgnoreCase(farmId, clean)
+                .orElseThrow(() -> new ResourceNotFoundException("Animal", "Cow Number", clean));
+    }
+
+    @Transactional(readOnly = true)
     public AnimalDto getAnimalById(UUID animalId) {
         UUID farmId = getTenantFarmId();
         Animal animal = animalRepository.findByIdAndFarmId(animalId, farmId)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", "id", animalId));
         return AnimalDto.fromEntity(animal);
+    }
+
+    @Transactional(readOnly = true)
+    public AnimalDto getAnimalByIdOrTag(String idOrTag) {
+        UUID farmId = getTenantFarmId();
+        Animal animal = resolveAnimalEntity(farmId, idOrTag);
+        return AnimalDto.fromEntity(animal);
+    }
+
+    @Transactional(readOnly = true)
+    public UUID resolveAnimalId(String idOrTag) {
+        UUID farmId = getTenantFarmId();
+        return resolveAnimalEntity(farmId, idOrTag).getId();
     }
 
     @Transactional
@@ -163,8 +193,8 @@ public class AnimalService {
         String earTag = request.getTag().trim();
 
         // 1. Uniqueness check within farm
-        if (animalRepository.existsByFarmIdAndEarTag(farmId, earTag)) {
-            throw new DuplicateResourceException("Animal with ear tag '" + earTag + "' already exists on this farm");
+        if (animalRepository.existsByFarmIdAndEarTagIgnoreCase(farmId, earTag)) {
+            throw new DuplicateResourceException("Cow Number '" + earTag + "' already exists on this farm. Please use a unique Cow Number.");
         }
 
         // 2. Date Validations
@@ -344,21 +374,33 @@ public class AnimalService {
     }
 
     @Transactional
+    public AnimalDto updateAnimalByIdOrTag(String idOrTag, UpdateAnimalRequest request) {
+        UUID farmId = getTenantFarmId();
+        Animal animal = resolveAnimalEntity(farmId, idOrTag);
+        return updateAnimalInternal(animal, request);
+    }
+
+    @Transactional
     public AnimalDto updateAnimal(UUID animalId, UpdateAnimalRequest request) {
         UUID farmId = getTenantFarmId();
         Animal animal = animalRepository.findByIdAndFarmId(animalId, farmId)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", "id", animalId));
+        return updateAnimalInternal(animal, request);
+    }
 
+    private AnimalDto updateAnimalInternal(Animal animal, UpdateAnimalRequest request) {
+        UUID farmId = animal.getFarm().getId();
         LocalDate today = LocalDate.now();
 
         // 1. Tag Update & Uniqueness Validation
         if (request.getTag() != null && !request.getTag().isBlank()) {
             String newTag = request.getTag().trim().toUpperCase();
             if (!newTag.equalsIgnoreCase(animal.getEarTag())) {
-                if (animalRepository.existsByFarmIdAndEarTagAndIdNot(farmId, newTag, animalId)) {
-                    throw new DuplicateResourceException("Animal with ear tag '" + newTag + "' already exists on this farm");
+                if (animalRepository.existsByFarmIdAndEarTagIgnoreCaseAndIdNot(farmId, newTag, animal.getId())) {
+                    throw new DuplicateResourceException("Cow Number '" + newTag + "' already exists on this farm. Please use a unique Cow Number.");
                 }
                 animal.setEarTag(newTag);
+                animal.setAnimalName(newTag);
             }
         }
 
@@ -427,7 +469,7 @@ public class AnimalService {
 
         // 4. Parents
         if (request.getFatherAnimalId() != null) {
-            if (request.getFatherAnimalId().equals(animalId)) {
+            if (request.getFatherAnimalId().equals(animal.getId())) {
                 throw new BadRequestException("Animal cannot be its own father");
             }
             Animal father = animalRepository.findByIdAndFarmId(request.getFatherAnimalId(), farmId)
@@ -442,7 +484,7 @@ public class AnimalService {
         }
 
         if (request.getMotherAnimalId() != null) {
-            if (request.getMotherAnimalId().equals(animalId)) {
+            if (request.getMotherAnimalId().equals(animal.getId())) {
                 throw new BadRequestException("Animal cannot be its own mother");
             }
             Animal mother = animalRepository.findByIdAndFarmId(request.getMotherAnimalId(), farmId)

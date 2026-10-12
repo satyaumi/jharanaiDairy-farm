@@ -47,7 +47,7 @@ export function CowPerformanceGroupsView({
 }: CowPerformanceGroupsViewProps) {
   const [selectedGroup, setSelectedGroup] = useState<string>("All");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"yield-desc" | "yield-asc" | "name">("yield-desc");
+  const [sortBy, setSortBy] = useState<"yield-desc" | "yield-asc" | "tag">("yield-desc");
   const [period, setPeriod] = useState<"Today" | "7D" | "30D">("Today");
 
   // Configurable thresholds state
@@ -80,13 +80,12 @@ export function CowPerformanceGroupsView({
           if (evaluation.grade !== selectedGroup) return false;
         }
 
-        // Search query
+        // Search query by Cow Number or Breed
         if (search.trim()) {
           const q = search.toLowerCase();
-          const matchName = cow.name.toLowerCase().includes(q);
-          const matchTag = cow.tag.toLowerCase().includes(q);
-          const matchBreed = cow.breed.toLowerCase().includes(q);
-          if (!matchName && !matchTag && !matchBreed) return false;
+          const matchTag = (cow.tag || "").toLowerCase().includes(q);
+          const matchBreed = (cow.breed || "").toLowerCase().includes(q);
+          if (!matchTag && !matchBreed) return false;
         }
 
         return true;
@@ -98,7 +97,7 @@ export function CowPerformanceGroupsView({
         if (sortBy === "yield-asc") {
           return a.evaluation.dailyYield - b.evaluation.dailyYield;
         }
-        return a.cow.name.localeCompare(b.cow.name);
+        return (a.cow.tag || "").localeCompare(b.cow.tag || "");
       });
   }, [evaluatedCows, selectedGroup, search, sortBy]);
 
@@ -117,14 +116,13 @@ export function CowPerformanceGroupsView({
   };
 
   const GROUPS: { id: string; label: string; count: number; colorClass: string }[] = [
-    { id: "All", label: "All Herd", count: summary.totalHerd, colorClass: "text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-200" },
-    { id: "Excellent", label: "Excellent (≥" + thresholds.excellentMin + "L)", count: summary.excellentCount, colorClass: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300" },
-    { id: "A", label: "Grade A (" + thresholds.aMin + "–" + thresholds.excellentMin + "L)", count: summary.aCount, colorClass: "text-teal-700 bg-teal-50 dark:bg-teal-950/40 dark:text-teal-300" },
-    { id: "B", label: "Grade B (" + thresholds.bMin + "–" + thresholds.aMin + "L)", count: summary.bCount, colorClass: "text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300" },
-    { id: "C", label: "Grade C (" + thresholds.cMin + "–" + thresholds.bMin + "L)", count: summary.cCount, colorClass: "text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300" },
-    { id: "D", label: "Grade D (" + thresholds.dMin + "–" + thresholds.cMin + "L)", count: summary.dCount, colorClass: "text-orange-700 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-300" },
-    { id: "E", label: "Grade E (" + thresholds.eMin + "–" + thresholds.dMin + "L)", count: summary.eCount, colorClass: "text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-300" },
-    { id: "F", label: "Grade F (<" + thresholds.eMin + "L)", count: summary.fCount, colorClass: "text-red-700 bg-red-50 dark:bg-red-950/40 dark:text-red-300" },
+    { id: "All", label: "All Animals", count: summary.totalHerd, colorClass: "text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-200" },
+    { id: "A", label: "Group A (≥" + thresholds.aMin + "L)", count: summary.aCount, colorClass: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300" },
+    { id: "B", label: "Group B (" + thresholds.bMin + "–" + thresholds.aMin + "L)", count: summary.bCount, colorClass: "text-teal-700 bg-teal-50 dark:bg-teal-950/40 dark:text-teal-300" },
+    { id: "C", label: "Group C (" + thresholds.cMin + "–" + thresholds.bMin + "L)", count: summary.cCount, colorClass: "text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300" },
+    { id: "D", label: "Group D (" + thresholds.dMin + "–" + thresholds.cMin + "L)", count: summary.dCount, colorClass: "text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300" },
+    { id: "E", label: "Group E (" + thresholds.eMin + "–" + thresholds.dMin + "L)", count: summary.eCount, colorClass: "text-orange-700 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-300" },
+    { id: "F", label: "Group F (<" + thresholds.eMin + "L)", count: summary.fCount, colorClass: "text-red-700 bg-red-50 dark:bg-red-950/40 dark:text-red-300" },
     { id: "Insufficient Data", label: "Insufficient Data", count: summary.insufficientCount, colorClass: "text-slate-500 bg-slate-50 dark:bg-slate-900 dark:text-slate-400" },
   ];
 
@@ -138,11 +136,11 @@ export function CowPerformanceGroupsView({
               <Award className="size-5" />
             </span>
             <h1 className="text-xl sm:text-2xl font-extrabold text-foreground">
-              Milk Performance Groups
+              Production Performance Groups
             </h1>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Data-driven cow grouping (Excellent to F) evaluated strictly from verified milk yields
+            Six performance tiers (Groups A to F) evaluated strictly from verified daily milk yields
           </p>
         </div>
 
@@ -181,54 +179,48 @@ export function CowPerformanceGroupsView({
         </div>
       </div>
 
-      {/* 2. SUMMARY CARDS BANNER */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-        <div className="farm-glass rounded-2xl p-2.5 border border-slate-200/80 dark:border-border text-center">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground">Eligible Herd</p>
-          <p className="text-lg font-black text-foreground">{summary.eligibleCount}</p>
-          <span className="text-[9px] text-muted-foreground">Active milking</span>
-        </div>
-
+      {/* 2. SUMMARY CARDS BANNER (Groups A-F + Insufficient Data) */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <div className="farm-glass rounded-2xl p-2.5 border border-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/20 text-center">
-          <p className="text-[10px] uppercase font-black text-emerald-800 dark:text-emerald-300">Excellent</p>
-          <p className="text-lg font-black text-emerald-700 dark:text-emerald-400">{summary.excellentCount}</p>
-          <span className="text-[9px] text-emerald-600 font-bold">≥ {thresholds.excellentMin} L/d</span>
+          <p className="text-[10px] uppercase font-black text-emerald-800 dark:text-emerald-300">Group A</p>
+          <p className="text-lg font-black text-emerald-700 dark:text-emerald-400">{summary.aCount}</p>
+          <span className="text-[9px] text-emerald-600 font-bold">≥ {thresholds.aMin} L/d</span>
         </div>
 
         <div className="farm-glass rounded-2xl p-2.5 border border-teal-500/20 bg-teal-50/40 dark:bg-teal-950/20 text-center">
-          <p className="text-[10px] uppercase font-black text-teal-800 dark:text-teal-300">Grade A</p>
-          <p className="text-lg font-black text-teal-700 dark:text-teal-400">{summary.aCount}</p>
-          <span className="text-[9px] text-teal-600 font-bold">≥ {thresholds.aMin} L/d</span>
+          <p className="text-[10px] uppercase font-black text-teal-800 dark:text-teal-300">Group B</p>
+          <p className="text-lg font-black text-teal-700 dark:text-teal-400">{summary.bCount}</p>
+          <span className="text-[9px] text-teal-600 font-bold">≥ {thresholds.bMin} L/d</span>
         </div>
 
         <div className="farm-glass rounded-2xl p-2.5 border border-sky-500/20 bg-sky-50/40 dark:bg-sky-950/20 text-center">
-          <p className="text-[10px] uppercase font-black text-sky-800 dark:text-sky-300">Grade B</p>
-          <p className="text-lg font-black text-sky-700 dark:text-sky-400">{summary.bCount}</p>
-          <span className="text-[9px] text-sky-600 font-bold">≥ {thresholds.bMin} L/d</span>
+          <p className="text-[10px] uppercase font-black text-sky-800 dark:text-sky-300">Group C</p>
+          <p className="text-lg font-black text-sky-700 dark:text-sky-400">{summary.cCount}</p>
+          <span className="text-[9px] text-sky-600 font-bold">≥ {thresholds.cMin} L/d</span>
         </div>
 
         <div className="farm-glass rounded-2xl p-2.5 border border-amber-500/20 bg-amber-50/40 dark:bg-amber-950/20 text-center">
-          <p className="text-[10px] uppercase font-black text-amber-800 dark:text-amber-300">Grade C</p>
-          <p className="text-lg font-black text-amber-700 dark:text-amber-400">{summary.cCount}</p>
-          <span className="text-[9px] text-amber-600 font-bold">≥ {thresholds.cMin} L/d</span>
+          <p className="text-[10px] uppercase font-black text-amber-800 dark:text-amber-300">Group D</p>
+          <p className="text-lg font-black text-amber-700 dark:text-amber-400">{summary.dCount}</p>
+          <span className="text-[9px] text-amber-600 font-bold">≥ {thresholds.dMin} L/d</span>
         </div>
 
         <div className="farm-glass rounded-2xl p-2.5 border border-orange-500/20 bg-orange-50/40 dark:bg-orange-950/20 text-center">
-          <p className="text-[10px] uppercase font-black text-orange-800 dark:text-orange-300">Grade D</p>
-          <p className="text-lg font-black text-orange-700 dark:text-orange-400">{summary.dCount}</p>
-          <span className="text-[9px] text-orange-600 font-bold">≥ {thresholds.dMin} L/d</span>
+          <p className="text-[10px] uppercase font-black text-orange-800 dark:text-orange-300">Group E</p>
+          <p className="text-lg font-black text-orange-700 dark:text-orange-400">{summary.eCount}</p>
+          <span className="text-[9px] text-orange-600 font-bold">≥ {thresholds.eMin} L/d</span>
         </div>
 
         <div className="farm-glass rounded-2xl p-2.5 border border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/20 text-center">
-          <p className="text-[10px] uppercase font-black text-rose-800 dark:text-rose-300">Grade E / F</p>
-          <p className="text-lg font-black text-rose-700 dark:text-rose-400">{summary.eCount + summary.fCount}</p>
-          <span className="text-[9px] text-rose-600 font-bold">Review Yield</span>
+          <p className="text-[10px] uppercase font-black text-rose-800 dark:text-rose-300">Group F</p>
+          <p className="text-lg font-black text-rose-700 dark:text-rose-400">{summary.fCount}</p>
+          <span className="text-[9px] text-rose-600 font-bold">&lt; {thresholds.eMin} L/d</span>
         </div>
 
-        <div className="farm-glass rounded-2xl p-2.5 border border-slate-200 dark:border-border text-center">
-          <p className="text-[10px] uppercase font-bold text-slate-500">Insufficient</p>
+        <div className="farm-glass rounded-2xl p-2.5 border border-slate-200 dark:border-border text-center col-span-2 sm:col-span-1">
+          <p className="text-[10px] uppercase font-bold text-slate-500">Dry / Calves</p>
           <p className="text-lg font-black text-slate-600 dark:text-slate-400">{summary.insufficientCount}</p>
-          <span className="text-[9px] text-slate-500">Dry / Calves</span>
+          <span className="text-[9px] text-slate-500">Non-milking</span>
         </div>
       </div>
 
@@ -241,16 +233,16 @@ export function CowPerformanceGroupsView({
               key={g.id}
               type="button"
               onClick={() => setSelectedGroup(g.id)}
-              className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all ${
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 border ${
                 active
-                  ? "bg-emerald-600 text-white shadow-xs font-black ring-2 ring-emerald-500/20"
-                  : "bg-card border border-border/80 text-muted-foreground hover:text-foreground hover:bg-card/80"
+                  ? "bg-foreground text-background border-foreground shadow-xs"
+                  : "bg-background/80 text-muted-foreground border-border/70 hover:border-border hover:text-foreground"
               }`}
             >
               <span>{g.label}</span>
               <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
-                  active ? "bg-white/20 text-white" : "bg-muted text-foreground/80"
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  active ? "bg-background/20 text-background" : g.colorClass
                 }`}
               >
                 {g.count}
@@ -261,61 +253,52 @@ export function CowPerformanceGroupsView({
       </div>
 
       {/* 4. SEARCH & SORT BAR */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search cow name, tag (e.g. C-1024), or breed..."
-            className="pl-9 h-10 rounded-xl bg-card border-border/80 text-xs"
+            placeholder="Search by Cow Number or breed..."
+            className="pl-8.5 h-9 text-xs rounded-xl border-border/80 bg-background/60"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <ArrowUpDown className="size-3.5" />
-            <span>Sort:</span>
+            <span className="text-[11px] font-medium">Sort:</span>
           </div>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="h-10 rounded-xl border border-border/80 bg-card px-2.5 text-xs font-bold text-foreground focus:outline-hidden"
+            className="h-9 rounded-xl border border-border/80 bg-background/60 px-2.5 text-xs font-bold text-foreground focus:outline-hidden"
           >
             <option value="yield-desc">Yield: High to Low</option>
             <option value="yield-asc">Yield: Low to High</option>
-            <option value="name">Cow Name (A-Z)</option>
+            <option value="tag">Cow Number</option>
           </select>
         </div>
       </div>
 
-      {/* 5. COW CARDS LIST */}
+      {/* 5. COWS GRID */}
       {filteredCows.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card/50 p-8 text-center space-y-2">
-          <AlertCircle className="size-8 text-muted-foreground mx-auto" />
-          <h3 className="text-sm font-black text-foreground">No Cows Found</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            {search
-              ? `No cows match "${search}" in group "${selectedGroup}".`
-              : `No cattle currently assigned to "${selectedGroup}".`}
+        <div className="farm-glass rounded-2xl border border-dashed border-border/80 p-8 text-center space-y-2">
+          <div className="grid size-12 place-items-center rounded-2xl bg-muted/60 text-muted-foreground mx-auto">
+            <Filter className="size-6" />
+          </div>
+          <p className="text-sm font-bold text-foreground">No animals match this performance filter</p>
+          <p className="text-xs text-muted-foreground">
+            Try switching group tabs or clearing your search term.
           </p>
           <Button
             size="sm"
             variant="outline"
             onClick={() => {
-              setSearch("");
               setSelectedGroup("All");
+              setSearch("");
             }}
-            className="mt-2 rounded-xl text-xs font-bold"
+            className="mt-2 text-xs"
           >
             Reset Filters
           </Button>
@@ -328,7 +311,7 @@ export function CowPerformanceGroupsView({
               onClick={() => onSelectAnimal(cow)}
               className="group farm-glass rounded-2xl border border-slate-200/90 dark:border-border/80 p-3.5 transition-all hover:border-emerald-500/40 hover:shadow-md cursor-pointer space-y-3"
             >
-              {/* Header: Name, Tag, Breed & Grade Badge */}
+              {/* Header: Cow Number, Breed & Group Badge */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
@@ -337,39 +320,36 @@ export function CowPerformanceGroupsView({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <h3 className="text-sm font-black text-foreground truncate">
-                        {cow.name}
+                        Cow #{cow.tag}
                       </h3>
-                      <span className="font-mono text-xs font-bold text-muted-foreground">
-                        ({cow.tag})
-                      </span>
                     </div>
                     <p className="text-[11px] text-muted-foreground truncate">
-                      {cow.breed} · Pen: {cow.pen} · Cycle {cow.lactationCycle || 1}
+                      {cow.breed} · Pen: {cow.pen || "General"} · Cycle {cow.lactationCycle || 1}
                     </p>
                   </div>
                 </div>
 
-                {/* Grade Badge */}
+                {/* Group Badge */}
                 <span
                   className={`shrink-0 rounded-xl px-2.5 py-1 text-xs border ${evaluation.badgeBg} ${evaluation.badgeText} ${evaluation.badgeBorder}`}
                 >
-                  {evaluation.grade === "Insufficient Data" ? "No Data" : `Grade ${evaluation.grade}`}
+                  {evaluation.grade === "Insufficient Data" ? "Dry / Calf" : `Group ${evaluation.grade}`}
                 </span>
               </div>
 
               {/* Yield & Performance Stats */}
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50/80 dark:bg-muted/30 p-2 text-center">
                 <div>
-                  <span className="text-[9px] uppercase font-bold text-muted-foreground">Today's Total</span>
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground">Daily Yield</span>
                   <p className="text-xs sm:text-sm font-black text-foreground">
                     {evaluation.dailyYield > 0 ? `${evaluation.dailyYield} L` : "0.0 L"}
                   </p>
                 </div>
 
                 <div>
-                  <span className="text-[9px] uppercase font-bold text-muted-foreground">Valid Records</span>
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground">Records</span>
                   <p className="text-xs sm:text-sm font-black text-foreground">
-                    {evaluation.validRecordCount} sessions
+                    {evaluation.validRecordCount} logged
                   </p>
                 </div>
 
@@ -398,7 +378,7 @@ export function CowPerformanceGroupsView({
                 </div>
               </div>
 
-              {/* Explanation & Last Milk Time */}
+              {/* Explanation & Details Arrow */}
               <div className="flex items-start justify-between gap-2 pt-0.5 text-[11px]">
                 <p className="text-muted-foreground leading-snug">
                   <span className="font-bold text-foreground">Basis: </span>
@@ -421,8 +401,8 @@ export function CowPerformanceGroupsView({
                   <Settings2 className="size-4.5" />
                 </span>
                 <div>
-                  <h2 className="text-sm font-black text-foreground">Configure Grading Thresholds</h2>
-                  <p className="text-[10px] text-muted-foreground">Adjust daily milk yield boundaries (Litres / Day)</p>
+                  <h2 className="text-sm font-black text-foreground">Configure Group Thresholds</h2>
+                  <p className="text-[10px] text-muted-foreground">Adjust daily milk yield boundaries (Litres / Day) for Groups A–F</p>
                 </div>
               </div>
               <button
@@ -437,21 +417,7 @@ export function CowPerformanceGroupsView({
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-foreground">Excellent Min (L/d)</label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    value={tempThresholds.excellentMin}
-                    onChange={(e) =>
-                      setTempThresholds({ ...tempThresholds, excellentMin: parseFloat(e.target.value) || 0 })
-                    }
-                    className="h-9 text-xs"
-                  />
-                  <span className="text-[9px] text-muted-foreground">Default: 20.0 L</span>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground">Grade A Min (L/d)</label>
+                  <label className="font-bold text-foreground">Group A Min (L/d)</label>
                   <Input
                     type="number"
                     step="0.5"
@@ -461,11 +427,11 @@ export function CowPerformanceGroupsView({
                     }
                     className="h-9 text-xs"
                   />
-                  <span className="text-[9px] text-muted-foreground">Default: 16.0 L</span>
+                  <span className="text-[9px] text-muted-foreground">Default: 18.0 L (≥ 18L is Group A)</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-foreground">Grade B Min (L/d)</label>
+                  <label className="font-bold text-foreground">Group B Min (L/d)</label>
                   <Input
                     type="number"
                     step="0.5"
@@ -475,11 +441,11 @@ export function CowPerformanceGroupsView({
                     }
                     className="h-9 text-xs"
                   />
-                  <span className="text-[9px] text-muted-foreground">Default: 13.0 L</span>
+                  <span className="text-[9px] text-muted-foreground">Default: 14.0 L</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-foreground">Grade C Min (L/d)</label>
+                  <label className="font-bold text-foreground">Group C Min (L/d)</label>
                   <Input
                     type="number"
                     step="0.5"
@@ -493,7 +459,7 @@ export function CowPerformanceGroupsView({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-foreground">Grade D Min (L/d)</label>
+                  <label className="font-bold text-foreground">Group D Min (L/d)</label>
                   <Input
                     type="number"
                     step="0.5"
@@ -506,8 +472,8 @@ export function CowPerformanceGroupsView({
                   <span className="text-[9px] text-muted-foreground">Default: 7.0 L</span>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground">Grade E Min (L/d)</label>
+                <div className="space-y-1 col-span-2">
+                  <label className="font-bold text-foreground">Group E Min (L/d)</label>
                   <Input
                     type="number"
                     step="0.5"
@@ -517,12 +483,12 @@ export function CowPerformanceGroupsView({
                     }
                     className="h-9 text-xs"
                   />
-                  <span className="text-[9px] text-muted-foreground">Default: 4.0 L (&lt; 4L is F)</span>
+                  <span className="text-[9px] text-muted-foreground">Default: 4.0 L (Cows yielding &lt; 4.0 L/d are placed in Group F)</span>
                 </div>
               </div>
 
-              <div className="rounded-xl bg-amber-500/10 p-2.5 text-[11px] text-amber-800 dark:text-amber-300 font-medium">
-                Note: Low yield indicates a need for management review or nutritional adjustment, not an automatic veterinary diagnosis.
+              <div className="rounded-xl bg-slate-500/10 p-2.5 text-[11px] text-muted-foreground font-medium">
+                Cows with low production in Group E or F require feed ration review and lactation health check.
               </div>
             </div>
 

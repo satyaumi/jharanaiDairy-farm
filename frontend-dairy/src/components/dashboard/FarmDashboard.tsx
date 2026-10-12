@@ -358,14 +358,14 @@ export function FarmDashboard({
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-sky-500/15 text-sky-800 font-extrabold text-[11px]">
-                    {rec.animalName.slice(0, 1)}
+                    <CowIcon className="size-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="font-extrabold text-foreground truncate">
-                      {rec.animalName}
+                      Cow #{rec.tag}
                     </p>
                     <p className="text-[9px] text-muted-foreground truncate">
-                      Tag: {rec.tag} · {rec.session}
+                      {rec.session} round
                     </p>
                   </div>
                 </div>
@@ -413,7 +413,7 @@ export function FarmDashboard({
                 >
                   <div className="min-w-0 pr-1">
                     <p className="text-xs font-extrabold text-foreground truncate">
-                      {cow.name} ({cow.tag})
+                      Cow #{cow.tag}
                     </p>
                     <p className="text-[9px] text-muted-foreground truncate">
                       Pen: {cow.pen} · {cow.breed}

@@ -66,10 +66,10 @@ public class AnimalController {
         return ResponseEntity.ok(ApiResponse.ok(animals));
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Get detailed animal profile by ID")
-    public ResponseEntity<ApiResponse<AnimalDto>> getAnimalById(@PathVariable UUID id) {
-        AnimalDto animal = animalService.getAnimalById(id);
+    @GetMapping("/{idOrTag}")
+    @Operation(summary = "Get detailed animal profile by ID or Cow Number")
+    public ResponseEntity<ApiResponse<AnimalDto>> getAnimalById(@PathVariable String idOrTag) {
+        AnimalDto animal = animalService.getAnimalByIdOrTag(idOrTag);
         return ResponseEntity.ok(ApiResponse.ok(animal));
     }
 
@@ -81,61 +81,67 @@ public class AnimalController {
         return new ResponseEntity<>(ApiResponse.ok("Animal created successfully", created), HttpStatus.CREATED);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{idOrTag}")
     @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
-    @Operation(summary = "Update core animal details")
+    @Operation(summary = "Update core animal details by ID or Cow Number")
     public ResponseEntity<ApiResponse<AnimalDto>> updateAnimal(
-            @PathVariable UUID id,
+            @PathVariable String idOrTag,
             @Valid @RequestBody UpdateAnimalRequest request) {
-        AnimalDto updated = animalService.updateAnimal(id, request);
+        AnimalDto updated = animalService.updateAnimalByIdOrTag(idOrTag, request);
         return ResponseEntity.ok(ApiResponse.ok("Animal updated successfully", updated));
     }
 
-    @PatchMapping({"/{id}/lifecycle", "/{id}/status"})
+    @PatchMapping({"/{idOrTag}/lifecycle", "/{idOrTag}/status"})
     @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
     @Operation(summary = "Change animal lifecycle status (ACTIVE, SICK, SOLD, DECEASED, RETIRED, ARCHIVED) with reason and effective date")
     public ResponseEntity<ApiResponse<AnimalDto>> changeLifecycleStatus(
-            @PathVariable UUID id,
+            @PathVariable String idOrTag,
             @Valid @RequestBody ChangeLifecycleStatusRequest request) {
+        UUID id = animalService.resolveAnimalId(idOrTag);
         AnimalDto updated = animalService.changeLifecycleStatus(id, request);
         return ResponseEntity.ok(ApiResponse.ok("Animal lifecycle status updated successfully", updated));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{idOrTag}")
     @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
     @Operation(summary = "Soft delete / archive an animal")
-    public ResponseEntity<ApiResponse<Void>> deactivateAnimal(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> deactivateAnimal(@PathVariable String idOrTag) {
+        UUID id = animalService.resolveAnimalId(idOrTag);
         animalService.deactivateAnimal(id);
         return ResponseEntity.ok(ApiResponse.ok("Animal archived successfully", null));
     }
 
-    @GetMapping("/{id}/history")
+    @GetMapping("/{idOrTag}/history")
     @Operation(summary = "Get chronological lifecycle history events for an animal")
-    public ResponseEntity<ApiResponse<List<AnimalHistoryDto>>> getAnimalHistory(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<List<AnimalHistoryDto>>> getAnimalHistory(@PathVariable String idOrTag) {
+        UUID id = animalService.resolveAnimalId(idOrTag);
         List<AnimalHistoryDto> history = animalService.getAnimalHistory(id);
         return ResponseEntity.ok(ApiResponse.ok(history));
     }
 
-    @PostMapping("/{id}/history")
+    @PostMapping("/{idOrTag}/history")
     @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Add a lifecycle event to animal history")
     public ResponseEntity<ApiResponse<AnimalHistoryDto>> addHistoryEvent(
-            @PathVariable UUID id,
+            @PathVariable String idOrTag,
             @Valid @RequestBody CreateHistoryEventRequest request) {
+        UUID id = animalService.resolveAnimalId(idOrTag);
         AnimalHistoryDto history = animalService.addHistoryEvent(id, request);
         return new ResponseEntity<>(ApiResponse.ok("History event recorded successfully", history), HttpStatus.CREATED);
     }
 
-    @GetMapping("/{id}/milk")
+    @GetMapping("/{idOrTag}/milk")
     @Operation(summary = "Get actual milking records for this animal from the database")
-    public ResponseEntity<ApiResponse<List<AnimalMilkRecordDto>>> getAnimalMilkRecords(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<List<AnimalMilkRecordDto>>> getAnimalMilkRecords(@PathVariable String idOrTag) {
+        UUID id = animalService.resolveAnimalId(idOrTag);
         List<AnimalMilkRecordDto> records = animalService.getAnimalMilkRecords(id);
         return ResponseEntity.ok(ApiResponse.ok(records));
     }
 
-    @GetMapping("/{id}/feed")
+    @GetMapping("/{idOrTag}/feed")
     @Operation(summary = "Get actual feeding records for this animal from the database")
-    public ResponseEntity<ApiResponse<List<AnimalFeedRecordDto>>> getAnimalFeedRecords(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<List<AnimalFeedRecordDto>>> getAnimalFeedRecords(@PathVariable String idOrTag) {
+        UUID id = animalService.resolveAnimalId(idOrTag);
         List<AnimalFeedRecordDto> records = animalService.getAnimalFeedRecords(id);
         return ResponseEntity.ok(ApiResponse.ok(records));
     }

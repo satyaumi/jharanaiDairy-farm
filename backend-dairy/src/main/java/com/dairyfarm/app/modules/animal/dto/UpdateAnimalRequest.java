@@ -2,6 +2,7 @@ package com.dairyfarm.app.modules.animal.dto;
 
 import com.dairyfarm.app.modules.animal.model.AnimalType;
 import com.dairyfarm.app.modules.animal.model.LifecycleStatus;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +18,10 @@ import java.util.UUID;
 @AllArgsConstructor
 public class UpdateAnimalRequest {
 
+    @JsonAlias({"animalName"})
     private String name;
+
+    @JsonAlias({"animalNumber", "earTag", "cowNumber", "cowNo"})
     private String tag;
     private String breed;
     private AnimalType type;

@@ -14,4 +14,6 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
     List<StockTransaction> findByFarmIdAndStockItemIdOrderByTransactionDateDescCreatedAtDesc(UUID farmId, UUID stockItemId);
     List<StockTransaction> findByFarmIdAndTransactionDateBetweenOrderByTransactionDateDescCreatedAtDesc(UUID farmId, LocalDate start, LocalDate end);
     List<StockTransaction> findByStockItemId(UUID stockItemId);
+    java.util.Optional<StockTransaction> findFirstByFarmIdAndReferenceTypeAndReferenceId(UUID farmId, String referenceType, UUID referenceId);
+    boolean existsByFarmIdAndReferenceTypeAndReferenceId(UUID farmId, String referenceType, UUID referenceId);
 }
