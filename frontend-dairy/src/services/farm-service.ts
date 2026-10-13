@@ -59,7 +59,20 @@ export interface FarmService {
   getMilkRecords(): Promise<MilkRecord[]>;
   recordMilk(record: Omit<MilkRecord, "id" | "recordedAt">): Promise<MilkRecord>;
   getStock(): Promise<StockItem[]>;
-  getAlerts(): Promise<FarmAlert[]>;
+  getAlerts(): Promise<any[]>;
+  createAlert(data: {
+    title: string;
+    message: string;
+    category?: string;
+    severity?: string;
+    targetRole?: string;
+    targetUserId?: string;
+    cowNumber?: string;
+    animalId?: string;
+    dueDate?: string;
+  }): Promise<any>;
+  markAlertAsRead(alertId: string): Promise<boolean>;
+  dismissAlert(alertId: string): Promise<boolean>;
 
   // Real backend modules
   listGroups(): Promise<AnimalGroup[]>;
@@ -495,8 +508,62 @@ export const farmService: FarmService = {
     return farmStore.getStock();
   },
 
-  async getAlerts() {
+  async getAlerts(): Promise<any[]> {
+    try {
+      const res = await fetch(apiUrl("/alerts"), { headers: getAuthHeaders() });
+      if (res.ok) {
+        const j = await res.json();
+        if (j.success && Array.isArray(j.data)) return j.data;
+      }
+    } catch {}
     return farmStore.getAlerts();
+  },
+
+  async createAlert(data: {
+    title: string;
+    message: string;
+    category?: string;
+    severity?: string;
+    targetRole?: string;
+    targetUserId?: string;
+    cowNumber?: string;
+    animalId?: string;
+    dueDate?: string;
+  }): Promise<any> {
+    const res = await fetch(apiUrl("/alerts"), {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    const j = await res.json();
+    if (!res.ok || !j.success) {
+      throw new Error(j.message || "Failed to create farm alert");
+    }
+    return j.data;
+  },
+
+  async markAlertAsRead(alertId: string): Promise<boolean> {
+    try {
+      const res = await fetch(apiUrl(`/alerts/${alertId}/read`), {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async dismissAlert(alertId: string): Promise<boolean> {
+    try {
+      const res = await fetch(apiUrl(`/alerts/${alertId}`), {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   },
 
   // -------------------------------------------------------------

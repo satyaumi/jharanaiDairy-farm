@@ -19,7 +19,7 @@ import { CowBrandLogo } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import type { Role } from "@/types/auth";
 
 export const Route = createFileRoute("/signup")({
@@ -147,7 +147,7 @@ export function SignupPage() {
       });
 
       setIsSuccess(true);
-      toast.success("Account created successfully!", {
+      notify.success("Account created successfully!", {
         description: "Welcome to Jharanai Farm! Taking you to your farm dashboard.",
       });
 
@@ -158,7 +158,7 @@ export function SignupPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create account. Please try again.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsSubmitting(false);
     }

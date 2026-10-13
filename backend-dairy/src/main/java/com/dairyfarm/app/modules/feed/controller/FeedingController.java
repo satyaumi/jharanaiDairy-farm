@@ -27,7 +27,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/feeding")
-@RequiredArgsConstructor
 @Tag(name = "Feeding & Rations", description = "Endpoints for recording animal/group feeding and stock consumption")
 public class FeedingController {
 
@@ -36,6 +35,20 @@ public class FeedingController {
     private final FarmRepository farmRepository;
     private final UserRepository userRepository;
     private final StockService stockService;
+
+    public FeedingController(
+            FeedRecordRepository feedRecordRepository,
+            AnimalRepository animalRepository,
+            FarmRepository farmRepository,
+            UserRepository userRepository,
+            StockService stockService
+    ) {
+        this.feedRecordRepository = feedRecordRepository;
+        this.animalRepository = animalRepository;
+        this.farmRepository = farmRepository;
+        this.userRepository = userRepository;
+        this.stockService = stockService;
+    }
 
     private UUID getTenantFarmId() {
         UUID farmId = TenantContext.getFarmId();
@@ -46,6 +59,7 @@ public class FeedingController {
     }
 
     @GetMapping
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get feeding records")
     public ResponseEntity<Map<String, Object>> getFeedingRecords(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
@@ -66,6 +80,7 @@ public class FeedingController {
     }
 
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     @Operation(summary = "Record group or individual animal feeding round and auto-deduct stock consumption")
     public ResponseEntity<Map<String, Object>> recordFeeding(@RequestBody Map<String, Object> body) {
@@ -128,11 +143,16 @@ public class FeedingController {
         FeedRecord saved = feedRecordRepository.save(record);
 
         // 2. Automatically record stock consumption in the stock ledger
-        UUID feedItemId = body.get("feedItemId") != null && !body.get("feedItemId").toString().isBlank()
-                ? UUID.fromString(body.get("feedItemId").toString())
-                : null;
+        UUID feedItemId = null;
+        if (body.get("feedItemId") != null && !body.get("feedItemId").toString().isBlank()) {
+            try {
+                feedItemId = UUID.fromString(body.get("feedItemId").toString().trim());
+            } catch (IllegalArgumentException ignored) {
+                // Non-UUID ID provided; fallback to item lookup
+            }
+        }
 
-        stockService.recordTransaction(
+        var tx = stockService.recordTransaction(
                 null,
                 feedItemId,
                 feedType,
@@ -145,6 +165,11 @@ public class FeedingController {
                 "Feeding for " + groupName + (animal != null ? " (Cow #" + animal.getEarTag() + ")" : "")
         );
 
-        return new ResponseEntity<>(Map.of("success", true, "data", saved, "message", "Feeding recorded and stock deducted."), HttpStatus.CREATED);
+        return new ResponseEntity<>(Map.of(
+                "success", true,
+                "data", saved,
+                "transaction", tx,
+                "message", "Feeding recorded and stock deducted."
+        ), HttpStatus.CREATED);
     }
 }

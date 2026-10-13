@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { userService } from "@/services/user-service";
 import type { InvitationInfo } from "@/types/team";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 interface SearchParams {
   token?: string;
@@ -112,7 +112,7 @@ export function ActivateAccountPage() {
     try {
       await userService.activateAccount(token, password);
       setIsSuccess(true);
-      toast.success("Account activated successfully!", {
+      notify.success("Account activated successfully!", {
         description: "You can now sign in with your phone or email.",
       });
 
@@ -122,7 +122,7 @@ export function ActivateAccountPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to activate account.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsSubmitting(false);
     }

@@ -26,6 +26,7 @@ public class StockController {
     private final StockService stockService;
 
     @GetMapping
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get current stock items with calculated balances (Opening + Added - Consumed = Current Stock)")
     public ResponseEntity<Map<String, Object>> getStock() {
         List<StockBalanceDto> items = stockService.getStockBalances();
@@ -33,6 +34,7 @@ public class StockController {
     }
 
     @GetMapping("/transactions")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get stock ledger transaction history")
     public ResponseEntity<Map<String, Object>> getTransactions(
             @RequestParam(required = false) UUID stockItemId,
@@ -44,10 +46,19 @@ public class StockController {
     }
 
     @PostMapping("/transactions")
-    @Operation(summary = "Record stock movement (RECEIVED, PURCHASE, CONSUMPTION, ADJUSTMENT_IN, ADJUSTMENT_OUT)")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
+    @Operation(summary = "Record stock movement (RECEIVED, PURCHASE, SUPPLY, CONSUMPTION, ADJUSTMENT_IN, ADJUSTMENT_OUT)")
     public ResponseEntity<Map<String, Object>> recordTransaction(@RequestBody Map<String, Object> body) {
-        UUID stockItemId = body.get("stockItemId") != null ? UUID.fromString(body.get("stockItemId").toString()) : null;
-        UUID feedItemId = body.get("feedItemId") != null ? UUID.fromString(body.get("feedItemId").toString()) : null;
+        UUID stockItemId = null;
+        if (body.get("stockItemId") != null && !body.get("stockItemId").toString().isBlank()) {
+            try { stockItemId = UUID.fromString(body.get("stockItemId").toString().trim()); } catch (IllegalArgumentException ignored) {}
+        }
+
+        UUID feedItemId = null;
+        if (body.get("feedItemId") != null && !body.get("feedItemId").toString().isBlank()) {
+            try { feedItemId = UUID.fromString(body.get("feedItemId").toString().trim()); } catch (IllegalArgumentException ignored) {}
+        }
+
         String itemName = body.get("itemName") != null ? body.get("itemName").toString() : null;
         String type = body.get("transactionType") != null ? body.get("transactionType").toString() : "RECEIVED";
 
@@ -59,13 +70,16 @@ public class StockController {
         String unit = body.get("unit") != null ? body.get("unit").toString() : "KG";
         LocalDate date = body.get("transactionDate") != null ? LocalDate.parse(body.get("transactionDate").toString()) : LocalDate.now();
         String refType = body.get("referenceType") != null ? body.get("referenceType").toString() : "MANUAL";
-        UUID refId = body.get("referenceId") != null ? UUID.fromString(body.get("referenceId").toString()) : null;
+        UUID refId = null;
+        if (body.get("referenceId") != null && !body.get("referenceId").toString().isBlank()) {
+            try { refId = UUID.fromString(body.get("referenceId").toString().trim()); } catch (IllegalArgumentException ignored) {}
+        }
         String notes = body.get("notes") != null ? body.get("notes").toString() : null;
 
         StockTransactionDto dto = stockService.recordTransaction(
                 stockItemId, feedItemId, itemName, type, qty, unit, date, refType, refId, notes
         );
 
-        return new ResponseEntity<>(Map.of("success", true, "data", dto), HttpStatus.CREATED);
+        return new ResponseEntity<>(Map.of("success", true, "data", dto, "message", "Stock transaction recorded."), HttpStatus.CREATED);
     }
 }

@@ -27,7 +27,7 @@ public class ReportController {
     private final ReportService reportService;
 
     @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
     @Operation(summary = "Export farm report in CSV, Excel (.xlsx), or PDF format")
     public ResponseEntity<byte[]> exportReport(
             @ModelAttribute ReportFilterRequest filter,

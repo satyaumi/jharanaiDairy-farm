@@ -14,6 +14,9 @@ import {
   Calendar,
   Layers,
   Loader2,
+  Award,
+  BarChart3,
+  Factory,
 } from "lucide-react";
 import { CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
@@ -43,7 +46,7 @@ export function FarmDashboard({
   onSelectAnimal,
   onOpenModulesDrawer,
 }: FarmDashboardProps) {
-  const { user } = useAuth();
+  const { user, isOwner, isWorker } = useAuth();
 
   // Metrics
   const lactatingCount = animals.filter((a) => a.type === "Lactating").length;
@@ -64,38 +67,107 @@ export function FarmDashboard({
         )
       : 0;
 
-  // 1. THE FOUR PRIMARY OPERATIONAL MODULES (Feeding, Milk, Stock, Animals)
-  const PRIMARY_FOUR_MODULES = [
-    {
-      id: "feeding",
-      name: "ଖାଦ୍ୟ (Feeding)",
-      icon: Wheat,
-      badge: "Active",
-      subtitle: "Bilingual rations & automatic stock deduction",
-    },
-    {
-      id: "milking",
-      name: "ଦୁଗ୍ଧ (Milk)",
-      icon: Milk,
-      badge: todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(1)} L Today` : "0.0 L",
-      subtitle: "Shift collection, fast group entry & yields",
-    },
-    {
-      id: "stock",
-      name: "ଷ୍ଟକ୍ (Stock)",
-      icon: Package,
-      badge: "Ledger",
-      subtitle: "Opening + Added − Consumed strict ledger & medicines",
-    },
-    {
-      id: "animals",
-      name: "ଗୋପାଳନ (Animals)",
-      icon: CowIcon,
-      isCustomIcon: true,
-      badge: `${animals.length} Cows`,
-      subtitle: "Tag-first herd registry, groups & status",
-    },
-  ];
+  // Role-tailored Primary Four Modules
+  const PRIMARY_FOUR_MODULES = React.useMemo(() => {
+    if (isOwner) {
+      return [
+        {
+          id: "performance",
+          name: "ଗୋ-ପ୍ରଦର୍ଶନ (Cow Performance)",
+          icon: Award,
+          badge: "Grades A–F",
+          subtitle: "Herd classification & high-yielding animals",
+        },
+        {
+          id: "analytics",
+          name: "ବିଶ୍ଳେଷଣ (Farm Analytics)",
+          icon: BarChart3,
+          badge: "KPI Trends",
+          subtitle: "Yield trends, revenue analysis & herd health",
+        },
+        {
+          id: "stock",
+          name: "ଷ୍ଟକ୍ ସଂଚୟ (Stock Reserves)",
+          icon: Package,
+          badge: "Reserves OK",
+          subtitle: "Feed expenditure & available inventory summary",
+        },
+        {
+          id: "production",
+          name: "ପ୍ରକ୍ରିୟାକରଣ (Processing Facilities)",
+          icon: Factory,
+          badge: "Active Tank",
+          subtitle: "Bulk milk chilling & storage facilities",
+        },
+      ];
+    }
+
+    if (isWorker) {
+      return [
+        {
+          id: "milking",
+          name: "ଦୁଗ୍ଧ ସଂଗ୍ରହ (Milk Harvest)",
+          icon: Milk,
+          badge: todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(1)} L Today` : "0.0 L",
+          subtitle: "Shift collection & individual cow yield",
+        },
+        {
+          id: "feeding",
+          name: "ଖାଦ୍ୟ (Feed & Rations)",
+          icon: Wheat,
+          badge: "Rations",
+          subtitle: "Record feeding rounds & check available stock",
+        },
+        {
+          id: "stock",
+          name: "ଷ୍ଟକ୍ (Stock Inventory)",
+          icon: Package,
+          badge: "Available",
+          subtitle: "Check feed balances & record incoming supply",
+        },
+        {
+          id: "performance",
+          name: "ଗୋ-ଲୁକଅପ୍ (Cow Lookup)",
+          icon: Award,
+          badge: "Grades A–F",
+          subtitle: "Cow performance groups & individual records",
+        },
+      ];
+    }
+
+    // Manager / Admin: Comprehensive operations
+    return [
+      {
+        id: "feeding",
+        name: "ଖାଦ୍ୟ (Feeding)",
+        icon: Wheat,
+        badge: "Active",
+        subtitle: "Bilingual rations & automatic stock deduction",
+      },
+      {
+        id: "milking",
+        name: "ଦୁଗ୍ଧ (Milk)",
+        icon: Milk,
+        badge: todayTotalMilk > 0 ? `${todayTotalMilk.toFixed(1)} L Today` : "0.0 L",
+        subtitle: "Shift collection, fast group entry & yields",
+      },
+      {
+        id: "stock",
+        name: "ଷ୍ଟକ୍ (Stock)",
+        icon: Package,
+        badge: "Ledger",
+        subtitle: "Opening + Added − Consumed strict ledger & medicines",
+      },
+      {
+        id: "animals",
+        name: "ଗୋପାଳନ (Animals)",
+        icon: CowIcon,
+        isCustomIcon: true,
+        badge: `${animals.length} Cows`,
+        subtitle: "Tag-first herd registry, groups & status",
+      },
+    ];
+  }, [isOwner, isWorker, todayTotalMilk, animals.length]);
 
   return (
     <div className="space-y-4 pb-12 max-w-full overflow-hidden">
@@ -128,10 +200,18 @@ export function FarmDashboard({
             )}
             <div>
               <h1 className="text-lg font-black tracking-tight text-white sm:text-2xl">
-                Operations Dashboard
+                {isOwner
+                  ? "Executive Farm Overview"
+                  : isWorker
+                  ? "Daily Farm Operations"
+                  : "Operations Dashboard"}
               </h1>
               <p className="text-[11px] font-semibold text-emerald-100/90 sm:text-xs">
-                Jharanai Farm · Live Dairy & Herd Management
+                {isOwner
+                  ? "Jharanai Farm · Business Performance & KPIs"
+                  : isWorker
+                  ? "Jharanai Farm · Assigned Daily Work & Livestock Care"
+                  : "Jharanai Farm · Live Dairy & Herd Management"}
               </p>
             </div>
           </div>
@@ -143,16 +223,28 @@ export function FarmDashboard({
                 <span>Syncing data...</span>
               </div>
             )}
-            {/* Quick Record Milk Shortcut */}
-            <Button
-              size="sm"
-              onClick={() => onOpenQuickAdd("record-milk")}
-              className="h-9 gap-1.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 px-3 text-xs font-black shadow-md transition-transform active:scale-95"
-            >
-              <Plus className="size-3.5 stroke-[3]" />
-              <span className="hidden sm:inline">Record Milk</span>
-              <span className="sm:hidden">Log</span>
-            </Button>
+            {/* Owner: Business Analytics button; Worker & Manager: Quick Record Milk */}
+            {isOwner ? (
+              <Button
+                size="sm"
+                onClick={() => onNavigateModule("analytics")}
+                className="h-9 gap-1.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 px-3 text-xs font-black shadow-md transition-transform active:scale-95"
+              >
+                <BarChart3 className="size-3.5 stroke-[2.5]" />
+                <span className="hidden sm:inline">Farm Analytics</span>
+                <span className="sm:hidden">Analytics</span>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => onOpenQuickAdd("record-milk")}
+                className="h-9 gap-1.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 px-3 text-xs font-black shadow-md transition-transform active:scale-95"
+              >
+                <Plus className="size-3.5 stroke-[3]" />
+                <span className="hidden sm:inline">Record Milk</span>
+                <span className="sm:hidden">Log</span>
+              </Button>
+            )}
           </div>
         </div>
 

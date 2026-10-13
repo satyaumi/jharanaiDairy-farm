@@ -25,13 +25,22 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/milk")
-@RequiredArgsConstructor
 @Tag(name = "Milk Operations", description = "Endpoints for daily milk records, group-level entry, and summaries")
 public class MilkController {
 
     private final MilkRecordRepository milkRecordRepository;
     private final AnimalRepository animalRepository;
     private final FarmRepository farmRepository;
+
+    public MilkController(
+            MilkRecordRepository milkRecordRepository,
+            AnimalRepository animalRepository,
+            FarmRepository farmRepository
+    ) {
+        this.milkRecordRepository = milkRecordRepository;
+        this.animalRepository = animalRepository;
+        this.farmRepository = farmRepository;
+    }
 
     private UUID getTenantFarmId() {
         UUID farmId = TenantContext.getFarmId();
@@ -57,6 +66,7 @@ public class MilkController {
     }
 
     @GetMapping
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get milking records")
     public ResponseEntity<Map<String, Object>> getRecords(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -131,6 +141,7 @@ public class MilkController {
     }
 
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Record individual animal milking")
     public ResponseEntity<Map<String, Object>> recordSingleMilk(@RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();
@@ -195,6 +206,7 @@ public class MilkController {
     }
 
     @PostMapping("/bulk")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Fast bulk group milking entry for mobile workflow")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> recordBulkGroupMilk(@RequestBody Map<String, Object> body) {

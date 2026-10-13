@@ -43,6 +43,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("Invalid argument: {}", ex.getMessage());
+        ApiError apiError = ApiError.of(ex.getMessage(), "BAD_REQUEST");
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ApiError> handleDuplicateResourceException(DuplicateResourceException ex) {
         log.warn("Conflict/Duplicate: {}", ex.getMessage());

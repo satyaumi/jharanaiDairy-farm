@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { farmService } from "@/services/farm-service";
 import type { Animal, AnimalType, AnimalStatus, UpdateAnimalData } from "@/types/farm";
 
@@ -207,11 +207,11 @@ export function EditAnimalModal({
     }
 
     if (finalFatherTag && finalFatherTag === trimmedTag) {
-      toast.error("Validation Error", { description: "An animal cannot be its own father." });
+      notify.error("Validation Error", { description: "An animal cannot be its own father." });
       return;
     }
     if (finalMotherTag && finalMotherTag === trimmedTag) {
-      toast.error("Validation Error", { description: "An animal cannot be its own mother." });
+      notify.error("Validation Error", { description: "An animal cannot be its own mother." });
       return;
     }
 
@@ -242,14 +242,14 @@ export function EditAnimalModal({
     setIsSubmitting(true);
     try {
       const updated = await farmService.updateAnimal(animal.id, payload);
-      toast.success("Animal Record Saved", {
+      notify.success("Animal Record Saved", {
         description: `Successfully updated Cow #${updated.tag}.`,
       });
       onAnimalUpdated(updated);
       onOpenChange(false);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Failed to update animal.";
-      toast.error("Could not save animal", {
+      notify.error("Could not save animal", {
         description: errorMsg,
       });
     } finally {

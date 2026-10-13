@@ -103,7 +103,7 @@ public class AnimalController {
     }
 
     @DeleteMapping("/{idOrTag}")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
     @Operation(summary = "Soft delete / archive an animal")
     public ResponseEntity<ApiResponse<Void>> deactivateAnimal(@PathVariable String idOrTag) {
         UUID id = animalService.resolveAnimalId(idOrTag);

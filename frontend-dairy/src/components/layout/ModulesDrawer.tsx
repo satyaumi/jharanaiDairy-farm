@@ -135,8 +135,16 @@ export function ModulesDrawer({
   onSelectModule,
   currentModule,
 }: ModulesDrawerProps) {
-  const { isWorker } = useAuth();
-  const visibleModules = CORE_MODULES.filter((m) => !(isWorker && m.id === "supply"));
+  const { isWorker, isOwner } = useAuth();
+  const visibleModules = CORE_MODULES.filter((m) => {
+    if (isOwner && ["milking", "feeding", "health", "fodder"].includes(m.id)) {
+      return false;
+    }
+    if (isWorker && m.id === "supply") {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

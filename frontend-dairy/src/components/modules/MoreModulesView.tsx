@@ -29,101 +29,219 @@ export function MoreModulesView({
   const { isWorker, isManager, isOwner } = useAuth();
   const [search, setSearch] = useState("");
 
-  const MODULE_CATEGORIES = [
-    {
-      heading: "Veterinary, Herd Care & Field Operations",
-      description: "Clinical checkups, pasture crops, and livestock feed supply",
-      items: [
+  const MODULE_CATEGORIES = React.useMemo(() => {
+    if (isOwner) {
+      return [
         {
-          id: "performance",
-          name: "Milk Performance Groups",
-          icon: Award,
-          desc: "Automated classification of cows into Groups A, B, C, D, E, F",
-          badge: "Grades A–F",
-          badgeColor: "bg-emerald-500/15 text-emerald-800",
-          color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
+          heading: "Business Oversight & Dairy Quality",
+          description: "High-level performance grading, production facilities, and stock reserves",
+          items: [
+            {
+              id: "performance",
+              name: "Milk Performance Groups",
+              icon: Award,
+              desc: "Automated classification of cows into Groups A, B, C, D, E, F",
+              badge: "Grades A–F",
+              badgeColor: "bg-emerald-500/15 text-emerald-800",
+              color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
+            },
+            {
+              id: "production",
+              name: "Dairy Processing Facilities",
+              icon: Factory,
+              desc: "Bulk tank chilling, pasteurization & storage facilities",
+              badge: "Active",
+              badgeColor: "bg-indigo-500/15 text-indigo-800",
+              color: "text-indigo-700 bg-indigo-50 dark:bg-indigo-950/30",
+            },
+            {
+              id: "stock",
+              name: "Feed & Stock Reserves",
+              icon: Package,
+              desc: "Silage reserves, feed inventory summaries & restock status",
+              badge: "Storage OK",
+              badgeColor: "bg-cyan-500/15 text-cyan-800",
+              color: "text-cyan-700 bg-cyan-50 dark:bg-cyan-950/30",
+            },
+          ],
         },
         {
-          id: "health",
-          name: "Health & Veterinary",
-          icon: HeartPulse,
-          desc: "Vaccination logs, treatments, mastitis screening & recovery pen",
-          badge: urgentAlertCount > 0 ? `${urgentAlertCount} Alerts` : "Healthy",
-          badgeColor: urgentAlertCount > 0 ? "bg-rose-500/15 text-rose-700" : "bg-emerald-500/15 text-emerald-800",
-          color: "text-rose-600 bg-rose-50 dark:bg-rose-950/30",
+          heading: "Audits & Business Notifications",
+          description: "Certified audits and business alerts for the farm owner",
+          items: [
+            {
+              id: "reports",
+              name: "Certified Farm Reports",
+              icon: TrendingUp,
+              desc: "Official CSV, XLSX, and PDF exports for audits & dairy logs",
+              badge: "Audited Sheets",
+              badgeColor: "bg-teal-500/15 text-teal-800",
+              color: "text-teal-700 bg-teal-50 dark:bg-teal-950/30",
+            },
+            {
+              id: "alerts",
+              name: "Executive Farm Alerts",
+              icon: ShieldAlert,
+              desc: "Critical business alerts, low-stock warnings & owner notifications",
+              badge: urgentAlertCount > 0 ? `${urgentAlertCount} Active` : "Clear",
+              badgeColor: urgentAlertCount > 0 ? "bg-rose-500/15 text-rose-700" : "bg-emerald-500/15 text-emerald-800",
+              color: "text-rose-600 bg-rose-50 dark:bg-rose-950/30",
+            },
+          ],
         },
+      ];
+    }
+
+    if (isWorker) {
+      return [
         {
-          id: "fodder",
-          name: "Fodder Fields",
-          icon: Sprout,
-          desc: "Pasture land plots, harvest cycles, alfalfa & green crops",
-          badge: "12 Plots",
-          badgeColor: "bg-lime-500/15 text-lime-800",
-          color: "text-lime-700 bg-lime-50 dark:bg-lime-950/30",
+          heading: "Daily Field & Livestock Operations",
+          description: "Operational tools for herd care, feeding, and crop inspection",
+          items: [
+            {
+              id: "performance",
+              name: "Milk Performance Groups",
+              icon: Award,
+              desc: "Lookup cow performance groups (Groups A to F)",
+              badge: "Grades A–F",
+              badgeColor: "bg-emerald-500/15 text-emerald-800",
+              color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
+            },
+            {
+              id: "health",
+              name: "Health & Veterinary",
+              icon: HeartPulse,
+              desc: "Log treatments, checkup notes & recovery pen status",
+              badge: urgentAlertCount > 0 ? `${urgentAlertCount} Alerts` : "Healthy",
+              badgeColor: urgentAlertCount > 0 ? "bg-rose-500/15 text-rose-700" : "bg-emerald-500/15 text-emerald-800",
+              color: "text-rose-600 bg-rose-50 dark:bg-rose-950/30",
+            },
+            {
+              id: "fodder",
+              name: "Fodder Fields",
+              icon: Sprout,
+              desc: "Pasture land plots, harvest cycles & green crops",
+              badge: "12 Plots",
+              badgeColor: "bg-lime-500/15 text-lime-800",
+              color: "text-lime-700 bg-lime-50 dark:bg-lime-950/30",
+            },
+            {
+              id: "stock",
+              name: "Stock Inventory",
+              icon: Package,
+              desc: "Available feed stocks, silage bags & supply availability",
+              badge: "Storage OK",
+              badgeColor: "bg-cyan-500/15 text-cyan-800",
+              color: "text-cyan-700 bg-cyan-50 dark:bg-cyan-950/30",
+            },
+            {
+              id: "production",
+              name: "Dairy Processing Facilities",
+              icon: Factory,
+              desc: "Bulk tank chilling and temperature status",
+              badge: "Active",
+              badgeColor: "bg-indigo-500/15 text-indigo-800",
+              color: "text-indigo-700 bg-indigo-50 dark:bg-indigo-950/30",
+            },
+          ],
         },
-        {
-          id: "stock",
-          name: "Stock Inventory",
-          icon: Package,
-          desc: "Supplements, medicine, silage reserves & restock warnings",
-          badge: "Storage OK",
-          badgeColor: "bg-cyan-500/15 text-cyan-800",
-          color: "text-cyan-700 bg-cyan-50 dark:bg-cyan-950/30",
-        },
-      ],
-    },
-    {
-      heading: "Dairy Processing & Distribution",
-      description: "Commercial bulk cooling, storage, and distribution routes",
-      items: [
-        {
-          id: "production",
-          name: "Dairy Processing Facilities",
-          icon: Factory,
-          desc: "Bulk tank chilling, pasteurization & storage facilities",
-          badge: "Active",
-          badgeColor: "bg-indigo-500/15 text-indigo-800",
-          color: "text-indigo-700 bg-indigo-50 dark:bg-indigo-950/30",
-        },
-        {
-          id: "supply",
-          name: "Supply & Route Deliveries",
-          icon: Truck,
-          desc: "Milk tanker dispatch routes, wholesale buyers & retail billing",
-          badge: "Coming Soon",
-          badgeColor: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
-          color: "text-amber-700 bg-amber-50 dark:bg-amber-950/30",
-          hideForWorker: true,
-        },
-      ],
-    },
-    {
-      heading: "Governance, Certified Reports & Team Administration",
-      description: "Audited ledger sheets, member management, and farm authorization",
-      items: [
-        {
-          id: "reports",
-          name: "Certified Farm Reports",
-          icon: TrendingUp,
-          desc: "Official CSV, XLSX, and PDF exports for audits & dairy logs",
-          badge: "CSV / Excel / PDF",
-          badgeColor: "bg-teal-500/15 text-teal-800",
-          color: "text-teal-700 bg-teal-50 dark:bg-teal-950/30",
-          requiresManagement: false,
-        },
-        {
-          id: "users",
-          name: "Team & Role Management",
-          icon: Users2,
-          desc: "Worker permissions, invitations, shift assignments & audit log",
-          badge: isWorker ? "Restricted" : "Active Staff",
-          badgeColor: isWorker ? "bg-muted text-muted-foreground" : "bg-purple-500/15 text-purple-800",
-          color: "text-purple-700 bg-purple-50 dark:bg-purple-950/30",
-          requiresManagement: true,
-        },
-      ],
-    },
-  ];
+      ];
+    }
+
+    // Manager / Admin: Comprehensive supervisory directory
+    return [
+      {
+        heading: "Veterinary, Herd Care & Field Operations",
+        description: "Clinical checkups, pasture crops, and livestock feed supply",
+        items: [
+          {
+            id: "performance",
+            name: "Milk Performance Groups",
+            icon: Award,
+            desc: "Automated classification of cows into Groups A, B, C, D, E, F",
+            badge: "Grades A–F",
+            badgeColor: "bg-emerald-500/15 text-emerald-800",
+            color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
+          },
+          {
+            id: "health",
+            name: "Health & Veterinary",
+            icon: HeartPulse,
+            desc: "Vaccination logs, treatments, mastitis screening & recovery pen",
+            badge: urgentAlertCount > 0 ? `${urgentAlertCount} Alerts` : "Healthy",
+            badgeColor: urgentAlertCount > 0 ? "bg-rose-500/15 text-rose-700" : "bg-emerald-500/15 text-emerald-800",
+            color: "text-rose-600 bg-rose-50 dark:bg-rose-950/30",
+          },
+          {
+            id: "fodder",
+            name: "Fodder Fields",
+            icon: Sprout,
+            desc: "Pasture land plots, harvest cycles, alfalfa & green crops",
+            badge: "12 Plots",
+            badgeColor: "bg-lime-500/15 text-lime-800",
+            color: "text-lime-700 bg-lime-50 dark:bg-lime-950/30",
+          },
+          {
+            id: "stock",
+            name: "Stock Inventory",
+            icon: Package,
+            desc: "Supplements, medicine, silage reserves & restock warnings",
+            badge: "Storage OK",
+            badgeColor: "bg-cyan-500/15 text-cyan-800",
+            color: "text-cyan-700 bg-cyan-50 dark:bg-cyan-950/30",
+          },
+        ],
+      },
+      {
+        heading: "Dairy Processing & Distribution",
+        description: "Commercial bulk cooling, storage, and distribution routes",
+        items: [
+          {
+            id: "production",
+            name: "Dairy Processing Facilities",
+            icon: Factory,
+            desc: "Bulk tank chilling, pasteurization & storage facilities",
+            badge: "Active",
+            badgeColor: "bg-indigo-500/15 text-indigo-800",
+            color: "text-indigo-700 bg-indigo-50 dark:bg-indigo-950/30",
+          },
+          {
+            id: "supply",
+            name: "Supply & Route Deliveries",
+            icon: Truck,
+            desc: "Milk tanker dispatch routes, wholesale buyers & retail billing",
+            badge: "Coming Soon",
+            badgeColor: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+            color: "text-amber-700 bg-amber-50 dark:bg-amber-950/30",
+          },
+        ],
+      },
+      {
+        heading: "Governance, Certified Reports & Team Administration",
+        description: "Audited ledger sheets, member management, and farm authorization",
+        items: [
+          {
+            id: "reports",
+            name: "Certified Farm Reports",
+            icon: TrendingUp,
+            desc: "Official CSV, XLSX, and PDF exports for audits & dairy logs",
+            badge: "CSV / Excel / PDF",
+            badgeColor: "bg-teal-500/15 text-teal-800",
+            color: "text-teal-700 bg-teal-50 dark:bg-teal-950/30",
+          },
+          {
+            id: "users",
+            name: "Team & Role Management",
+            icon: Users2,
+            desc: "Worker accounts, invitations, shift assignments & audit log",
+            badge: "Active Staff",
+            badgeColor: "bg-purple-500/15 text-purple-800",
+            color: "text-purple-700 bg-purple-50 dark:bg-purple-950/30",
+          },
+        ],
+      },
+    ];
+  }, [isOwner, isWorker, urgentAlertCount]);
 
   return (
     <div className="space-y-5 pb-12 max-w-full overflow-hidden">

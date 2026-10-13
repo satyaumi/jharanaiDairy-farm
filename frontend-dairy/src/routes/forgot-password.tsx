@@ -18,7 +18,7 @@ import { CowBrandLogo } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
@@ -70,13 +70,13 @@ export function ForgotPasswordPage() {
       const res = await sendResetOtp(clean);
       setStep("reset");
       setCooldownSeconds(60);
-      toast.success("Verification code dispatched!", {
+      notify.success("Verification code dispatched!", {
         description: res.message || "A secure 6-digit code was sent to your registered email.",
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to dispatch code. Please try again.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -90,13 +90,13 @@ export function ForgotPasswordPage() {
     try {
       const res = await sendResetOtp(identifier.trim());
       setCooldownSeconds(60);
-      toast.success("New verification code sent!", {
+      notify.success("New verification code sent!", {
         description: res.message || "A fresh 6-digit code has been delivered to your email.",
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to resend code.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsResending(false);
     }
@@ -130,7 +130,7 @@ export function ForgotPasswordPage() {
       });
 
       setIsSuccess(true);
-      toast.success("Password reset successfully!", {
+      notify.success("Password reset successfully!", {
         description: "You can now sign in with your new password.",
       });
 
@@ -140,7 +140,7 @@ export function ForgotPasswordPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to reset password. Please check your verification code.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsSubmitting(false);
     }

@@ -70,9 +70,9 @@ public class StockService {
                 String type = tx.getTransactionType() != null ? tx.getTransactionType().toUpperCase() : "";
                 BigDecimal qty = tx.getQuantity() != null ? tx.getQuantity() : BigDecimal.ZERO;
 
-                if ("OPENING".equals(type) || "PURCHASE".equals(type) || "RECEIVED".equals(type) || "ADJUSTMENT_IN".equals(type)) {
+                if ("OPENING".equals(type) || "PURCHASE".equals(type) || "RECEIVED".equals(type) || "ADJUSTMENT_IN".equals(type) || "SUPPLY".equals(type) || "ADD".equals(type)) {
                     totalAdded = totalAdded.add(qty);
-                } else if ("CONSUMPTION".equals(type) || "ADJUSTMENT_OUT".equals(type) || "WASTE".equals(type)) {
+                } else if ("CONSUMPTION".equals(type) || "ADJUSTMENT_OUT".equals(type) || "WASTE".equals(type) || "FEEDING".equals(type) || "CONSUME".equals(type)) {
                     totalConsumed = totalConsumed.add(qty);
                 }
             }
@@ -140,9 +140,9 @@ public class StockService {
             String type = tx.getTransactionType() != null ? tx.getTransactionType().toUpperCase() : "";
             BigDecimal qty = tx.getQuantity() != null ? tx.getQuantity() : BigDecimal.ZERO;
 
-            if ("OPENING".equals(type) || "PURCHASE".equals(type) || "RECEIVED".equals(type) || "ADJUSTMENT_IN".equals(type)) {
+            if ("OPENING".equals(type) || "PURCHASE".equals(type) || "RECEIVED".equals(type) || "ADJUSTMENT_IN".equals(type) || "SUPPLY".equals(type) || "ADD".equals(type)) {
                 totalAdded = totalAdded.add(qty);
-            } else if ("CONSUMPTION".equals(type) || "ADJUSTMENT_OUT".equals(type) || "WASTE".equals(type)) {
+            } else if ("CONSUMPTION".equals(type) || "ADJUSTMENT_OUT".equals(type) || "WASTE".equals(type) || "FEEDING".equals(type) || "CONSUME".equals(type)) {
                 totalConsumed = totalConsumed.add(qty);
             }
         }
@@ -227,9 +227,18 @@ public class StockService {
             throw new ResourceNotFoundException("StockItem", "id", stockItemId);
         }
 
-        // Validate stock availability before consumption
-        String typeUpper = transactionType != null ? transactionType.toUpperCase() : "CONSUMPTION";
-        if ("CONSUMPTION".equals(typeUpper) || "ADJUSTMENT_OUT".equals(typeUpper)) {
+        // Normalize transaction type to standard ledger movement
+        String rawType = transactionType != null ? transactionType.trim().toUpperCase() : "RECEIVED";
+        String typeUpper = "RECEIVED";
+        if ("SUPPLY".equals(rawType) || "ADD".equals(rawType) || "PURCHASE".equals(rawType)) {
+            typeUpper = "RECEIVED";
+        } else if ("FEEDING".equals(rawType) || "CONSUME".equals(rawType) || "CONSUMPTION".equals(rawType)) {
+            typeUpper = "CONSUMPTION";
+        } else if ("OPENING".equals(rawType) || "ADJUSTMENT_IN".equals(rawType) || "ADJUSTMENT_OUT".equals(rawType) || "WASTE".equals(rawType)) {
+            typeUpper = rawType;
+        }
+
+        if ("CONSUMPTION".equals(typeUpper) || "ADJUSTMENT_OUT".equals(typeUpper) || "WASTE".equals(rawType)) {
             BigDecimal available = getAvailableStock(farmId, item.getId());
             if (available.compareTo(quantity.abs()) < 0) {
                 throw new BadRequestException(String.format(

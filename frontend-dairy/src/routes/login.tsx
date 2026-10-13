@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import type { Role } from "@/types/auth";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -119,13 +119,13 @@ export function LoginPage() {
       setDispatchedEmail(res.email || cleanId);
       setOtpStep("enter_otp");
       setCooldownSeconds(60);
-      toast.success("Verification Code Dispatched", {
+      notify.success("Verification Code Dispatched", {
         description: res.message || "A 6-digit code was sent to your registered address.",
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to dispatch verification code.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -145,14 +145,14 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await loginWithOtp(identifier.trim(), cleanOtp, selectedRole);
-      toast.success("Session Verified", {
+      notify.success("Session Verified", {
         description: "Authenticated with verified role permissions.",
       });
       navigate({ to: "/" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Invalid or expired verification code.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -180,14 +180,14 @@ export function LoginPage() {
         phoneOrEmail: cleanId,
         password,
       });
-      toast.success("Welcome back!", {
+      notify.success("Welcome back!", {
         description: "Successfully signed in to your farm dashboard.",
       });
       navigate({ to: "/" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to sign in. Please check your credentials.";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setIsSubmitting(false);
     }

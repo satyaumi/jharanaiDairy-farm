@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Toaster, toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
@@ -152,12 +152,23 @@ export function FarmApp() {
 
   // RBAC Navigation Guard & Search Params Push
   const handleNavigate = (page: string) => {
-    if (isWorker && page === "users") {
-      toast.error("Access Restricted", {
-        description: "Team & Role management requires Farm Manager or Owner access.",
+    if (isWorker && (page === "analytics" || page === "reports" || page === "users")) {
+      notify.error("Access Restricted", {
+        description:
+          page === "users"
+            ? "Team & Role management is restricted to Farm Management."
+            : "Business analytics and certified reports are restricted to Farm Management and Owner.",
       });
       return;
     }
+
+    if (isOwner && page === "users") {
+      notify.error("Access Restricted", {
+        description: "Team and staff administration is managed by Farm Management.",
+      });
+      return;
+    }
+
     navigate({
       search: (prev) => ({
         ...prev,
@@ -165,6 +176,35 @@ export function FarmApp() {
       }),
     });
   };
+
+  // URL Direct Access Guard (protect against typing unauthorized ?page=... directly)
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+
+    if (isWorker && (currentPage === "analytics" || currentPage === "reports" || currentPage === "users")) {
+      notify.error("Access Restricted", {
+        description: "Your role (Worker) cannot access this administrative page.",
+      });
+      navigate({
+        search: (prev) => {
+          const next: FarmSearch = { ...prev };
+          delete next.page;
+          return next;
+        },
+      });
+    } else if (isOwner && currentPage === "users") {
+      notify.error("Access Restricted", {
+        description: "Team administration is managed by Farm Management.",
+      });
+      navigate({
+        search: (prev) => {
+          const next: FarmSearch = { ...prev };
+          delete next.page;
+          return next;
+        },
+      });
+    }
+  }, [currentPage, isAuthenticated, isLoading, isWorker, isOwner]);
 
   // Open Quick Add with specific preselected action (pushes ?action=...)
   const handleOpenQuickAdd = (actionKey?: string) => {
@@ -258,7 +298,6 @@ export function FarmApp() {
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-emerald-500/20">
-      <Toaster position="top-right" richColors />
 
       {/* Atmospheric Soft Gradient Backdrop */}
       <div

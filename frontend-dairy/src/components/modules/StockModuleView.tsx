@@ -26,7 +26,8 @@ import type {
   FeedItem,
 } from "@/types/farm";
 import { farmService } from "@/services/farm-service";
-import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { notify } from "@/lib/notify";
 
 interface StockModuleViewProps {
   stockItems: StockItem[];
@@ -39,6 +40,7 @@ export function StockModuleView({
   animals = [],
   onOpenQuickStock,
 }: StockModuleViewProps) {
+  const { isOwner } = useAuth();
   const [activeTab, setActiveTab] = useState<"FEED" | "MEDICINE" | "LEDGER">("FEED");
 
   // Real backend balances
@@ -99,7 +101,7 @@ export function StockModuleView({
     e.preventDefault();
     const qty = parseFloat(transQty);
     if (!selectedFeedItemId || isNaN(qty) || qty <= 0) {
-      toast.error("Please select a feed item and enter a valid quantity.");
+      notify.error("Please select a feed item and enter a valid quantity.");
       return;
     }
 
@@ -111,7 +113,7 @@ export function StockModuleView({
         quantity: qty,
         notes: transNotes,
       });
-      toast.success("Stock Movement Logged", {
+      notify.success("Stock Movement Logged", {
         description: `Successfully recorded ${qty} KG (${transType}). Stock balance updated.`,
       });
       setTransQty("");
@@ -119,7 +121,7 @@ export function StockModuleView({
       setAddStockOpen(false);
       loadData();
     } catch (err: any) {
-      toast.error(err.message || "Failed to record stock movement");
+      notify.error(err.message || "Failed to record stock movement");
     } finally {
       setIsSubmittingTrans(false);
     }
@@ -130,7 +132,7 @@ export function StockModuleView({
     e.preventDefault();
     const qty = parseFloat(medUsageQty);
     if (!selectedMedId || isNaN(qty) || qty <= 0) {
-      toast.error("Please select medicine and enter a valid quantity.");
+      notify.error("Please select medicine and enter a valid quantity.");
       return;
     }
 
@@ -142,7 +144,7 @@ export function StockModuleView({
         quantity: qty,
         reason: medUsageReason,
       });
-      toast.success("Medicine Usage Recorded", {
+      notify.success("Medicine Usage Recorded", {
         description: `Administered ${qty} doses. Medicine inventory decremented.`,
       });
       setMedUsageQty("");
@@ -150,7 +152,7 @@ export function StockModuleView({
       setMedUsageOpen(false);
       loadData();
     } catch (err: any) {
-      toast.error(err.message || "Failed to record medicine usage");
+      notify.error(err.message || "Failed to record medicine usage");
     } finally {
       setIsSubmittingMed(false);
     }
@@ -170,28 +172,32 @@ export function StockModuleView({
             </h1>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Strict ledger formula: Opening + Added − Consumed = Current Stock
+            {isOwner
+              ? "Executive feed expenditure, inventory reserves & audit ledger"
+              : "Strict ledger formula: Opening + Added − Consumed = Current Stock"}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {activeTab === "MEDICINE" ? (
-            <Button
-              onClick={() => setMedUsageOpen(true)}
-              className="h-10 gap-2 rounded-2xl bg-rose-700 hover:bg-rose-800 text-white font-black text-xs shadow-md"
-            >
-              <Pill className="size-4" /> Record Medicine Usage (ଔଷଧ ବ୍ୟବହାର)
-            </Button>
-          ) : (
-            <Button
-              onClick={() => setAddStockOpen(true)}
-              className="h-10 gap-2 rounded-2xl bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs shadow-md"
-            >
-              <Plus className="size-4 stroke-[2.5]" />
-              Record Stock Movement (ଷ୍ଟକ୍ ଏଣ୍ଟ୍ରି)
-            </Button>
-          )}
-        </div>
+        {!isOwner && (
+          <div className="flex flex-wrap items-center gap-2">
+            {activeTab === "MEDICINE" ? (
+              <Button
+                onClick={() => setMedUsageOpen(true)}
+                className="h-10 gap-2 rounded-2xl bg-rose-700 hover:bg-rose-800 text-white font-black text-xs shadow-md"
+              >
+                <Pill className="size-4" /> Record Medicine Usage (ଔଷଧ ବ୍ୟବହାର)
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setAddStockOpen(true)}
+                className="h-10 gap-2 rounded-2xl bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs shadow-md"
+              >
+                <Plus className="size-4 stroke-[2.5]" />
+                Record Stock Movement (ଷ୍ଟକ୍ ଏଣ୍ଟ୍ରି)
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Navigation Sub-Tabs */}

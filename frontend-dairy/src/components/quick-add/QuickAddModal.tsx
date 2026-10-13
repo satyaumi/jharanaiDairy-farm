@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import { useAuth } from "@/context/AuthContext";
 import { farmService } from "@/services/farm-service";
 import type { Animal } from "@/types/farm";
 
@@ -101,18 +102,20 @@ export function QuickAddModal({
     }
   };
 
+  const { isWorker, isOwner } = useAuth();
+
   // Submit Record Milk
   const handleSaveMilk = async (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(litres);
     if (isNaN(qty) || qty <= 0) {
-      toast.error("Please enter a valid milk quantity in litres.");
+      notify.error("Please enter a valid milk quantity in litres.");
       return;
     }
 
     const animal = animals.find((a) => a.id === selectedAnimalId);
     if (!animal) {
-      toast.error("Please select an animal.");
+      notify.error("Please select an animal.");
       return;
     }
 
@@ -125,7 +128,7 @@ export function QuickAddModal({
       quality: "Normal",
     });
 
-    toast.success(`Recorded ${qty} L for ${animal.name} (${animal.tag})`, {
+    notify.success(`Recorded ${qty} L for ${animal.name} (${animal.tag})`, {
       description: `${milkSession} milking saved to today's herd records.`,
     });
 
@@ -240,7 +243,11 @@ export function QuickAddModal({
         {/* 1. MAIN MENU OF ACTIONS */}
         {currentAction === "menu" && (
           <div className="grid grid-cols-1 gap-2.5 pt-2 sm:grid-cols-2">
-            {QUICK_ACTIONS.map((item) => {
+            {QUICK_ACTIONS.filter((item) => {
+              if (isWorker && item.key === "add-animal") return false;
+              if (isOwner) return false;
+              return true;
+            }).map((item) => {
               const Icon = item.icon;
               return (
                 <button
@@ -525,13 +532,13 @@ export function QuickAddModal({
 
               // --- SENSITIVITY & DATE VALIDATION ---
               if (birthDate && birthDate > todayStr) {
-                toast.error("Birth Date cannot be in the future.");
+                notify.error("Birth Date cannot be in the future.");
                 return;
               }
 
               if (birthDate && aiDate) {
                 if (aiDate < birthDate) {
-                  toast.error(
+                  notify.error(
                     "AI Date cannot be earlier than the animal's birth date.",
                   );
                   return;
@@ -539,13 +546,13 @@ export function QuickAddModal({
               }
 
               if (aiDate && aiDate > todayStr) {
-                toast.error("AI Date cannot be in the future.");
+                notify.error("AI Date cannot be in the future.");
                 return;
               }
 
               if (birthDate && lastVaccinationDate) {
                 if (lastVaccinationDate < birthDate) {
-                  toast.error(
+                  notify.error(
                     "Last Vaccination Date cannot be before the animal's birth date.",
                   );
                   return;
@@ -553,17 +560,17 @@ export function QuickAddModal({
               }
 
               if (lastVaccinationDate && lastVaccinationDate > todayStr) {
-                toast.error("Last Vaccination Date cannot be in the future.");
+                notify.error("Last Vaccination Date cannot be in the future.");
                 return;
               }
 
               if (finalFatherTag && finalFatherTag === tag) {
-                toast.error("Father cannot be the same animal being created.");
+                notify.error("Father cannot be the same animal being created.");
                 return;
               }
 
               if (finalMotherTag && finalMotherTag === tag) {
-                toast.error("Mother cannot be the same animal being created.");
+                notify.error("Mother cannot be the same animal being created.");
                 return;
               }
 
@@ -654,7 +661,7 @@ export function QuickAddModal({
               };
 
               await farmService.saveAnimal(newAnimal);
-              toast.success(`${name} (${tag}) added to herd!`, {
+              notify.success(`${name} (${tag}) added to herd!`, {
                 description: showAnimalHistory
                   ? "Animal profile and historical records saved."
                   : "Quick animal record created successfully.",

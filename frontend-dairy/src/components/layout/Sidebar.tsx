@@ -12,6 +12,7 @@ import {
   Users2,
   ChevronRight,
   Award,
+  Package,
 } from "lucide-react";
 import { CowBrandLogo, CowIcon } from "@/components/common/CowBrandLogo";
 import { CloudHealthStatus } from "@/components/common/CloudHealthStatus";
@@ -32,32 +33,68 @@ export function Sidebar({
 }: SidebarProps) {
   const { user, isWorker, isManager, isOwner } = useAuth();
 
-  // Primary Modules + Dashboard, Analytics & Cow Performance
-  const PRIMARY_NAV = [
-    { id: "home", label: "Dashboard", icon: House },
-    { id: "analytics", label: "Farm Analytics", icon: BarChart3 },
-    { id: "animals", label: "Herd Management", icon: CowIcon, isCustom: true },
-    { id: "performance", label: "Cow Performance", icon: Award },
-    { id: "milking", label: "Milk Harvest", icon: Milk },
-    { id: "equipment", label: "Equipment Status", icon: Tractor, badge: "Soon" },
-    { id: "feeding", label: "Feed & Rations", icon: Wheat },
-    { id: "more", label: "More Modules", icon: Layers },
-  ];
-
-  // Secondary Governance & Management
-  const SECONDARY_NAV = [
-    { id: "alerts", label: "Farm Alerts", icon: Bell },
-    { id: "reports", label: "Certified Reports", icon: FileText },
-    { id: "users", label: "Team & Management", icon: Users2, requiresManagement: true },
-    { id: "settings", label: "Profile & Settings", icon: Settings2 },
-  ];
-
-  const visibleSecondaryNav = SECONDARY_NAV.filter((item) => {
-    if (isWorker && item.requiresManagement) {
-      return false; // Workers do not see Team & Management
+  // Role-specific Primary Navigation
+  const visiblePrimaryNav = React.useMemo(() => {
+    if (isOwner) {
+      return [
+        { id: "home", label: "Executive Overview", icon: House },
+        { id: "analytics", label: "Farm Analytics", icon: BarChart3 },
+        { id: "performance", label: "Cow Performance", icon: Award },
+        { id: "stock", label: "Feed & Stock Reserves", icon: Package },
+        { id: "more", label: "More Modules", icon: Layers },
+      ];
     }
-    return true;
-  });
+
+    if (isWorker) {
+      return [
+        { id: "home", label: "Operations Home", icon: House },
+        { id: "performance", label: "Cow Performance", icon: Award },
+        { id: "animals", label: "Herd Lookup", icon: CowIcon, isCustom: true },
+        { id: "milking", label: "Milk Harvest", icon: Milk },
+        { id: "feeding", label: "Feed & Rations", icon: Wheat },
+        { id: "stock", label: "Stock Inventory", icon: Package },
+        { id: "more", label: "More Modules", icon: Layers },
+      ];
+    }
+
+    // Manager / Admin: Full supervisory operations
+    return [
+      { id: "home", label: "Dashboard", icon: House },
+      { id: "analytics", label: "Farm Analytics", icon: BarChart3 },
+      { id: "animals", label: "Herd Management", icon: CowIcon, isCustom: true },
+      { id: "performance", label: "Cow Performance", icon: Award },
+      { id: "milking", label: "Milk Harvest", icon: Milk },
+      { id: "feeding", label: "Feed & Rations", icon: Wheat },
+      { id: "stock", label: "Stock Inventory", icon: Package },
+      { id: "more", label: "More Modules", icon: Layers },
+    ];
+  }, [isOwner, isWorker]);
+
+  // Role-specific Secondary Navigation
+  const visibleSecondaryNav = React.useMemo(() => {
+    if (isOwner) {
+      return [
+        { id: "alerts", label: "Farm Alerts", icon: Bell },
+        { id: "reports", label: "Certified Reports", icon: FileText },
+        { id: "settings", label: "Profile & Settings", icon: Settings2 },
+      ];
+    }
+
+    if (isWorker) {
+      return [
+        { id: "alerts", label: "Assigned Alerts", icon: Bell },
+        { id: "settings", label: "Profile & Settings", icon: Settings2 },
+      ];
+    }
+
+    // Manager / Admin
+    return [
+      { id: "alerts", label: "Farm Alerts", icon: Bell },
+      { id: "reports", label: "Certified Reports", icon: FileText },
+      { id: "users", label: "Team & Management", icon: Users2 },
+      { id: "settings", label: "Profile & Settings", icon: Settings2 },
+    ];
+  }, [isOwner, isWorker]);
 
   return (
     <aside className="farm-glass-strong sticky top-4 hidden h-[calc(100vh-2rem)] w-[265px] shrink-0 flex-col rounded-3xl border border-border/80 p-4 shadow-xl lg:flex">
@@ -73,7 +110,7 @@ export function Sidebar({
             Primary Operations
           </p>
           <nav className="space-y-1" aria-label="Main Farm Navigation">
-            {PRIMARY_NAV.map((item) => {
+            {visiblePrimaryNav.map((item) => {
               const active = currentPage === item.id;
               const Icon = item.icon;
               return (
