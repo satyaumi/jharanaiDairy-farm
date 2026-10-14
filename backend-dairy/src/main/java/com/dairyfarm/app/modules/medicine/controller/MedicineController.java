@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -75,6 +76,7 @@ public class MedicineController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Add a new medicine to inventory")
     public ResponseEntity<Map<String, Object>> createMedicine(@RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();
@@ -124,6 +126,7 @@ public class MedicineController {
     }
 
     @PostMapping("/usage")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Record medicine usage/administration")
     public ResponseEntity<Map<String, Object>> recordUsage(@RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();
@@ -157,6 +160,7 @@ public class MedicineController {
     }
 
     @PostMapping("/receive")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Record medicine receipt / batch replenishment")
     public ResponseEntity<Map<String, Object>> recordReceipt(@RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();

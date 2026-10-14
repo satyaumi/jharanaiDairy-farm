@@ -100,9 +100,9 @@ export function MoreModulesView({
           items: [
             {
               id: "performance",
-              name: "Milk Performance Groups",
+              name: "Cow Performance & Lookup",
               icon: Award,
-              desc: "Lookup cow performance groups (Groups A to F)",
+              desc: "Search by Cow Number, view cow health & performance grades (A–F)",
               badge: "Grades A–F",
               badgeColor: "bg-emerald-500/15 text-emerald-800",
               color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
@@ -154,6 +154,16 @@ export function MoreModulesView({
         heading: "Veterinary, Herd Care & Field Operations",
         description: "Clinical checkups, pasture crops, and livestock feed supply",
         items: [
+          {
+            id: "animals",
+            name: "Animals & Herd Management",
+            icon: CowIcon,
+            desc: "Register cows, update lactation & health, archive lifecycle records",
+            badge: "Management",
+            badgeColor: "bg-emerald-500/15 text-emerald-800",
+            color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30",
+            isCustom: true,
+          },
           {
             id: "performance",
             name: "Milk Performance Groups",

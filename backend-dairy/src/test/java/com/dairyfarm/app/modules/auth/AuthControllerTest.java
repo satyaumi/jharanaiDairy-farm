@@ -171,4 +171,30 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
+
+    @Test
+    void getSetupStatus_ShouldReturnStatusObject() throws Exception {
+        mockMvc.perform(get("/api/auth/setup-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.managementSetupAvailable").isBoolean())
+                .andExpect(jsonPath("$.systemInitialized").isBoolean());
+    }
+
+    @Test
+    void setupInitialManager_Lifecycle_ShouldSucceedOnceAndPreventSubsequentSetups() throws Exception {
+        // Attempt setup - will succeed if no manager, or return 400 if one was seeded
+        MvcResult result = mockMvc.perform(post("/api/auth/setup-initial-manager")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fullName\":\"Initial Manager\",\"email\":\"init.manager@testfarm.com\",\"mobileNumber\":\"+919876543210\",\"password\":\"Secure@123\"}"))
+                .andReturn();
+
+        int status = result.getResponse().getStatus();
+        assertThat(status == 201 || status == 400).isTrue();
+
+        // Any further attempt MUST be rejected with 400 Bad Request
+        mockMvc.perform(post("/api/auth/setup-initial-manager")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fullName\":\"Another Manager\",\"email\":\"another@testfarm.com\",\"mobileNumber\":\"+919876543211\",\"password\":\"Secure@123\"}"))
+                .andExpect(status().isBadRequest());
+    }
 }

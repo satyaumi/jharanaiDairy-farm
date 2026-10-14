@@ -22,6 +22,7 @@ import { CowBrandLogo, CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { authService } from "@/services/auth-service";
 import type { Role } from "@/types/auth";
 import { notify } from "@/lib/notify";
 
@@ -57,9 +58,21 @@ export function LoginPage() {
   const [dispatchedEmail, setDispatchedEmail] = useState<string>("");
   const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
 
+  // Initial Management Setup Available
+  const [setupAvailable, setSetupAvailable] = useState<boolean>(false);
+
   // Status
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    authService
+      .getSetupStatus()
+      .then((s) => {
+        setSetupAvailable(s.managementSetupAvailable);
+      })
+      .catch(() => {});
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -208,6 +221,25 @@ export function LoginPage() {
 
         {/* Main Card */}
         <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
+          {setupAvailable && (
+            <div className="mb-5 rounded-2xl border border-emerald-500/40 bg-emerald-50/70 dark:bg-emerald-950/40 p-3 sm:p-3.5 flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <ShieldCheck className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-foreground truncate">Initial Setup Required</p>
+                  <p className="text-[10px] text-muted-foreground truncate">No Manager registered yet.</p>
+                </div>
+              </div>
+              <Link to="/setup-manager">
+                <Button size="sm" className="h-8 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold px-3 shrink-0">
+                  Setup Manager →
+                </Button>
+              </Link>
+            </div>
+          )}
+
           {/* Role Flow Selection */}
           <div className="space-y-2 mb-5">
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">

@@ -51,11 +51,12 @@ import { toast } from "sonner";
 export function TeamView() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
-  const isOwner = user?.role === "OWNER" || user?.role === "ADMIN";
+  const isOwner = user?.role === "OWNER";
+  const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
   const isWorker = user?.role === "WORKER";
-  const canAddWorker = isOwner || isManager;
-  const canAddManagement = isOwner;
+  const canAddWorker = isManager || isAdmin;
+  const canAddManagement = isManager || isAdmin;
 
   // Data State
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -824,7 +825,7 @@ export function TeamView() {
                         </Button>
 
                         <div className="flex items-center gap-1">
-                          {isOwner && (
+                          {canAddWorker && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -836,7 +837,7 @@ export function TeamView() {
                             </Button>
                           )}
 
-                          {member.invitationPending && isOwner && (
+                          {member.invitationPending && canAddWorker && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -848,7 +849,7 @@ export function TeamView() {
                             </Button>
                           )}
 
-                          {isOwner && member.role !== "OWNER" && (
+                          {canAddWorker && member.role !== "OWNER" && (
                             <Button
                               variant="ghost"
                               size="sm"

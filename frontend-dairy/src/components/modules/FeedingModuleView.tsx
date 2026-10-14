@@ -156,15 +156,18 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
         .filter(Boolean)
         .join(" | ");
 
+      const targetFeed = feedItems.find((f) => f.id === supplyFeedItemId);
+
       await farmService.recordStockTransaction({
         feedItemId: supplyFeedItemId,
+        itemName: targetFeed?.englishName || targetFeed?.displayName || "Dry Straw (Nada)",
         transactionType: "RECEIVED" as any,
         quantity: qty,
-        unit: "KG",
+        unit: targetFeed?.unit || "KG",
+        transactionDate: supplyDate || new Date().toISOString().split("T")[0],
         notes: fullNotes || "Incoming feed supply",
       });
 
-      const targetFeed = feedItems.find((f) => f.id === supplyFeedItemId);
       notify.success("Feed Supply Received & Stock Added", {
         description: `Successfully credited ${qty} KG of ${targetFeed?.englishName || "Feed"}. Stock balance updated.`,
       });

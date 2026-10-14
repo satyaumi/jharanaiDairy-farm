@@ -27,7 +27,6 @@ import java.util.*;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class StockService {
 
     private final StockItemRepository stockItemRepository;
@@ -35,6 +34,20 @@ public class StockService {
     private final FeedItemRepository feedItemRepository;
     private final FarmRepository farmRepository;
     private final UserRepository userRepository;
+
+    public StockService(
+            StockItemRepository stockItemRepository,
+            StockTransactionRepository transactionRepository,
+            FeedItemRepository feedItemRepository,
+            FarmRepository farmRepository,
+            UserRepository userRepository
+    ) {
+        this.stockItemRepository = stockItemRepository;
+        this.transactionRepository = transactionRepository;
+        this.feedItemRepository = feedItemRepository;
+        this.farmRepository = farmRepository;
+        this.userRepository = userRepository;
+    }
 
     private UUID getTenantFarmId() {
         UUID farmId = TenantContext.getFarmId();
@@ -224,7 +237,19 @@ public class StockService {
         }
 
         if (item == null) {
-            throw new ResourceNotFoundException("StockItem", "id", stockItemId);
+            List<StockItem> existing = stockItemRepository.findByFarmIdAndCategory(farmId, "FEED");
+            if (!existing.isEmpty()) {
+                item = existing.get(0);
+            } else {
+                item = stockItemRepository.save(StockItem.builder()
+                        .farm(farm)
+                        .itemName((itemName != null && !itemName.isBlank()) ? itemName.trim() : "Dry Straw (Nada)")
+                        .category("FEED")
+                        .unit(unit != null ? unit : "KG")
+                        .minThreshold(BigDecimal.valueOf(50))
+                        .active(true)
+                        .build());
+            }
         }
 
         // Normalize transaction type to standard ledger movement

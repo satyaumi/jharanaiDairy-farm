@@ -23,11 +23,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/animals")
-@RequiredArgsConstructor
 @Tag(name = "Animal Management", description = "Endpoints for farm herd inventory and lifecycle history")
 public class AnimalController {
 
     private final AnimalService animalService;
+
+    public AnimalController(AnimalService animalService) {
+        this.animalService = animalService;
+    }
 
     @GetMapping
     @Operation(summary = "Get paginated animals with optional search, status, lifecycle, and breed filters")
@@ -74,7 +77,7 @@ public class AnimalController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Create an animal (supports fast 3-field entry and optional History section)")
     public ResponseEntity<ApiResponse<AnimalDto>> createAnimal(@Valid @RequestBody CreateAnimalRequest request) {
         AnimalDto created = animalService.createAnimal(request);
@@ -82,7 +85,7 @@ public class AnimalController {
     }
 
     @PutMapping("/{idOrTag}")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Update core animal details by ID or Cow Number")
     public ResponseEntity<ApiResponse<AnimalDto>> updateAnimal(
             @PathVariable String idOrTag,
@@ -92,7 +95,7 @@ public class AnimalController {
     }
 
     @PatchMapping({"/{idOrTag}/lifecycle", "/{idOrTag}/status"})
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Change animal lifecycle status (ACTIVE, SICK, SOLD, DECEASED, RETIRED, ARCHIVED) with reason and effective date")
     public ResponseEntity<ApiResponse<AnimalDto>> changeLifecycleStatus(
             @PathVariable String idOrTag,
@@ -103,7 +106,7 @@ public class AnimalController {
     }
 
     @DeleteMapping("/{idOrTag}")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Soft delete / archive an animal")
     public ResponseEntity<ApiResponse<Void>> deactivateAnimal(@PathVariable String idOrTag) {
         UUID id = animalService.resolveAnimalId(idOrTag);
@@ -120,7 +123,7 @@ public class AnimalController {
     }
 
     @PostMapping("/{idOrTag}/history")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Add a lifecycle event to animal history")
     public ResponseEntity<ApiResponse<AnimalHistoryDto>> addHistoryEvent(
             @PathVariable String idOrTag,

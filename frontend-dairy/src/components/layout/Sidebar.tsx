@@ -39,7 +39,10 @@ export function Sidebar({
       return [
         { id: "home", label: "Executive Overview", icon: House },
         { id: "analytics", label: "Farm Analytics", icon: BarChart3 },
+        { id: "animals", label: "Herd Records", icon: CowIcon, isCustom: true },
         { id: "performance", label: "Cow Performance", icon: Award },
+        { id: "milking", label: "Milk Harvest", icon: Milk },
+        { id: "feeding", label: "Feed & Rations", icon: Wheat },
         { id: "stock", label: "Feed & Stock Reserves", icon: Package },
         { id: "more", label: "More Modules", icon: Layers },
       ];
@@ -48,8 +51,8 @@ export function Sidebar({
     if (isWorker) {
       return [
         { id: "home", label: "Operations Home", icon: House },
+        { id: "animals", label: "Herd Records", icon: CowIcon, isCustom: true },
         { id: "performance", label: "Cow Performance", icon: Award },
-        { id: "animals", label: "Herd Lookup", icon: CowIcon, isCustom: true },
         { id: "milking", label: "Milk Harvest", icon: Milk },
         { id: "feeding", label: "Feed & Rations", icon: Wheat },
         { id: "stock", label: "Stock Inventory", icon: Package },
@@ -76,6 +79,7 @@ export function Sidebar({
       return [
         { id: "alerts", label: "Farm Alerts", icon: Bell },
         { id: "reports", label: "Certified Reports", icon: FileText },
+        { id: "users", label: "Team Status", icon: Users2 },
         { id: "settings", label: "Profile & Settings", icon: Settings2 },
       ];
     }

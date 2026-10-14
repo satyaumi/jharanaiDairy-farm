@@ -125,7 +125,7 @@ export function AnimalListView({
           </p>
         </div>
 
-        {(role === "MANAGER" || role === "ADMIN") && (
+        {onAddNew && (
           <Button
             onClick={onAddNew}
             className="h-11 gap-2 rounded-2xl bg-emerald-600 px-4 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95"

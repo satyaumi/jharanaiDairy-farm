@@ -15,6 +15,7 @@ public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
     Optional<StockItem> findByIdAndFarmId(UUID id, UUID farmId);
     Optional<StockItem> findByFarmIdAndFeedItemId(UUID farmId, UUID feedItemId);
     Optional<StockItem> findByFarmIdAndItemName(UUID farmId, String itemName);
+    List<StockItem> findByFarmIdAndCategory(UUID farmId, String category);
     boolean existsByFarmIdAndItemName(UUID farmId, String itemName);
     boolean existsByFarmIdAndItemNameAndIdNot(UUID farmId, String itemName, UUID id);
 }

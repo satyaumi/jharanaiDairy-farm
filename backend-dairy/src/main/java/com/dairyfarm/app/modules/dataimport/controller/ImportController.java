@@ -35,7 +35,7 @@ public class ImportController {
     private final ImportBatchRepository importBatchRepository;
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Analyze uploaded file, detect schema/type, auto-map columns, and produce validation preview")
     public ResponseEntity<ApiResponse<ImportAnalyzeResult>> analyzeFile(
             @RequestParam("file") MultipartFile file) throws Exception {
@@ -44,7 +44,7 @@ public class ImportController {
     }
 
     @PostMapping("/confirm")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Confirm and commit import records into database with audit history")
     public ResponseEntity<ApiResponse<ImportConfirmResult>> confirmImport(
             @Valid @RequestBody ImportConfirmRequest request,

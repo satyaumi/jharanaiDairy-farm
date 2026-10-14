@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivateAccountRouteImport } from './routes/activate-account'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SetupManagerRouteImport } from './routes/setup-manager'
 import { Route as SignupRouteImport } from './routes/signup'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetupManagerRoute = SetupManagerRouteImport.update({
+  id: '/setup-manager',
+  path: '/setup-manager',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/activate-account': typeof ActivateAccountRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/setup-manager': typeof SetupManagerRoute
   '/signup': typeof SignupRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/activate-account': typeof ActivateAccountRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/setup-manager': typeof SetupManagerRoute
   '/signup': typeof SignupRoute
 }
 export interface FileRoutesById {
@@ -61,20 +69,33 @@ export interface FileRoutesById {
   '/activate-account': typeof ActivateAccountRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/setup-manager': typeof SetupManagerRoute
   '/signup': typeof SignupRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/activate-account' | '/forgot-password' | '/login' | '/signup'
+    | '/'
+    | '/activate-account'
+    | '/forgot-password'
+    | '/login'
+    | '/setup-manager'
+    | '/signup'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/activate-account' | '/forgot-password' | '/login' | '/signup'
+  to:
+    | '/'
+    | '/activate-account'
+    | '/forgot-password'
+    | '/login'
+    | '/setup-manager'
+    | '/signup'
   id:
     | '__root__'
     | '/'
     | '/activate-account'
     | '/forgot-password'
     | '/login'
+    | '/setup-manager'
     | '/signup'
   fileRoutesById: FileRoutesById
 }
@@ -83,6 +104,7 @@ export interface RootRouteChildren {
   ActivateAccountRoute: typeof ActivateAccountRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  SetupManagerRoute: typeof SetupManagerRoute
   SignupRoute: typeof SignupRoute
 }
 
@@ -116,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setup-manager': {
+      id: '/setup-manager'
+      path: '/setup-manager'
+      fullPath: '/setup-manager'
+      preLoaderRoute: typeof SetupManagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -131,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivateAccountRoute: ActivateAccountRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  SetupManagerRoute: SetupManagerRoute,
   SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport

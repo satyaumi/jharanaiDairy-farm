@@ -107,10 +107,13 @@ export function StockModuleView({
 
     setIsSubmittingTrans(true);
     try {
+      const targetFeed = feedItems.find((f) => f.id === selectedFeedItemId);
       await farmService.recordStockTransaction({
         feedItemId: selectedFeedItemId,
+        itemName: targetFeed?.englishName || targetFeed?.displayName || "Dry Straw (Nada)",
         transactionType: transType,
         quantity: qty,
+        unit: targetFeed?.unit || "KG",
         notes: transNotes,
       });
       notify.success("Stock Movement Logged", {
@@ -286,138 +289,174 @@ export function StockModuleView({
         </div>
       </div>
 
-      {/* TAB 1: FEED BALANCES WITH STRICT LEDGER */}
+      {/* TAB 1: CONSOLIDATED FEED STOCK SECTION */}
       {activeTab === "FEED" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {balances.map((item) => (
-              <div
-                key={item.feedItemId}
-                className="rounded-3xl border border-border/80 bg-card p-4 shadow-xs space-y-3"
+        <div className="farm-glass rounded-3xl border border-border/80 bg-card/60 p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-foreground flex items-center gap-2">
+                <Package className="size-4 text-emerald-600" />
+                <span>ଖାଦ୍ୟ ଷ୍ଟକ୍ ତାଲିକା · Consolidated Feed Stock Inventory</span>
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Live ledger balances: Opening + Supplied − Consumed = Remaining Stock
+              </p>
+            </div>
+            {!isOwner && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setTransType("ADD");
+                  setAddStockOpen(true);
+                }}
+                className="h-8 gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-black text-sm text-foreground">
-                      {item.displayName || item.localName}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      {item.englishName} · {item.category}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                      item.lowStock
-                        ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-                        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    }`}
-                  >
-                    {item.lowStock ? "Low Stock" : "Buffer OK"}
-                  </span>
-                </div>
+                <Plus className="size-3.5" />
+                Supply Feed
+              </Button>
+            )}
+          </div>
 
-                {/* Strict Ledger Breakdown Table */}
-                <div className="grid grid-cols-3 gap-1 bg-muted/40 p-2.5 rounded-2xl text-center text-xs">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                      Opening (ଆରମ୍ଭ)
-                    </span>
-                    <span className="font-semibold text-foreground">
-                      {item.openingStock} {item.unit}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-emerald-600 block">
-                      + Added (ଆସିଲା)
-                    </span>
-                    <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                      +{item.totalAdded} {item.unit}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-rose-600 block">
-                      − Consumed (ଖାଇଲେ)
-                    </span>
-                    <span className="font-bold text-rose-700 dark:text-rose-400">
-                      −{item.totalConsumed} {item.unit}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Current Stock Final Result */}
-                <div className="flex items-baseline justify-between pt-1 border-t border-border/50">
-                  <span className="text-xs font-bold text-muted-foreground">
-                    ବର୍ତ୍ତମାନ ଷ୍ଟକ୍ (Current Stock):
-                  </span>
-                  <span className="text-xl font-black text-foreground">
-                    {item.currentStock}{" "}
-                    <span className="text-xs font-bold text-muted-foreground">{item.unit}</span>
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/80 text-[11px] font-bold uppercase text-muted-foreground">
+                  <th className="py-2.5 px-3">Feed Name (ନାମ)</th>
+                  <th className="py-2.5 px-3">Opening</th>
+                  <th className="py-2.5 px-3 text-emerald-600 dark:text-emerald-400">Supplied (+)</th>
+                  <th className="py-2.5 px-3 text-rose-600 dark:text-rose-400">Consumed (−)</th>
+                  <th className="py-2.5 px-3 font-extrabold text-foreground">Remaining Stock</th>
+                  <th className="py-2.5 px-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50 font-medium">
+                {balances.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-xs text-muted-foreground">
+                      No feed stock balances found. Click Supply Feed to add stock.
+                    </td>
+                  </tr>
+                ) : (
+                  balances.map((item) => (
+                    <tr key={item.feedItemId} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-foreground">
+                          {item.displayName || item.localName}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {item.englishName} · {item.category}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-muted-foreground">
+                        {item.openingStock} {item.unit}
+                      </td>
+                      <td className="py-3 px-3 font-bold text-emerald-700 dark:text-emerald-400">
+                        +{item.totalAdded} {item.unit}
+                      </td>
+                      <td className="py-3 px-3 font-bold text-rose-700 dark:text-rose-400">
+                        −{item.totalConsumed} {item.unit}
+                      </td>
+                      <td className="py-3 px-3 font-black text-sm text-foreground">
+                        {item.currentStock} {item.unit}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <span
+                          className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                            item.lowStock
+                              ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                              : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                          }`}
+                        >
+                          {item.lowStock ? "Low Stock" : "Buffer OK"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* TAB 2: MEDICINE INVENTORY & TRACKING */}
+      {/* TAB 2: CONSOLIDATED MEDICINE INVENTORY LIST */}
       {activeTab === "MEDICINE" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {medicines.map((med) => (
-              <div
-                key={med.id}
-                className="rounded-3xl border border-border/80 bg-card p-4 shadow-xs space-y-3"
+        <div className="farm-glass rounded-3xl border border-border/80 bg-card/60 p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-foreground flex items-center gap-2">
+                <Pill className="size-4 text-rose-600" />
+                <span>ଔଷଧ ଷ୍ଟକ୍ ତାଲିକା · Medicine & Vaccine Inventory</span>
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Veterinary medicines, buffer thresholds & usage logs
+              </p>
+            </div>
+            {!isOwner && (
+              <Button
+                size="sm"
+                onClick={() => setMedUsageOpen(true)}
+                className="h-8 gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="grid size-8 place-items-center rounded-xl bg-rose-500/15 text-rose-700 dark:text-rose-300">
-                      <Pill className="size-4" />
-                    </span>
-                    <div>
-                      <h3 className="font-black text-sm text-foreground">{med.name}</h3>
-                      <p className="text-[11px] text-muted-foreground">
-                        {med.genericName || med.category || "Veterinary Medicine"}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                      med.lowStock
-                        ? "bg-rose-500/20 text-rose-700 dark:text-rose-300"
-                        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    }`}
-                  >
-                    {med.lowStock ? "Low Stock" : "Available"}
-                  </span>
-                </div>
+                <Plus className="size-3.5" />
+                Log Medicine Usage
+              </Button>
+            )}
+          </div>
 
-                <div className="flex items-baseline justify-between bg-muted/40 p-2.5 rounded-2xl">
-                  <div>
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold block">
-                      In Stock
-                    </span>
-                    <span className="text-lg font-black text-foreground">
-                      {med.currentStock} {med.unit}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold block">
-                      Buffer Level
-                    </span>
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      Min {med.minimumThreshold} {med.unit}
-                    </span>
-                  </div>
-                </div>
-
-                {med.expiryDate && (
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                    <Calendar className="size-3.5 text-muted-foreground" />
-                    Expiry: <strong className="text-foreground">{med.expiryDate}</strong>
-                  </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/80 text-[11px] font-bold uppercase text-muted-foreground">
+                  <th className="py-2.5 px-3">Medicine Name</th>
+                  <th className="py-2.5 px-3">Category / Generic</th>
+                  <th className="py-2.5 px-3">Buffer Level</th>
+                  <th className="py-2.5 px-3 font-extrabold text-foreground">Available Stock</th>
+                  <th className="py-2.5 px-3">Expiry Date</th>
+                  <th className="py-2.5 px-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50 font-medium">
+                {medicines.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-xs text-muted-foreground">
+                      No medicines recorded in veterinary inventory.
+                    </td>
+                  </tr>
+                ) : (
+                  medicines.map((med) => (
+                    <tr key={med.id} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-3 px-3 font-bold text-foreground">
+                        {med.name}
+                      </td>
+                      <td className="py-3 px-3 text-muted-foreground text-[11px]">
+                        {med.genericName || med.category || "General Veterinary"}
+                      </td>
+                      <td className="py-3 px-3 text-muted-foreground">
+                        Min {med.minimumThreshold} {med.unit}
+                      </td>
+                      <td className="py-3 px-3 font-black text-sm text-foreground">
+                        {med.currentStock} {med.unit}
+                      </td>
+                      <td className="py-3 px-3 text-muted-foreground text-[11px]">
+                        {med.expiryDate || "—"}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <span
+                          className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                            med.lowStock
+                              ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                              : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                          }`}
+                        >
+                          {med.lowStock ? "Low Stock" : "Available"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </div>
-            ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

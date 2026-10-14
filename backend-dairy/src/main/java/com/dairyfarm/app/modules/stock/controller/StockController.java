@@ -19,11 +19,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/stock")
-@RequiredArgsConstructor
 @Tag(name = "Stock Ledger", description = "Endpoints for managing farm inventory and ledger movements")
 public class StockController {
 
     private final StockService stockService;
+
+    public StockController(StockService stockService) {
+        this.stockService = stockService;
+    }
 
     @GetMapping
     @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
@@ -55,11 +58,26 @@ public class StockController {
         }
 
         UUID feedItemId = null;
-        if (body.get("feedItemId") != null && !body.get("feedItemId").toString().isBlank()) {
-            try { feedItemId = UUID.fromString(body.get("feedItemId").toString().trim()); } catch (IllegalArgumentException ignored) {}
+        String rawFeedId = body.get("feedItemId") != null ? body.get("feedItemId").toString().trim() : null;
+        if (rawFeedId != null && !rawFeedId.isBlank()) {
+            try { feedItemId = UUID.fromString(rawFeedId); } catch (IllegalArgumentException ignored) {}
         }
 
-        String itemName = body.get("itemName") != null ? body.get("itemName").toString() : null;
+        String itemName = body.get("itemName") != null ? body.get("itemName").toString().trim() : null;
+        if (itemName == null || itemName.isBlank()) {
+            if (body.get("feedType") != null) itemName = body.get("feedType").toString().trim();
+            else if (body.get("feedName") != null) itemName = body.get("feedName").toString().trim();
+            else if (body.get("name") != null) itemName = body.get("name").toString().trim();
+        }
+
+        if ((itemName == null || itemName.isBlank()) && rawFeedId != null) {
+            if ("feed-1".equalsIgnoreCase(rawFeedId)) itemName = "Dry Straw (Nada)";
+            else if ("feed-2".equalsIgnoreCase(rawFeedId)) itemName = "Wheat Bran (Chokada)";
+            else if ("feed-3".equalsIgnoreCase(rawFeedId)) itemName = "Green Fodder (Hybrid Napier)";
+            else if ("feed-4".equalsIgnoreCase(rawFeedId)) itemName = "Corn Silage";
+            else if ("feed-5".equalsIgnoreCase(rawFeedId)) itemName = "Mineral Mixture";
+        }
+
         String type = body.get("transactionType") != null ? body.get("transactionType").toString() : "RECEIVED";
 
         BigDecimal qty = BigDecimal.ZERO;

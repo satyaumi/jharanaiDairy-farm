@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Animal } from "@/types/farm";
+import { useAuth } from "@/context/AuthContext";
 
 interface HealthModuleViewProps {
   animals: Animal[];
@@ -23,6 +24,7 @@ export function HealthModuleView({
   onOpenQuickHealth,
   onSelectAnimal,
 }: HealthModuleViewProps) {
+  const { isOwner } = useAuth();
   const sickAnimals = animals.filter(
     (a) => a.status === "Sick" || a.status === "Needs check"
   );
@@ -46,13 +48,15 @@ export function HealthModuleView({
           </p>
         </div>
 
-        <Button
-          onClick={onOpenQuickHealth}
-          className="h-11 gap-2 rounded-2xl bg-rose-600 px-4 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-rose-600/30 hover:bg-rose-700 active:scale-95"
-        >
-          <Plus className="size-4.5 stroke-[2.5]" />
-          Record Health Check
-        </Button>
+        {!isOwner && (
+          <Button
+            onClick={onOpenQuickHealth}
+            className="h-11 gap-2 rounded-2xl bg-rose-600 px-4 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-rose-600/30 hover:bg-rose-700 active:scale-95"
+          >
+            <Plus className="size-4.5 stroke-[2.5]" />
+            Record Health Check
+          </Button>
+        )}
       </div>
 
       {/* Health Overview Cards */}

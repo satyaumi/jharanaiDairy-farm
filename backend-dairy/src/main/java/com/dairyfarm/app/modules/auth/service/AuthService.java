@@ -432,6 +432,91 @@ public class AuthService {
         return UserDto.fromEntity(saved);
     }
 
+    @Transactional(readOnly = true)
+    public SetupStatusDto getSetupStatus() {
+        long managerCount = userRepository.countByRole(Role.MANAGER);
+        long adminCount = userRepository.countByRole(Role.ADMIN);
+        boolean available = (managerCount == 0 && adminCount == 0);
+        return SetupStatusDto.builder()
+                .managementSetupAvailable(available)
+                .systemInitialized(!available)
+                .message(available
+                        ? "Initial management setup is available."
+                        : "Management accounts have already been initialized.")
+                .build();
+    }
+
+    @Transactional
+    public synchronized AuthResponse setupInitialManager(InitialManagerSetupRequest request) {
+        long managerCount = userRepository.countByRole(Role.MANAGER);
+        long adminCount = userRepository.countByRole(Role.ADMIN);
+        if (managerCount > 0 || adminCount > 0) {
+            throw new BadRequestException("Initial management account has already been set up. Please log in with your credentials.");
+        }
+
+        String requiredSecret = System.getenv("INITIAL_SETUP_TOKEN");
+        if (requiredSecret == null || requiredSecret.isBlank()) {
+            requiredSecret = System.getenv("SETUP_SECRET");
+        }
+        if (requiredSecret != null && !requiredSecret.isBlank()) {
+            if (request.getSetupToken() == null || !requiredSecret.trim().equals(request.getSetupToken().trim())) {
+                throw new UnauthorizedException("Invalid setup authorization token. Please provide the configured deployment setup key.");
+            }
+        }
+
+        String email = request.getEmail().trim().toLowerCase();
+        String mobile = request.getMobile().trim();
+
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException("An account with email " + email + " already exists. Please log in.");
+        }
+
+        Farm farm = farmRepository.findAll().stream().findFirst().orElseGet(() -> {
+            Farm newFarm = Farm.builder()
+                    .name("Jharanaai Dairy Farm")
+                    .code("JHARANAAI-01")
+                    .active(true)
+                    .build();
+            return farmRepository.save(newFarm);
+        });
+
+        User user = User.builder()
+                .farm(farm)
+                .fullName(request.getFullName().trim())
+                .username(email)
+                .email(email)
+                .mobileNumber(mobile)
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .role(Role.MANAGER)
+                .status(com.dairyfarm.app.modules.user.model.UserStatus.ACTIVE)
+                .verified(true)
+                .active(true)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        auditService.record("INITIAL_SETUP_MANAGER", "USER", savedUser.getId().toString(), "Initial management account bootstrapped securely");
+
+        UserPrincipal principal = UserPrincipal.create(
+                savedUser.getId(),
+                farm.getId(),
+                savedUser.getFullName(),
+                savedUser.getUsername(),
+                savedUser.getEmail(),
+                savedUser.getMobileNumber(),
+                savedUser.getPasswordHash(),
+                savedUser.getRole(),
+                savedUser.isActive()
+        );
+
+        String token = tokenProvider.generateToken(principal);
+
+        return AuthResponse.builder()
+                .token(token)
+                .user(UserDto.fromEntity(savedUser))
+                .build();
+    }
+
     public void logout() {
         UUID userId = TenantContext.getUserId();
         if (userId != null) {

@@ -20,21 +20,19 @@ export function isPageAllowedForRole(page: string, role?: string | null): boolea
   const normRole = (role || "").toUpperCase();
 
   switch (page) {
-    // Owner-restricted modules (Owner must NOT do routine operations or team admin)
+    // Management & business governance (restricted from Worker)
     case "users":
-      return normRole === "MANAGER" || normRole === "ADMIN";
-
-    // Worker-restricted modules (Worker must NOT see business analytics, certified reports, or team admin)
     case "analytics":
+    case "reports":
+    case "production":
       return normRole === "OWNER" || normRole === "MANAGER" || normRole === "ADMIN";
 
-    case "reports":
-      return normRole === "OWNER" || normRole === "MANAGER" || normRole === "ADMIN";
+    case "animals":
+      return true;
 
     // Common pages allowed to authorized roles
     case "home":
     case "performance":
-    case "animals":
     case "milking":
     case "feeding":
     case "stock":

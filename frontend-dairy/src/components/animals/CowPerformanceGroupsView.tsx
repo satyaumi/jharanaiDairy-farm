@@ -55,6 +55,23 @@ export function CowPerformanceGroupsView({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tempThresholds, setTempThresholds] = useState<PerformanceThresholds>(thresholds);
 
+  // Quick Cow Lookup state
+  const [lookupTag, setLookupTag] = useState<string>("");
+  const lookupCow = useMemo(() => {
+    if (!lookupTag.trim()) return null;
+    const q = lookupTag.trim().toLowerCase();
+    return (
+      animals.find(
+        (a) => (a.tag || "").toLowerCase() === q || a.id.toLowerCase() === q
+      ) || null
+    );
+  }, [animals, lookupTag]);
+
+  const lookupCowEvaluation = useMemo(() => {
+    if (!lookupCow) return null;
+    return evaluateCowGrade(lookupCow, recentMilk, thresholds);
+  }, [lookupCow, recentMilk, thresholds]);
+
   // Summary counts
   const summary = useMemo(() => {
     return computeGroupSummary(animals, recentMilk, thresholds);
@@ -222,6 +239,121 @@ export function CowPerformanceGroupsView({
           <p className="text-lg font-black text-slate-600 dark:text-slate-400">{summary.insufficientCount}</p>
           <span className="text-[9px] text-slate-500">Non-milking</span>
         </div>
+      </div>
+
+      {/* 2.5 COW HERD LOOKUP & SAVED DETAILS (Direct Worker Access) */}
+      <div className="farm-glass rounded-3xl border border-slate-200/90 dark:border-border/80 p-4 sm:p-5 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+          <div>
+            <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <CowIcon className="size-5 text-emerald-600 dark:text-emerald-400" />
+              Cow Herd Lookup (ଗାଈ ଅନୁସନ୍ଧାନ)
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Select or search by Cow Number to view complete saved records, lactation & yield history
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={lookupTag}
+              onChange={(e) => setLookupTag(e.target.value)}
+              className="h-9 rounded-xl border border-border/80 bg-background px-3 text-xs font-bold text-foreground focus:outline-hidden"
+            >
+              <option value="">-- Choose Cow Number --</option>
+              {animals.map((a) => (
+                <option key={a.id} value={a.tag || a.id}>
+                  Cow #{a.tag} ({a.breed}) - {a.type}
+                </option>
+              ))}
+            </select>
+            {lookupTag && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setLookupTag("")}
+                className="h-9 px-2 text-xs font-bold text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {lookupCow ? (
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/20 p-3.5 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="grid size-12 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-800 dark:text-emerald-300">
+                  <CowIcon className="size-7" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-foreground">
+                      Cow #{lookupCow.tag}
+                    </h3>
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-300">
+                      {lookupCow.status || "ACTIVE"}
+                    </span>
+                    {lookupCowEvaluation && (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold border ${lookupCowEvaluation.badgeBg} ${lookupCowEvaluation.badgeText} ${lookupCowEvaluation.badgeBorder}`}>
+                        Group {lookupCowEvaluation.grade}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {lookupCow.breed} · Age: {lookupCow.age || "N/A"} · Pen: {lookupCow.pen || "General Barn"} · Lactation #{lookupCow.lactationCycle || 1}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => onSelectAnimal(lookupCow)}
+                  className="rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-9 px-3.5 shadow-sm"
+                >
+                  View Complete Profile
+                </Button>
+                {onRecordMilk && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onRecordMilk(lookupCow)}
+                    className="rounded-xl border-border font-bold text-xs h-9 px-3.5"
+                  >
+                    Record Milk
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
+              <div className="rounded-xl bg-background/80 p-2 border border-border/60">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Today's Milk</span>
+                <p className="text-sm font-black text-foreground">
+                  {lookupCowEvaluation?.dailyYield ? `${lookupCowEvaluation.dailyYield} L` : (lookupCow.yield ? `${lookupCow.yield} L` : "0.0 L")}
+                </p>
+              </div>
+              <div className="rounded-xl bg-background/80 p-2 border border-border/60">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Herd Type</span>
+                <p className="text-sm font-black text-foreground">{lookupCow.type || "Milking"}</p>
+              </div>
+              <div className="rounded-xl bg-background/80 p-2 border border-border/60">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Pen Location</span>
+                <p className="text-sm font-black text-foreground">{lookupCow.pen || "Barn Main"}</p>
+              </div>
+              <div className="rounded-xl bg-background/80 p-2 border border-border/60">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Records Logged</span>
+                <p className="text-sm font-black text-foreground">{lookupCowEvaluation?.validRecordCount || 0}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">
+            Tip: Pick a cow from the dropdown above to instantly inspect its saved details and performance.
+          </p>
+        )}
       </div>
 
       {/* 3. GROUP FILTER CHIPS (Horizontal Scrollable) */}

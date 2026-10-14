@@ -48,7 +48,7 @@ class AnimalControllerTest {
                 .phone("+91 977" + randomSuffix)
                 .password("Pass@123")
                 .farmName("Test Farm " + randomSuffix)
-                .role(Role.OWNER)
+                .role(Role.MANAGER)
                 .build();
 
         MvcResult result = mockMvc.perform(post("/api/auth/signup")
@@ -58,6 +58,38 @@ class AnimalControllerTest {
                 .andReturn();
 
         authToken = objectMapper.readTree(result.getResponse().getContentAsString()).get("token").asText();
+    }
+
+    @Test
+    void createAnimal_WhenCalledByOwner_ShouldReturnForbidden() throws Exception {
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 8);
+        SignupRequest ownerSignup = SignupRequest.builder()
+                .name("Owner " + randomSuffix)
+                .phone("+91 966" + randomSuffix)
+                .password("Pass@123")
+                .farmName("Owner Farm " + randomSuffix)
+                .role(Role.OWNER)
+                .build();
+
+        MvcResult ownerRes = mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ownerSignup)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String ownerToken = objectMapper.readTree(ownerRes.getResponse().getContentAsString()).get("token").asText();
+
+        CreateAnimalRequest request = CreateAnimalRequest.builder()
+                .name("Bella")
+                .tag("C-9999")
+                .breed("Jersey")
+                .build();
+
+        mockMvc.perform(post("/api/animals")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
     }
 
     @Test

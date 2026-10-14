@@ -44,6 +44,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     long countByFarmIdAndRole(UUID farmId, com.dairyfarm.app.modules.user.model.Role role);
 
+    long countByRole(com.dairyfarm.app.modules.user.model.Role role);
+
     long countByFarmIdAndActiveTrue(UUID farmId);
 
     long countByFarmIdAndStatus(UUID farmId, com.dairyfarm.app.modules.user.model.UserStatus status);

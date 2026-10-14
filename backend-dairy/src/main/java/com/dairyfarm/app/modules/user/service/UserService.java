@@ -102,8 +102,8 @@ public class UserService {
         UUID farmId = getTenantFarmId();
         User currentUser = getCurrentUser();
 
-        if (currentUser.getRole() == Role.WORKER) {
-            throw new AccessDeniedException("Workers cannot create new worker accounts");
+        if (currentUser.getRole() != Role.MANAGER && currentUser.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Only Farm Managers or Administrators can create worker accounts");
         }
 
         Farm farm = farmRepository.findById(farmId)
@@ -171,8 +171,8 @@ public class UserService {
         UUID farmId = getTenantFarmId();
         User currentUser = getCurrentUser();
 
-        if (currentUser.getRole() != Role.OWNER && currentUser.getRole() != Role.ADMIN) {
-            throw new AccessDeniedException("Only Farm Owners can add Management Team members");
+        if (currentUser.getRole() != Role.MANAGER && currentUser.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Only Farm Managers or Administrators can add Management Team members");
         }
 
         Farm farm = farmRepository.findById(farmId)

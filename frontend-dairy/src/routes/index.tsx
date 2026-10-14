@@ -13,6 +13,7 @@ import { LifecycleModal } from "@/components/animals/LifecycleModal";
 import { AnimalListView } from "@/components/animals/AnimalListView";
 import { CowPerformanceGroupsView } from "@/components/animals/CowPerformanceGroupsView";
 import { FarmDashboard } from "@/components/dashboard/FarmDashboard";
+import { WorkerOperationsHome } from "@/components/dashboard/WorkerOperationsHome";
 import { AnalyticsDashboardView } from "@/components/dashboard/AnalyticsDashboardView";
 import { MilkingModuleView } from "@/components/modules/MilkingModuleView";
 import { EquipmentModuleView } from "@/components/modules/EquipmentModuleView";
@@ -181,20 +182,9 @@ export function FarmApp() {
   useEffect(() => {
     if (!isAuthenticated || isLoading) return;
 
-    if (isWorker && (currentPage === "analytics" || currentPage === "reports" || currentPage === "users")) {
+    if (isWorker && (currentPage === "analytics" || currentPage === "reports" || currentPage === "users" || currentPage === "production")) {
       notify.error("Access Restricted", {
-        description: "Your role (Worker) cannot access this administrative page.",
-      });
-      navigate({
-        search: (prev) => {
-          const next: FarmSearch = { ...prev };
-          delete next.page;
-          return next;
-        },
-      });
-    } else if (isOwner && currentPage === "users") {
-      notify.error("Access Restricted", {
-        description: "Team administration is managed by Farm Management.",
+        description: "This management module is reserved for Farm Supervision and Owners.",
       });
       navigate({
         search: (prev) => {
@@ -204,7 +194,7 @@ export function FarmApp() {
         },
       });
     }
-  }, [currentPage, isAuthenticated, isLoading, isWorker, isOwner]);
+  }, [currentPage, isAuthenticated, isLoading, isWorker]);
 
   // Open Quick Add with specific preselected action (pushes ?action=...)
   const handleOpenQuickAdd = (actionKey?: string) => {
@@ -334,17 +324,32 @@ export function FarmApp() {
           {/* Module Views */}
           <main className="animate-fade-in space-y-4">
             {currentPage === "home" && (
-              <FarmDashboard
-                animals={animals}
-                alerts={alerts}
-                recentMilk={recentMilk}
-                stockItems={stockItems}
-                isLoading={isDataLoading}
-                onNavigateModule={handleNavigate}
-                onOpenQuickAdd={handleOpenQuickAdd}
-                onSelectAnimal={handleSelectAnimal}
-                onOpenModulesDrawer={() => setModulesDrawerOpen(true)}
-              />
+              isWorker ? (
+                <WorkerOperationsHome
+                  animals={animals}
+                  recentMilk={recentMilk}
+                  stockItems={stockItems}
+                  onNavigateModule={handleNavigate}
+                  onOpenQuickAdd={handleOpenQuickAdd}
+                  onSelectAnimal={handleSelectAnimal}
+                  onEditAnimal={(a) => {
+                    setAnimalToEdit(a);
+                    setEditAnimalOpen(true);
+                  }}
+                />
+              ) : (
+                <FarmDashboard
+                  animals={animals}
+                  alerts={alerts}
+                  recentMilk={recentMilk}
+                  stockItems={stockItems}
+                  isLoading={isDataLoading}
+                  onNavigateModule={handleNavigate}
+                  onOpenQuickAdd={handleOpenQuickAdd}
+                  onSelectAnimal={handleSelectAnimal}
+                  onOpenModulesDrawer={() => setModulesDrawerOpen(true)}
+                />
+              )
             )}
 
             {currentPage === "analytics" && (
@@ -365,8 +370,8 @@ export function FarmApp() {
                 animals={animals}
                 recentMilk={recentMilk}
                 onSelectAnimal={handleSelectAnimal}
-                onAddNew={() => handleOpenQuickAdd("add-animal")}
-                onRecordMilk={() => handleOpenQuickAdd("record-milk")}
+                onAddNew={!isOwner ? () => handleOpenQuickAdd("add-animal") : undefined}
+                onRecordMilk={!isOwner ? () => handleOpenQuickAdd("record-milk") : undefined}
                 onEditAnimal={
                   !isOwner
                     ? (a) => {
@@ -391,7 +396,7 @@ export function FarmApp() {
                 animals={animals}
                 recentMilk={recentMilk}
                 onSelectAnimal={handleSelectAnimal}
-                onRecordMilk={() => handleOpenQuickAdd("record-milk")}
+                onRecordMilk={!isOwner ? () => handleOpenQuickAdd("record-milk") : undefined}
               />
             )}
 

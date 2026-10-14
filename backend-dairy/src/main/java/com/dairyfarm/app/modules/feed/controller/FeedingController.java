@@ -80,7 +80,7 @@ public class FeedingController {
     }
 
     @PostMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     @Operation(summary = "Record group or individual animal feeding round and auto-deduct stock consumption")
     public ResponseEntity<Map<String, Object>> recordFeeding(@RequestBody Map<String, Object> body) {

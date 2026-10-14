@@ -17,12 +17,29 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Endpoints for farm user authentication and session management")
 public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+
+    public AuthController(AuthService authService, UserService userService) {
+        this.authService = authService;
+        this.userService = userService;
+    }
+
+    @GetMapping("/setup-status")
+    @Operation(summary = "Check if initial farm management setup is available")
+    public ResponseEntity<SetupStatusDto> getSetupStatus() {
+        return ResponseEntity.ok(authService.getSetupStatus());
+    }
+
+    @PostMapping("/setup-initial-manager")
+    @Operation(summary = "One-time atomic bootstrap for initial farm management account")
+    public ResponseEntity<AuthResponse> setupInitialManager(@Valid @RequestBody InitialManagerSetupRequest request) {
+        AuthResponse response = authService.setupInitialManager(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
 
     @PostMapping("/login")
     @Operation(summary = "Authenticate user using mobile/email and password")

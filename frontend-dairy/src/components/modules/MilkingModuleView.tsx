@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Milk,
   Plus,
@@ -14,6 +14,7 @@ import {
   Users,
   Save,
   Loader2,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MilkRecord, Animal, AnimalGroup } from "@/types/farm";
@@ -21,6 +22,8 @@ import { ExportModal } from "@/components/common/ExportModal";
 import { ImportRecordsModal } from "@/components/common/ImportRecordsModal";
 import { farmService } from "@/services/farm-service";
 import { toast } from "sonner";
+import { computeGroupSummary, getStoredThresholds } from "@/lib/performance-grading";
+import { useAuth } from "@/context/AuthContext";
 
 interface MilkingModuleViewProps {
   records: MilkRecord[];
@@ -37,6 +40,7 @@ export function MilkingModuleView({
   onRecordForAnimal,
   onRefresh,
 }: MilkingModuleViewProps) {
+  const { isOwner } = useAuth();
   const [activeSession, setActiveSession] = useState<"Morning" | "Evening">("Morning");
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -53,6 +57,11 @@ export function MilkingModuleView({
   useEffect(() => {
     farmService.listGroups().then(setGroups).catch(() => {});
   }, []);
+
+  const thresholds = useMemo(() => getStoredThresholds(), []);
+  const performanceSummary = useMemo(() => {
+    return computeGroupSummary(animals, records, thresholds);
+  }, [animals, records, thresholds]);
 
   const morningRecords = records.filter((r) => r.session === "Morning");
   const eveningRecords = records.filter((r) => r.session === "Evening");
@@ -146,31 +155,35 @@ export function MilkingModuleView({
             Export
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => setImportModalOpen(true)}
-            className="h-10 gap-1.5 rounded-2xl text-xs font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
-          >
-            <UploadCloud className="size-3.5" />
-            Import
-          </Button>
+          {!isOwner && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setImportModalOpen(true)}
+                className="h-10 gap-1.5 rounded-2xl text-xs font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
+              >
+                <UploadCloud className="size-3.5" />
+                Import
+              </Button>
 
-          {/* Fast Group Milking Button */}
-          <Button
-            onClick={() => setGroupEntryOpen(!groupEntryOpen)}
-            className="h-10 gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs shadow-md"
-          >
-            <Users className="size-4" />
-            {groupEntryOpen ? "Close Group Entry" : "Fast Group Entry (ଗୋଠ ଏଣ୍ଟ୍ରି)"}
-          </Button>
+              {/* Fast Group Milking Button */}
+              <Button
+                onClick={() => setGroupEntryOpen(!groupEntryOpen)}
+                className="h-10 gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs shadow-md"
+              >
+                <Users className="size-4" />
+                {groupEntryOpen ? "Close Group Entry" : "Fast Group Entry (ଗୋଠ ଏଣ୍ଟ୍ରି)"}
+              </Button>
 
-          <Button
-            onClick={onOpenQuickRecord}
-            className="h-10 gap-2 rounded-2xl bg-sky-600 px-4 text-xs font-extrabold text-white shadow-md shadow-sky-600/30 hover:bg-sky-700 active:scale-95"
-          >
-            <Plus className="size-4 stroke-[2.5]" />
-            Record Single Cow
-          </Button>
+              <Button
+                onClick={onOpenQuickRecord}
+                className="h-10 gap-2 rounded-2xl bg-sky-600 px-4 text-xs font-extrabold text-white shadow-md shadow-sky-600/30 hover:bg-sky-700 active:scale-95"
+              >
+                <Plus className="size-4 stroke-[2.5]" />
+                Record Single Cow
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -226,7 +239,7 @@ export function MilkingModuleView({
       </div>
 
       {/* FAST GROUP MILKING ENTRY SECTION (Expandable) */}
-      {groupEntryOpen && (
+      {groupEntryOpen && !isOwner && (
         <div className="rounded-3xl border-2 border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 sm:p-5 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/20 pb-3">
             <div>
@@ -462,8 +475,51 @@ export function MilkingModuleView({
           </Button>
         </div>
 
-        {/* Right: Quality Checks & Tank Collection Status */}
+        {/* Right: Performance Grades & Quality Checks */}
         <div className="space-y-4">
+          {/* Milk Performance Grades (A–F) Module */}
+          <div className="farm-glass rounded-3xl p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                <Award className="size-4 text-emerald-600 dark:text-emerald-400" />
+                Milk Performance Grades (A–F)
+              </h2>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                {performanceSummary.totalHerd} cows evaluated
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Herd production tiers based on daily milk records
+            </p>
+
+            <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20 p-2">
+                <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-300">Grade A (≥{thresholds.aMin}L)</span>
+                <p className="text-lg font-black text-emerald-700 dark:text-emerald-400">{performanceSummary.aCount}</p>
+              </div>
+              <div className="rounded-xl border border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/20 p-2">
+                <span className="text-[10px] font-black text-teal-800 dark:text-teal-300">Grade B (≥{thresholds.bMin}L)</span>
+                <p className="text-lg font-black text-teal-700 dark:text-teal-400">{performanceSummary.bCount}</p>
+              </div>
+              <div className="rounded-xl border border-sky-500/20 bg-sky-50/50 dark:bg-sky-950/20 p-2">
+                <span className="text-[10px] font-black text-sky-800 dark:text-sky-300">Grade C (≥{thresholds.cMin}L)</span>
+                <p className="text-lg font-black text-sky-700 dark:text-sky-400">{performanceSummary.cCount}</p>
+              </div>
+              <div className="rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-2">
+                <span className="text-[10px] font-black text-amber-800 dark:text-amber-300">Grade D (≥{thresholds.dMin}L)</span>
+                <p className="text-lg font-black text-amber-700 dark:text-amber-400">{performanceSummary.dCount}</p>
+              </div>
+              <div className="rounded-xl border border-orange-500/20 bg-orange-50/50 dark:bg-orange-950/20 p-2">
+                <span className="text-[10px] font-black text-orange-800 dark:text-orange-300">Grade E (≥{thresholds.eMin}L)</span>
+                <p className="text-lg font-black text-orange-700 dark:text-orange-400">{performanceSummary.eCount}</p>
+              </div>
+              <div className="rounded-xl border border-rose-500/20 bg-rose-50/50 dark:bg-rose-950/20 p-2">
+                <span className="text-[10px] font-black text-rose-800 dark:text-rose-300">Grade F (&lt;{thresholds.eMin}L)</span>
+                <p className="text-lg font-black text-rose-700 dark:text-rose-400">{performanceSummary.fCount}</p>
+              </div>
+            </div>
+          </div>
+
           {/* Quality Card */}
           <div className="farm-glass rounded-3xl p-4 sm:p-5 space-y-3">
             <h2 className="text-sm font-extrabold text-foreground">

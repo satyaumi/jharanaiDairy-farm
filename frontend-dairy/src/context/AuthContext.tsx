@@ -16,6 +16,7 @@ interface AuthContextValue extends AuthState {
   sendLoginOtp: (phoneOrEmail: string, role?: Role) => Promise<{ success: boolean; message: string; email?: string; role?: string; sandboxOtp?: string }>;
   loginWithOtp: (phoneOrEmail: string, otp: string, role?: Role) => Promise<void>;
   signup: (payload: SignupPayload) => Promise<void>;
+  setupInitialManager: (payload: { fullName: string; email: string; mobile: string; password: string; setupToken?: string }) => Promise<void>;
   verifyOtp: (payload: VerifyOtpPayload) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
@@ -127,6 +128,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setupInitialManager = useCallback(async (payload: { fullName: string; email: string; mobile: string; password: string; setupToken?: string }) => {
+    setIsActionLoading(true);
+    try {
+      const res = await authService.setupInitialManager(payload);
+      setUser(res.user);
+      setToken(res.token);
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, []);
+
   const verifyOtp = useCallback(async (payload: VerifyOtpPayload) => {
     setIsActionLoading(true);
     try {
@@ -185,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sendLoginOtp,
       loginWithOtp,
       signup,
+      setupInitialManager,
       verifyOtp,
       logout,
       updateProfile,
@@ -209,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sendLoginOtp,
       loginWithOtp,
       signup,
+      setupInitialManager,
       verifyOtp,
       logout,
       updateProfile,

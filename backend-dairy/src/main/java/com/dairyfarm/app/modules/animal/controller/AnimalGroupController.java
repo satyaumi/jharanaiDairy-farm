@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -56,6 +57,7 @@ public class AnimalGroupController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Create animal group")
     public ResponseEntity<Map<String, Object>> createGroup(@RequestBody Map<String, String> body) {
         UUID farmId = getTenantFarmId();
@@ -84,6 +86,7 @@ public class AnimalGroupController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Update animal group")
     public ResponseEntity<Map<String, Object>> updateGroup(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();

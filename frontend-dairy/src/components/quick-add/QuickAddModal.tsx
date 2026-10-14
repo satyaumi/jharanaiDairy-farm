@@ -244,7 +244,6 @@ export function QuickAddModal({
         {currentAction === "menu" && (
           <div className="grid grid-cols-1 gap-2.5 pt-2 sm:grid-cols-2">
             {QUICK_ACTIONS.filter((item) => {
-              if (isWorker && item.key === "add-animal") return false;
               if (isOwner) return false;
               return true;
             }).map((item) => {

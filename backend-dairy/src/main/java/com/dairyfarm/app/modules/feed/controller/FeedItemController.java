@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -21,12 +22,16 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/feed-items")
-@RequiredArgsConstructor
 @Tag(name = "Feed Item Master", description = "Endpoints for configuring bilingual feed types and rations")
 public class FeedItemController {
 
     private final FeedItemRepository feedItemRepository;
     private final FarmRepository farmRepository;
+
+    public FeedItemController(FeedItemRepository feedItemRepository, FarmRepository farmRepository) {
+        this.feedItemRepository = feedItemRepository;
+        this.farmRepository = farmRepository;
+    }
 
     private UUID getTenantFarmId() {
         UUID farmId = TenantContext.getFarmId();
@@ -44,10 +49,36 @@ public class FeedItemController {
                 ? feedItemRepository.findByFarmIdOrderByDisplayNameAsc(farmId)
                 : feedItemRepository.findByFarmIdAndActiveTrueOrderByDisplayNameAsc(farmId);
 
+        if (items.isEmpty()) {
+            Farm farm = farmRepository.findById(farmId).orElse(null);
+            if (farm != null) {
+                seedDefaultFeedItems(farm);
+                items = all
+                        ? feedItemRepository.findByFarmIdOrderByDisplayNameAsc(farmId)
+                        : feedItemRepository.findByFarmIdAndActiveTrueOrderByDisplayNameAsc(farmId);
+            }
+        }
+
         return ResponseEntity.ok(Map.of("success", true, "data", items));
     }
 
+    private void seedDefaultFeedItems(Farm farm) {
+        List<FeedItem> defaults = List.of(
+                FeedItem.builder().farm(farm).localName("ନଡ଼ା (Nada)").englishName("Dry Straw").shortName("Nada").displayName("ନଡ଼ା · Dry Straw (Nada)").category("ROUGHAGE").unit("KG").active(true).build(),
+                FeedItem.builder().farm(farm).localName("ଚୋକଡ଼ା (Chokada)").englishName("Wheat Bran").shortName("Chokada").displayName("ଚୋକଡ଼ା · Wheat Bran (Chokada)").category("CONCENTRATE").unit("KG").active(true).build(),
+                FeedItem.builder().farm(farm).localName("ହାଇବ୍ରିଡ ନେପିୟର ଘାସ").englishName("Green Fodder (Hybrid Napier)").shortName("Napier").displayName("ନେପିୟର ଘାସ · Green Fodder").category("GREEN_FODDER").unit("KG").active(true).build(),
+                FeedItem.builder().farm(farm).localName("ମକା ସାଇଲେଜ୍ (Corn Silage)").englishName("Corn Silage").shortName("Silage").displayName("ମକା ସାଇଲେଜ୍ · Corn Silage").category("SILAGE").unit("KG").active(true).build(),
+                FeedItem.builder().farm(farm).localName("ଧାତବ ଲବଣ ମିଶ୍ରଣ").englishName("Mineral Mixture").shortName("Mineral").displayName("ଖଣିଜ ଲବଣ · Mineral Mix").category("SUPPLEMENT").unit("KG").active(true).build()
+        );
+        for (FeedItem item : defaults) {
+            if (!feedItemRepository.existsByFarmIdAndDisplayName(farm.getId(), item.getDisplayName())) {
+                feedItemRepository.save(item);
+            }
+        }
+    }
+
     @PostMapping
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Add a new feed item to the master catalog")
     public ResponseEntity<Map<String, Object>> createFeedItem(@RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();
@@ -93,6 +124,7 @@ public class FeedItemController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Edit feed item")
     public ResponseEntity<Map<String, Object>> updateFeedItem(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();

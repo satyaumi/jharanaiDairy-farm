@@ -431,6 +431,46 @@ class AuthService {
     return { token: resData.token, user };
   }
 
+  async getSetupStatus(): Promise<{ managementSetupAvailable: boolean; systemInitialized: boolean; message: string }> {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/setup-status`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return { managementSetupAvailable: false, systemInitialized: true, message: "" };
+  }
+
+  async setupInitialManager(payload: {
+    fullName: string;
+    email: string;
+    mobile: string;
+    password: string;
+    setupToken?: string;
+  }): Promise<{ token: string; user: User }> {
+    const res = await fetchWithTimeout(`${this.baseUrl}/setup-initial-manager`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const j = await res.json();
+    if (!res.ok) {
+      throw new Error(j.message || "Failed to set up initial management account");
+    }
+    const user: User = {
+      id: j.user.id,
+      name: j.user.name,
+      email: j.user.email,
+      phone: j.user.phone || payload.mobile,
+      role: j.user.role,
+      farmId: j.user.farmId,
+      farmName: j.user.farmName || "Jharanai Farm",
+      avatar: j.user.avatar,
+    };
+    this.setSession(j.token, user);
+    return { token: j.token, user };
+  }
+
   /**
    * Terminate user session
    */

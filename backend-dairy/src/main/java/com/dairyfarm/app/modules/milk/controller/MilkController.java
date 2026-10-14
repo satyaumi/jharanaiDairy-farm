@@ -141,7 +141,7 @@ public class MilkController {
     }
 
     @PostMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Record individual animal milking")
     public ResponseEntity<Map<String, Object>> recordSingleMilk(@RequestBody Map<String, Object> body) {
         UUID farmId = getTenantFarmId();
@@ -206,7 +206,7 @@ public class MilkController {
     }
 
     @PostMapping("/bulk")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'WORKER', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Fast bulk group milking entry for mobile workflow")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> recordBulkGroupMilk(@RequestBody Map<String, Object> body) {

@@ -19,11 +19,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
-@RequiredArgsConstructor
 @Tag(name = "Team & Operational User Management", description = "Endpoints for managing farm staff, roles, and workers")
 public class UserController {
 
     private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
@@ -54,23 +57,23 @@ public class UserController {
     }
 
     @PostMapping("/workers")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
-    @Operation(summary = "Add a new farm worker profile (Owner or Manager)")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Add a new farm worker profile (Manager or Admin)")
     public ResponseEntity<ApiResponse<UserResponseDto>> createWorker(@Valid @RequestBody CreateWorkerRequest request) {
         UserResponseDto worker = userService.createWorker(request);
         return new ResponseEntity<>(ApiResponse.ok("Worker account created successfully", worker), HttpStatus.CREATED);
     }
 
     @PostMapping("/management")
-    @PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
-    @Operation(summary = "Add a management team member (Farm Owner only)")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @Operation(summary = "Add a management team member (Farm Manager or Admin)")
     public ResponseEntity<ApiResponse<UserResponseDto>> createManagement(@Valid @RequestBody CreateManagementRequest request) {
         UserResponseDto manager = userService.createManagement(request);
         return new ResponseEntity<>(ApiResponse.ok("Management account created successfully", manager), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Update team member details")
     public ResponseEntity<ApiResponse<UserResponseDto>> updateUser(
             @PathVariable UUID id,
@@ -80,7 +83,7 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Activate, deactivate or suspend a team member")
     public ResponseEntity<ApiResponse<UserResponseDto>> updateStatus(
             @PathVariable UUID id,
@@ -90,7 +93,7 @@ public class UserController {
     }
 
     @PostMapping("/{id}/resend-invitation")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @Operation(summary = "Resend activation invitation to team member")
     public ResponseEntity<ApiResponse<UserResponseDto>> resendInvitation(@PathVariable UUID id) {
         UserResponseDto updated = userService.resendInvitation(id);
