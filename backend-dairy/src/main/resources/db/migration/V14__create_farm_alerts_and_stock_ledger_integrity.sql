@@ -40,7 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_reads_user ON farm_alert_reads(user_id);
 INSERT INTO stock_transactions (id, farm_id, stock_item_id, transaction_type, quantity, unit, transaction_date, reference_type, notes, recorded_by_name)
 SELECT 
     '00000000-0000-0000-0000-000000000011',
-    'a0000000-0000-0000-0000-000000000001',
+    f.id,
     'f0000000-0000-0000-0000-000000000001',
     'OPENING',
     100.0,
@@ -49,14 +49,17 @@ SELECT
     'INITIAL_BALANCE',
     'Opening verified stock balance for Nada (Rice Straw)',
     'Management'
+FROM farms f
 WHERE EXISTS (SELECT 1 FROM stock_items WHERE id = 'f0000000-0000-0000-0000-000000000001')
   AND NOT EXISTS (SELECT 1 FROM stock_transactions WHERE stock_item_id = 'f0000000-0000-0000-0000-000000000001')
+ORDER BY f.created_at ASC
+LIMIT 1
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO stock_transactions (id, farm_id, stock_item_id, transaction_type, quantity, unit, transaction_date, reference_type, notes, recorded_by_name)
 SELECT 
     '00000000-0000-0000-0000-000000000012',
-    'a0000000-0000-0000-0000-000000000001',
+    f.id,
     'f0000000-0000-0000-0000-000000000002',
     'OPENING',
     100.0,
@@ -65,14 +68,17 @@ SELECT
     'INITIAL_BALANCE',
     'Opening verified stock balance for Chokada (Rice Bran)',
     'Management'
+FROM farms f
 WHERE EXISTS (SELECT 1 FROM stock_items WHERE id = 'f0000000-0000-0000-0000-000000000002')
   AND NOT EXISTS (SELECT 1 FROM stock_transactions WHERE stock_item_id = 'f0000000-0000-0000-0000-000000000002')
+ORDER BY f.created_at ASC
+LIMIT 1
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO stock_transactions (id, farm_id, stock_item_id, transaction_type, quantity, unit, transaction_date, reference_type, notes, recorded_by_name)
 SELECT 
     '00000000-0000-0000-0000-000000000013',
-    'a0000000-0000-0000-0000-000000000001',
+    f.id,
     'f0000000-0000-0000-0000-000000000003',
     'OPENING',
     150.0,
@@ -81,14 +87,17 @@ SELECT
     'INITIAL_BALANCE',
     'Opening verified stock balance for Dana (Concentrate)',
     'Management'
+FROM farms f
 WHERE EXISTS (SELECT 1 FROM stock_items WHERE id = 'f0000000-0000-0000-0000-000000000003')
   AND NOT EXISTS (SELECT 1 FROM stock_transactions WHERE stock_item_id = 'f0000000-0000-0000-0000-000000000003')
+ORDER BY f.created_at ASC
+LIMIT 1
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO stock_transactions (id, farm_id, stock_item_id, transaction_type, quantity, unit, transaction_date, reference_type, notes, recorded_by_name)
 SELECT 
     '00000000-0000-0000-0000-000000000014',
-    'a0000000-0000-0000-0000-000000000001',
+    f.id,
     'f0000000-0000-0000-0000-000000000004',
     'OPENING',
     250.0,
@@ -97,14 +106,17 @@ SELECT
     'INITIAL_BALANCE',
     'Opening verified stock balance for Napier Grass',
     'Management'
+FROM farms f
 WHERE EXISTS (SELECT 1 FROM stock_items WHERE id = 'f0000000-0000-0000-0000-000000000004')
   AND NOT EXISTS (SELECT 1 FROM stock_transactions WHERE stock_item_id = 'f0000000-0000-0000-0000-000000000004')
+ORDER BY f.created_at ASC
+LIMIT 1
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO stock_transactions (id, farm_id, stock_item_id, transaction_type, quantity, unit, transaction_date, reference_type, notes, recorded_by_name)
 SELECT 
     '00000000-0000-0000-0000-000000000015',
-    'a0000000-0000-0000-0000-000000000001',
+    f.id,
     'f0000000-0000-0000-0000-000000000005',
     'OPENING',
     50.0,
@@ -113,16 +125,18 @@ SELECT
     'INITIAL_BALANCE',
     'Opening verified stock balance for Mineral Mixture',
     'Management'
+FROM farms f
 WHERE EXISTS (SELECT 1 FROM stock_items WHERE id = 'f0000000-0000-0000-0000-000000000005')
   AND NOT EXISTS (SELECT 1 FROM stock_transactions WHERE stock_item_id = 'f0000000-0000-0000-0000-000000000005')
+ORDER BY f.created_at ASC
+LIMIT 1
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Seed initial authentic role-targeted alerts for the farm
 INSERT INTO farm_alerts (id, farm_id, title, message, category, severity, target_role, cow_number, due_date, status, created_by_name)
-VALUES
-(
+SELECT
     '70000000-0000-0000-0000-000000000001',
-    'a0000000-0000-0000-0000-000000000001',
+    f.id,
     'Vaccination Schedule Follow-up',
     'FMD Booster dose due for group animals this week. Please inspect vaccination kit.',
     'ANIMAL_HEALTH',
@@ -132,10 +146,15 @@ VALUES
     CURRENT_DATE + INTERVAL '3 day',
     'ACTIVE',
     'Farm Management'
-),
-(
+FROM farms f
+ORDER BY f.created_at ASC
+LIMIT 1
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO farm_alerts (id, farm_id, title, message, category, severity, target_role, cow_number, due_date, status, created_by_name)
+SELECT
     '70000000-0000-0000-0000-000000000002',
-    'a0000000-0000-0000-0000-000000000002',
+    f.id,
     'Feed Inventory Reorder Review',
     'Review concentrate feed stock balance and confirm supplier delivery date.',
     'FEED_STOCK',
@@ -145,10 +164,15 @@ VALUES
     CURRENT_DATE + INTERVAL '5 day',
     'ACTIVE',
     'Farm Management'
-),
-(
+FROM farms f
+ORDER BY f.created_at ASC
+LIMIT 1
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO farm_alerts (id, farm_id, title, message, category, severity, target_role, cow_number, due_date, status, created_by_name)
+SELECT
     '70000000-0000-0000-0000-000000000003',
-    'a0000000-0000-0000-0000-000000000001',
+    f.id,
     'Monthly Dairy Yield & Business Review',
     'Overall herd production and revenue metrics updated for executive review.',
     'MILK_PRODUCTION',
@@ -158,5 +182,7 @@ VALUES
     CURRENT_DATE,
     'ACTIVE',
     'Farm Management'
-)
+FROM farms f
+ORDER BY f.created_at ASC
+LIMIT 1
 ON CONFLICT (id) DO NOTHING;
