@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Award,
   ListFilter,
+  Trash2,
 } from "lucide-react";
 import { CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
@@ -20,15 +21,23 @@ import { Input } from "@/components/ui/input";
 import type { Animal, MilkRecord } from "@/types/farm";
 import { CowPerformanceGroupsView } from "./CowPerformanceGroupsView";
 import { useAuth } from "@/context/AuthContext";
+import { farmService } from "@/services/farm-service";
+import { notify } from "@/lib/notify";
+import {
+  useActionStatus,
+  ActionSubmitButton,
+  ActionInlineFeedback,
+} from "@/components/common/ActionStatus";
 
 interface AnimalListViewProps {
   animals: Animal[];
   recentMilk?: MilkRecord[];
   onSelectAnimal: (animal: Animal) => void;
-  onAddNew: () => void;
+  onAddNew?: () => void;
   onRecordMilk: (animal: Animal) => void;
   onEditAnimal?: (animal: Animal) => void;
   onChangeStatus?: (animal: Animal) => void;
+  onAnimalDeleted?: (animal: Animal) => void;
 }
 
 export function AnimalListView({
@@ -39,8 +48,39 @@ export function AnimalListView({
   onRecordMilk,
   onEditAnimal,
   onChangeStatus,
+  onAnimalDeleted,
 }: AnimalListViewProps) {
-  const { role } = useAuth();
+  const { role, isManager, isAdmin, isWorker, isOwner } = useAuth();
+  const canDeleteAnimal = (isManager || isAdmin) && !isWorker && !isOwner;
+
+  const [animalToDelete, setAnimalToDelete] = useState<Animal | null>(null);
+  const [deleteReason, setDeleteReason] = useState<string>("");
+  const deleteAction = useActionStatus();
+
+  const handleDeleteAnimalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!animalToDelete) return;
+    deleteAction.startSubmitting("Archiving animal from herd records...");
+    try {
+      await farmService.deleteAnimal(animalToDelete.id || animalToDelete.tag, deleteReason);
+      deleteAction.setSuccess(`Cow #${animalToDelete.tag} archived successfully.`);
+      notify.success("Animal Archived", {
+        description: `Cow #${animalToDelete.tag} removed from active herd records. Historical data preserved.`,
+      });
+      setTimeout(async () => {
+        const deleted = animalToDelete;
+        setAnimalToDelete(null);
+        setDeleteReason("");
+        deleteAction.reset();
+        if (onAnimalDeleted) {
+          await onAnimalDeleted(deleted);
+        }
+      }, 900);
+    } catch (err: any) {
+      deleteAction.setError(err.message || "Failed to delete animal. Please verify permissions.");
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<"inventory" | "performance">("inventory");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("Active");
@@ -454,6 +494,18 @@ export function AnimalListView({
                               Edit
                             </Button>
                           )}
+                          {canDeleteAnimal && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setAnimalToDelete(animal)}
+                              className="h-8 px-2 text-xs font-bold text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              title="Delete Animal (Management Only)"
+                            >
+                              <Trash2 className="size-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="ghost"
@@ -560,6 +612,18 @@ export function AnimalListView({
                                     Edit
                                   </Button>
                                 )}
+                                {canDeleteAnimal && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setAnimalToDelete(animal)}
+                                    className="h-8 rounded-xl px-2.5 text-xs font-bold text-destructive hover:bg-destructive/10 border-destructive/30"
+                                    title="Delete Animal (Management Only)"
+                                  >
+                                    <Trash2 className="size-3 mr-1" />
+                                    Delete
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -580,6 +644,90 @@ export function AnimalListView({
             </>
           )}
         </>
+      )}
+
+      {/* Delete / Archive Animal Confirmation Modal (Management Only) */}
+      {animalToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-destructive/30 bg-background p-5 sm:p-6 shadow-2xl">
+            <div className="flex items-center gap-2 pb-3 border-b border-border/60">
+              <span className="grid size-9 place-items-center rounded-xl bg-destructive/15 text-destructive">
+                <Trash2 className="size-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-black text-foreground">
+                  Archive & Delete Animal
+                </h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Management Authorization Required
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleDeleteAnimalSubmit} className="space-y-4 pt-4">
+              <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-emerald-800 dark:text-emerald-300 text-sm">
+                    Cow #{animalToDelete.tag}
+                  </span>
+                  <span className="rounded-full bg-secondary/80 px-2 py-0.5 text-[10px] font-bold">
+                    {animalToDelete.type || "Cow"}
+                  </span>
+                </div>
+                <p className="text-xs text-foreground font-semibold">
+                  {animalToDelete.name || animalToDelete.breed} · {animalToDelete.breed}
+                </p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
+                  Soft-deleting removes this animal from active herds, fast group milking, and daily chores. <strong>All historical milk yields, health records, and audit logs are safely preserved.</strong>
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-muted-foreground block mb-1">
+                  Reason for Deletion / Archival (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sold to another farm, culled, natural demise, data entry error"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-xs focus:outline-none"
+                />
+              </div>
+
+              <ActionInlineFeedback
+                status={deleteAction.status}
+                message={deleteAction.message}
+                onDismiss={deleteAction.reset}
+                className="mt-2"
+              />
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    deleteAction.reset();
+                    setAnimalToDelete(null);
+                    setDeleteReason("");
+                  }}
+                  className="flex-1 rounded-xl text-xs font-bold h-10"
+                >
+                  Cancel
+                </Button>
+                <ActionSubmitButton
+                  status={deleteAction.status}
+                  idleText="Confirm Delete"
+                  submittingText="Archiving Animal..."
+                  successText="Archived!"
+                  variant="danger"
+                  icon={<Trash2 className="size-4" />}
+                  className="flex-1 rounded-xl font-bold text-xs h-10 bg-destructive hover:bg-destructive/90 text-white"
+                />
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

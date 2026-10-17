@@ -388,6 +388,7 @@ export function FarmApp() {
                       }
                     : undefined
                 }
+                onAnimalDeleted={loadData}
               />
             )}
 

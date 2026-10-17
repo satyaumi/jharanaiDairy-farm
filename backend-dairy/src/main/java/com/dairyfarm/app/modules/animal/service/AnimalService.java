@@ -630,19 +630,43 @@ public class AnimalService {
     }
 
     @Transactional
-    public void deactivateAnimal(UUID animalId) {
+    public void deactivateAnimal(UUID animalId, String reason) {
         UUID farmId = getTenantFarmId();
         Animal animal = animalRepository.findByIdAndFarmId(animalId, farmId)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", "id", animalId));
 
+        UUID currentUserId = TenantContext.getUserId();
+        User currentUser = currentUserId != null
+                ? userRepository.findById(currentUserId).orElse(null)
+                : null;
+
+        String auditReason = (reason != null && !reason.isBlank()) ? reason.trim() : "Deactivated / Archived by Management";
+
         animal.setActive(false);
         animal.setLifecycleStatus(LifecycleStatus.ARCHIVED);
         animal.setLifecycleDate(LocalDate.now());
-        animal.setLifecycleReason("Deactivated / Archived by user");
-        animalRepository.save(animal);
+        animal.setLifecycleReason(auditReason);
+        Animal saved = animalRepository.save(animal);
 
-        auditService.record("DEACTIVATE_ANIMAL", "ANIMAL", animalId.toString(),
-                "Deactivated/archived animal " + animal.getEarTag());
+        AnimalHistory history = AnimalHistory.builder()
+                .animal(saved)
+                .farm(saved.getFarm())
+                .eventType(HistoryEventType.LIFECYCLE_CHANGE)
+                .eventDate(LocalDate.now())
+                .title("Animal Archived / Deleted")
+                .detail("Cow #" + saved.getEarTag() + (saved.getAnimalName() != null ? " (" + saved.getAnimalName() + ")" : "") + " archived by management. Reason: " + auditReason)
+                .badge("ARCHIVED")
+                .recordedBy(currentUser)
+                .build();
+        historyRepository.save(history);
+
+        auditService.record("DELETE_ANIMAL", "ANIMAL", animalId.toString(),
+                "Archived/Deleted Cow #" + animal.getEarTag() + " by " + (currentUser != null ? currentUser.getFullName() : "management") + ". Reason: " + auditReason);
+    }
+
+    @Transactional
+    public void deactivateAnimal(UUID animalId) {
+        deactivateAnimal(animalId, null);
     }
 
     @Transactional(readOnly = true)

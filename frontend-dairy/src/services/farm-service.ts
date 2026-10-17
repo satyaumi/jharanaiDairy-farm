@@ -40,6 +40,7 @@ export interface FarmService {
   getAnimalById(id: string): Promise<Animal>;
   saveAnimal(animal: Partial<Animal>): Promise<Animal[]>;
   updateAnimal(id: string, data: UpdateAnimalData): Promise<Animal>;
+  deleteAnimal(idOrTag: string, reason?: string): Promise<{ success: boolean; message: string }>;
   changeLifecycleStatus(id: string, data: ChangeLifecycleStatusData): Promise<Animal>;
   getAnimalMilkRecords(animalId: string): Promise<AnimalMilkRecordItem[]>;
   getAnimalFeedRecords(animalId: string): Promise<AnimalFeedRecordItem[]>;
@@ -76,6 +77,7 @@ export interface FarmService {
 
   // Real backend modules
   listGroups(): Promise<AnimalGroup[]>;
+  getAnimalGroups(): Promise<AnimalGroup[]>;
   createGroup(group: Partial<AnimalGroup>): Promise<AnimalGroup>;
   listFeedItems(): Promise<FeedItem[]>;
   createFeedItem(item: Partial<FeedItem>): Promise<FeedItem>;
@@ -252,6 +254,22 @@ export const farmService: FarmService = {
     };
     farmStore.saveAnimal(updated);
     return updated;
+  },
+
+  async deleteAnimal(idOrTag: string, reason?: string): Promise<{ success: boolean; message: string }> {
+    const q = reason ? `?reason=${encodeURIComponent(reason)}` : "";
+    const response = await fetch(apiUrl(`/animals/${encodeURIComponent(idOrTag)}${q}`), {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (response.ok) {
+      const res = await response.json();
+      farmStore.removeAnimal(idOrTag);
+      return { success: true, message: res.message || "Animal archived successfully" };
+    } else {
+      const errJson = await response.json().catch(() => null);
+      throw new Error(errJson?.message || "Failed to delete/archive animal.");
+    }
   },
 
   async changeLifecycleStatus(
@@ -584,6 +602,10 @@ export const farmService: FarmService = {
       { id: "grp-3", name: "ଶୁଖିଲା ଗାଈ (Dry Cows)", code: "GRP-C", animalCount: 6 },
       { id: "grp-4", name: "ବାଛୁରୀ (Calves & Young)", code: "GRP-D", animalCount: 10 },
     ];
+  },
+
+  async getAnimalGroups(): Promise<AnimalGroup[]> {
+    return this.listGroups();
   },
 
   async createGroup(group: Partial<AnimalGroup>): Promise<AnimalGroup> {

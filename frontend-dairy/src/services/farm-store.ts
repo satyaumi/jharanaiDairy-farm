@@ -138,6 +138,14 @@ class FarmStore {
     return updated;
   }
 
+  removeAnimal(idOrTag: string): void {
+    const list = this.getAnimals();
+    const updated = list.filter(
+      (a) => a.id !== idOrTag && a.tag?.toUpperCase() !== idOrTag.toUpperCase()
+    );
+    this.setStorage(STORAGE_KEY_ANIMALS, updated);
+  }
+
   recordMilk(record: Omit<MilkRecord, "id" | "recordedAt">): MilkRecord {
     const newRecord: MilkRecord = {
       ...record,

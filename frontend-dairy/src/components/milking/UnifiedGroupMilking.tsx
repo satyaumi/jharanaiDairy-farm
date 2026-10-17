@@ -124,19 +124,28 @@ export const UnifiedGroupMilking: React.FC<UnifiedGroupMilkingProps> = ({
   // Input quantities mapped by animalId
   const [groupYields, setGroupYields] = useState<Record<string, string>>({});
 
-  // Fetch registered DB groups
+  // Fetch registered DB groups safely
   useEffect(() => {
     let mounted = true;
-    farmService
-      .getAnimalGroups()
-      .then((res) => {
-        if (mounted && res && res.data) {
-          setDbGroups(res.data);
+    const fetchGroups = async () => {
+      try {
+        let res: any = null;
+        if (typeof farmService.listGroups === "function") {
+          res = await farmService.listGroups();
+        } else if (typeof (farmService as any).getAnimalGroups === "function") {
+          res = await (farmService as any).getAnimalGroups();
         }
-      })
-      .catch(() => {
-        // Fallback silently if offline or test mode
-      });
+        if (mounted && res) {
+          const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          if (list.length > 0) {
+            setDbGroups(list);
+          }
+        }
+      } catch {
+        // Fallback silently if offline or network glitch
+      }
+    };
+    fetchGroups();
     return () => {
       mounted = false;
     };

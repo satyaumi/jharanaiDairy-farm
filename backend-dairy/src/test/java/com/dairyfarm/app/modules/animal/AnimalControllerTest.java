@@ -451,4 +451,88 @@ class AnimalControllerTest {
                 .andExpect(jsonPath("$.data[0].eventType").value("DEATH"))
                 .andExpect(jsonPath("$.data[0].title").value("Animal Deceased"));
     }
+
+    @Test
+    void deleteAnimal_WhenCalledByWorker_ShouldReturnForbidden() throws Exception {
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 8);
+        SignupRequest workerSignup = SignupRequest.builder()
+                .name("Worker " + randomSuffix)
+                .phone("+91 977" + randomSuffix)
+                .password("Pass@123")
+                .farmName("Worker Farm " + randomSuffix)
+                .role(Role.WORKER)
+                .build();
+
+        MvcResult workerRes = mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(workerSignup)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String workerToken = objectMapper.readTree(workerRes.getResponse().getContentAsString()).get("token").asText();
+
+        // Create an animal using manager
+        CreateAnimalRequest createReq = CreateAnimalRequest.builder()
+                .name("Kajal")
+                .tag("C-KAJAL-" + randomSuffix)
+                .breed("Jersey")
+                .build();
+
+        MvcResult createRes = mockMvc.perform(post("/api/animals")
+                        .header("Authorization", "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String animalId = objectMapper.readTree(createRes.getResponse().getContentAsString())
+                .get("data").get("id").asText();
+
+        // Worker attempts to delete -> 403 Forbidden
+        mockMvc.perform(delete("/api/animals/" + animalId)
+                        .header("Authorization", "Bearer " + workerToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteAnimal_WhenCalledByOwner_ShouldReturnForbidden() throws Exception {
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 8);
+        SignupRequest ownerSignup = SignupRequest.builder()
+                .name("Owner " + randomSuffix)
+                .phone("+91 988" + randomSuffix)
+                .password("Pass@123")
+                .farmName("Owner Farm " + randomSuffix)
+                .role(Role.OWNER)
+                .build();
+
+        MvcResult ownerRes = mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ownerSignup)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String ownerToken = objectMapper.readTree(ownerRes.getResponse().getContentAsString()).get("token").asText();
+
+        // Create an animal using manager
+        CreateAnimalRequest createReq = CreateAnimalRequest.builder()
+                .name("Gauri")
+                .tag("C-GAURI-" + randomSuffix)
+                .breed("Gir")
+                .build();
+
+        MvcResult createRes = mockMvc.perform(post("/api/animals")
+                        .header("Authorization", "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String animalId = objectMapper.readTree(createRes.getResponse().getContentAsString())
+                .get("data").get("id").asText();
+
+        // Owner attempts to delete -> 403 Forbidden
+        mockMvc.perform(delete("/api/animals/" + animalId)
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isForbidden());
+    }
 }
