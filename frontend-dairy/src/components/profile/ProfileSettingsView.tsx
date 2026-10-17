@@ -17,11 +17,14 @@ import {
   Smartphone,
   Shield,
   Loader2,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
+import { soundService } from "@/lib/sound-service";
 
 export function ProfileSettingsView() {
   const { user, logout, updateProfile, isOwner, isManager, isWorker } = useAuth();
@@ -33,9 +36,21 @@ export function ProfileSettingsView() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Notification Preferences
+  const [soundsEnabled, setSoundsEnabled] = useState<boolean>(soundService.isEnabled());
   const [notifShift, setNotifShift] = useState(true);
   const [notifHealth, setNotifHealth] = useState(true);
   const [notifDailyReport, setNotifDailyReport] = useState(true);
+
+  const handleToggleSounds = (enabled: boolean) => {
+    soundService.setEnabled(enabled);
+    setSoundsEnabled(enabled);
+    if (enabled) {
+      soundService.play("confirm");
+      toast.success("Notification sounds enabled");
+    } else {
+      toast.info("Notification sounds muted");
+    }
+  };
 
   // Security / Password Change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -263,6 +278,35 @@ export function ProfileSettingsView() {
         </div>
 
         <div className="space-y-3 pt-1">
+          {/* Notification Sound Effects */}
+          <div className="flex items-center justify-between text-xs border-b border-border/60 pb-3">
+            <div className="flex items-start gap-2.5">
+              <div className="mt-0.5 rounded-lg bg-emerald-500/15 p-1 text-emerald-800 dark:text-emerald-300">
+                {soundsEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+              </div>
+              <div>
+                <p className="font-bold text-foreground">Notification Sound Chimes</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Subtle, pleasant harmonic audio cues for operations, confirmations, warnings & critical alerts
+                </p>
+                <button
+                  type="button"
+                  disabled={!soundsEnabled}
+                  onClick={() => soundService.play("confirm")}
+                  className="mt-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-40"
+                >
+                  ▶ Test Sound Effect
+                </button>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={soundsEnabled}
+              onChange={(e) => handleToggleSounds(e.target.checked)}
+              className="size-4 accent-emerald-600 rounded cursor-pointer"
+            />
+          </div>
+
           <div className="flex items-center justify-between text-xs">
             <div>
               <p className="font-bold text-foreground">Milking Shift Summaries</p>

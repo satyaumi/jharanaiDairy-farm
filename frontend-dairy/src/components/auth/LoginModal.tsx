@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 
 interface LoginModalProps {
   open: boolean;

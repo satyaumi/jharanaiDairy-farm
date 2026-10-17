@@ -59,7 +59,12 @@ public class UserService {
                 .filter(u -> role == null || u.getRole() == role)
                 .filter(u -> status == null || u.getStatus() == status)
                 .filter(u -> department == null || (u.getDepartment() != null && u.getDepartment().equalsIgnoreCase(department)))
-                .map(UserResponseDto::fromEntity)
+                .map(u -> {
+                    UserResponseDto dto = UserResponseDto.fromEntity(u);
+                    // Never expose invitation tokens or temporary credentials in team listings
+                    dto.setInvitationToken(null);
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -93,8 +98,11 @@ public class UserService {
         if (currentUser.getRole() == Role.WORKER && !currentUser.getId().equals(id)) {
             throw new AccessDeniedException("Workers can only view their own profile");
         }
-
-        return UserResponseDto.fromEntity(user);
+        UserResponseDto dto = UserResponseDto.fromEntity(user);
+        if (currentUser.getRole() == Role.OWNER || currentUser.getRole() == Role.WORKER) {
+            dto.setInvitationToken(null);
+        }
+        return dto;
     }
 
     @Transactional
@@ -102,6 +110,9 @@ public class UserService {
         UUID farmId = getTenantFarmId();
         User currentUser = getCurrentUser();
 
+        if (currentUser.getRole() == Role.OWNER) {
+            throw new AccessDeniedException("Farm Owners have read-only access to team management");
+        }
         if (currentUser.getRole() != Role.MANAGER && currentUser.getRole() != Role.ADMIN) {
             throw new AccessDeniedException("Only Farm Managers or Administrators can create worker accounts");
         }
@@ -171,6 +182,9 @@ public class UserService {
         UUID farmId = getTenantFarmId();
         User currentUser = getCurrentUser();
 
+        if (currentUser.getRole() == Role.OWNER) {
+            throw new AccessDeniedException("Farm Owners have read-only access to team management");
+        }
         if (currentUser.getRole() != Role.MANAGER && currentUser.getRole() != Role.ADMIN) {
             throw new AccessDeniedException("Only Farm Managers or Administrators can add Management Team members");
         }
@@ -242,6 +256,9 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
 
         // Authorization checks
+        if (currentUser.getRole() == Role.OWNER) {
+            throw new AccessDeniedException("Farm Owners have read-only access to team management");
+        }
         if (currentUser.getRole() == Role.WORKER && !currentUser.getId().equals(id)) {
             throw new AccessDeniedException("Workers cannot edit other users");
         }
@@ -295,6 +312,9 @@ public class UserService {
             throw new BadRequestException("Cannot change status of Farm Owner account");
         }
 
+        if (currentUser.getRole() == Role.OWNER) {
+            throw new AccessDeniedException("Farm Owners have read-only access to team management");
+        }
         if (currentUser.getRole() == Role.MANAGER && target.getRole() != Role.WORKER) {
             throw new AccessDeniedException("Management staff can only manage worker status");
         }
@@ -316,6 +336,10 @@ public class UserService {
     public UserResponseDto resendInvitation(UUID id) {
         UUID farmId = getTenantFarmId();
         User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() == Role.OWNER) {
+            throw new AccessDeniedException("Farm Owners have read-only access to team management");
+        }
 
         User target = userRepository.findById(id)
                 .filter(u -> u.getFarm().getId().equals(farmId))

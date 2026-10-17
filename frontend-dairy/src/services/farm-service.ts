@@ -491,32 +491,41 @@ export const farmService: FarmService = {
     return farmStore.getMilkRecords();
   },
 
-  async recordMilk(record) {
+  async recordMilk(record: any) {
     try {
+      const targetDate = record.recordDate || record.date || new Date().toISOString().split("T")[0];
+      const shiftVal = record.shift || record.session || "Morning";
+      const normalizedShift = String(shiftVal).toLowerCase().includes("eve") ? "Evening" : "Morning";
+
       const res = await fetch(apiUrl("/milk"), {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
           animalId: record.animalId,
+          cowNumber: record.cowNumber || record.tag,
+          tag: record.tag || record.cowNumber,
           litres: record.litres,
-          shift: record.session.toUpperCase(),
-          recordDate: new Date().toISOString().split("T")[0],
-          quality: record.quality === "Check needed" ? "CHECK_NEEDED" : "NORMAL",
+          shift: normalizedShift,
+          recordDate: targetDate,
+          quality: record.quality || "Normal",
+          notes: record.notes,
         }),
       });
       if (res.ok) {
         const j = await res.json();
         if (j.success && j.data) {
-          return {
+          const persisted: MilkRecord = {
             id: j.data.id,
             animalId: j.data.animalId,
             animalName: j.data.animalName || record.animalName,
             tag: j.data.animalTag || record.tag,
-            session: record.session,
+            session: normalizedShift,
             litres: j.data.litres,
             recordedAt: j.data.recordDate,
-            quality: record.quality,
+            quality: record.quality || "Normal",
           };
+          farmStore.recordMilk(persisted);
+          return persisted;
         }
       }
     } catch {}

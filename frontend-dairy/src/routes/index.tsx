@@ -163,12 +163,8 @@ export function FarmApp() {
       return;
     }
 
-    if (isOwner && page === "users") {
-      notify.error("Access Restricted", {
-        description: "Team and staff administration is managed by Farm Management.",
-      });
-      return;
-    }
+    // Dismiss stale notifications on successful navigation
+    notify.onNavigate();
 
     navigate({
       search: (prev) => ({

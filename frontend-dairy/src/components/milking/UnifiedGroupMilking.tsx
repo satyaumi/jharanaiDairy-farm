@@ -18,7 +18,7 @@ import {
 import { Animal, MilkRecord } from "@/types/farm";
 import { AnimalGroup, farmService } from "@/services/farm-service";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -124,6 +124,14 @@ export const UnifiedGroupMilking: React.FC<UnifiedGroupMilkingProps> = ({
   // Input quantities mapped by animalId
   const [groupYields, setGroupYields] = useState<Record<string, string>>({});
 
+  // Dual Workflow: Fast Group Milking vs Single Cow Recording
+  const [milkingWorkflow, setMilkingWorkflow] = useState<"GROUP" | "SINGLE">("GROUP");
+  const [singleAnimalId, setSingleAnimalId] = useState<string>("");
+  const [singleSearch, setSingleSearch] = useState<string>("");
+  const [singleLitres, setSingleLitres] = useState<string>("");
+  const [singleQuality, setSingleQuality] = useState<string>("Normal");
+  const [singleNotes, setSingleNotes] = useState<string>("");
+
   // Fetch registered DB groups safely
   useEffect(() => {
     let mounted = true;
@@ -221,6 +229,38 @@ export const UnifiedGroupMilking: React.FC<UnifiedGroupMilkingProps> = ({
     });
   }, [existingShiftRecords]);
 
+  // Selected cow for single cow mode
+  const selectedSingleCow = useMemo(() => {
+    if (singleAnimalId) {
+      return eligibleAnimals.find((a) => a.id === singleAnimalId) || eligibleAnimals[0];
+    }
+    return eligibleAnimals[0];
+  }, [eligibleAnimals, singleAnimalId]);
+
+  // Filtered cows for single cow search
+  const filteredSingleAnimals = useMemo(() => {
+    if (!singleSearch.trim()) return eligibleAnimals;
+    const q = singleSearch.toLowerCase().trim();
+    return eligibleAnimals.filter(
+      (a) =>
+        (a.tag || "").toLowerCase().includes(q) ||
+        (a.name || "").toLowerCase().includes(q) ||
+        (a.breed || "").toLowerCase().includes(q)
+    );
+  }, [eligibleAnimals, singleSearch]);
+
+  // Pre-fill single cow input when cow or date/shift changes
+  useEffect(() => {
+    if (selectedSingleCow) {
+      const existing = existingShiftRecords.get(selectedSingleCow.id);
+      if (existing && existing.litres > 0) {
+        setSingleLitres(String(existing.litres));
+      } else {
+        setSingleLitres("");
+      }
+    }
+  }, [selectedSingleCow, existingShiftRecords]);
+
   // Total litres entered and animals with valid quantity entered
   const enteredStats = useMemo(() => {
     let total = 0;
@@ -278,6 +318,60 @@ export const UnifiedGroupMilking: React.FC<UnifiedGroupMilkingProps> = ({
     const next = new Set(selectedCowIds);
     tabAnimals.forEach((a) => next.delete(a.id));
     setSelectedCowIds(next);
+  };
+
+  const handleSaveSingleRecord = async () => {
+    if (isOwner) {
+      toast.error("Owner role is read-only. Milking entries cannot be recorded.");
+      return;
+    }
+
+    const animal = selectedSingleCow;
+    if (!animal) {
+      toast.error("Please select a cow to record milk.");
+      return;
+    }
+
+    const qty = parseFloat(singleLitres);
+    if (isNaN(qty) || qty <= 0 || qty > 60) {
+      const msg = `Invalid quantity for Cow #${animal.tag}: must be between 0.1 and 60 L.`;
+      actionStatus.setError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    await actionStatus.execute(
+      async () => {
+        return await farmService.recordMilk({
+          animalId: animal.id,
+          cowNumber: animal.tag,
+          tag: animal.tag,
+          animalName: animal.name,
+          session: entryShift,
+          shift: entryShift,
+          date: entryDate,
+          recordDate: entryDate,
+          litres: qty,
+          quality: singleQuality,
+          notes: singleNotes.trim() || undefined,
+        });
+      },
+      {
+        submittingMessage: `Recording ${qty} L for Cow #${animal.tag}...`,
+        successMessage: `Saved ${qty} L for Cow #${animal.tag} (${entryShift} session)!`,
+        autoResetMs: 3500,
+        onSuccess: () => {
+          toast.success(`Recorded ${qty} L for Cow #${animal.tag} (${animal.name || animal.tag})!`, {
+            description: `${entryShift} round on ${entryDate} persisted to database.`,
+          });
+          if (onSaved) onSaved();
+          if (onClose) setTimeout(onClose, 800);
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || "Failed to save milk record. Please retry.");
+        },
+      }
+    );
   };
 
   const handleSaveGroupRecords = async () => {
@@ -420,29 +514,276 @@ export const UnifiedGroupMilking: React.FC<UnifiedGroupMilkingProps> = ({
         </div>
       )}
 
-      {/* 2. Group Selector Tabs (A–F) with Live Eligible Animal Counts */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            ଗୋଠ (Herd Group):
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCustomSelectionMode(!customSelectionMode)}
-              className={`flex items-center gap-1 text-[11px] font-bold rounded-lg px-2 py-1 border transition-all ${
-                customSelectionMode
-                  ? "border-emerald-600 bg-emerald-600/15 text-emerald-800 dark:text-emerald-300"
-                  : "border-border text-muted-foreground hover:bg-card"
-              }`}
-            >
-              <CheckSquare className="size-3.5" />
-              <span>Multi-Cow Select {customSelectionMode ? "ON" : "OFF"}</span>
-            </button>
-          </div>
+      {/* 2. Dual Milking Workflows: Fast Group Milking vs Single Cow Recording */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+        <div className="inline-flex rounded-xl border border-border/80 bg-muted/40 p-1">
+          <button
+            type="button"
+            onClick={() => setMilkingWorkflow("GROUP")}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+              milkingWorkflow === "GROUP"
+                ? "bg-emerald-600 text-white shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="size-3.5" />
+            <span>Fast Group Milking (ଗୋଠ ଅନୁସାରେ)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMilkingWorkflow("SINGLE")}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+              milkingWorkflow === "SINGLE"
+                ? "bg-emerald-600 text-white shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="size-3.5" />
+            <span>Single Cow Recording (ଏକକ ଗାଈ)</span>
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-muted-foreground font-semibold">
+          {milkingWorkflow === "GROUP"
+            ? `${eligibleAnimals.length} eligible lactating cows in herd`
+            : "Search by Cow Number, session & litres"}
+        </span>
+      </div>
+
+      {/* SINGLE COW RECORDING WORKSPACE */}
+      {milkingWorkflow === "SINGLE" && (
+        <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-3">
+            <div>
+              <h4 className="text-sm font-extrabold text-foreground">
+                Single Cow Milk Entry · {entryShift} Session ({entryDate})
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Select cow by unique Cow Number, enter harvest yield in litres, and save directly to database.
+              </p>
+            </div>
+            {selectedSingleCow && (
+              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs">
+                Cow #{selectedSingleCow.tag} · Group {animalGroupMap.get(selectedSingleCow.id) || "F"}
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Left: Cow Search & Selection */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-foreground">
+                1. Select Cow Number (ଗାଈ ଚୟନ)
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by Cow # (e.g. C-2026), Name or Breed..."
+                  value={singleSearch}
+                  onChange={(e) => setSingleSearch(e.target.value)}
+                  className="pl-9 h-10 rounded-xl text-xs font-semibold"
+                />
+              </div>
+
+              {/* Cow selection list */}
+              <div className="max-h-48 overflow-y-auto rounded-xl border border-border/60 p-1.5 space-y-1">
+                {filteredSingleAnimals.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-muted-foreground">
+                    No matching lactating cow found.
+                  </p>
+                ) : (
+                  filteredSingleAnimals.map((cow) => {
+                    const isSelected = selectedSingleCow?.id === cow.id;
+                    const prevRec = existingShiftRecords.get(cow.id);
+                    return (
+                      <button
+                        key={cow.id}
+                        type="button"
+                        onClick={() => setSingleAnimalId(cow.id)}
+                        className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                          isSelected
+                            ? "bg-emerald-600 text-white font-extrabold shadow-sm"
+                            : "hover:bg-muted text-foreground"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-black ${
+                            isSelected ? "bg-white/20 text-white" : "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                          }`}>
+                            #{cow.tag}
+                          </span>
+                          <span className="truncate font-bold">
+                            {cow.name && cow.name !== cow.tag ? `${cow.name} (${cow.breed || "Cow"})` : cow.breed || "Cow"}
+                          </span>
+                        </div>
+                        <div className="text-right text-[10px] shrink-0">
+                          {prevRec ? (
+                            <span className={isSelected ? "text-emerald-100 font-bold" : "text-emerald-600 font-bold"}>
+                              ✓ {prevRec.litres} L
+                            </span>
+                          ) : (
+                            <span className={isSelected ? "text-white/80" : "text-muted-foreground"}>
+                              Prev: {cow.yield || 0} L
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Right: Litre Input & Submission */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-foreground">
+                2. Enter Milk Quantity & Details
+              </label>
+
+              <div>
+                <span className="text-[11px] font-bold text-muted-foreground">Milk Yield:</span>
+                <div className="relative mt-1">
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.0"
+                    disabled={isOwner || actionStatus.isSubmitting}
+                    value={singleLitres}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                        setSingleLitres(v);
+                      }
+                    }}
+                    className="h-12 rounded-xl bg-background pr-10 text-xl font-black text-foreground text-center"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground">
+                    L
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Stepper Buttons */}
+              {!isOwner && (
+                <div className="flex gap-1.5 pt-0.5">
+                  {[0.5, 1.0, 2.0, 5.0].map((step) => (
+                    <Button
+                      key={step}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={actionStatus.isSubmitting}
+                      onClick={() => {
+                        const cur = parseFloat(singleLitres || "0") || 0;
+                        const next = Math.max(0, +(cur + step).toFixed(1));
+                        setSingleLitres(String(next));
+                      }}
+                      className="flex-1 h-9 rounded-xl border-border/80 text-xs font-bold active:scale-95"
+                    >
+                      +{step} L
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={actionStatus.isSubmitting}
+                    onClick={() => setSingleLitres("")}
+                    className="h-9 rounded-xl border-border/80 text-xs font-bold"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              )}
+
+              {/* Quality & Notes */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    Quality
+                  </label>
+                  <select
+                    value={singleQuality}
+                    disabled={isOwner || actionStatus.isSubmitting}
+                    onChange={(e) => setSingleQuality(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-input bg-background px-2.5 text-xs font-bold"
+                  >
+                    <option value="Normal">Normal (Standard)</option>
+                    <option value="High Fat">High Fat (A Grade)</option>
+                    <option value="Check needed">Check needed</option>
+                    <option value="Colostrum">Colostrum (Fresh)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    Notes (Optional)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Good morning yield"
+                    disabled={isOwner || actionStatus.isSubmitting}
+                    value={singleNotes}
+                    onChange={(e) => setSingleNotes(e.target.value)}
+                    className="h-10 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Single Cow Record */}
+              {!isOwner ? (
+                <div className="pt-2">
+                  <ActionSubmitButton
+                    status={actionStatus.status}
+                    onClick={handleSaveSingleRecord}
+                    disabled={!singleLitres || parseFloat(singleLitres) <= 0 || actionStatus.isSubmitting}
+                    submittingText="Saving Single Cow Record..."
+                    successText="Cow Record Saved!"
+                    errorText="Save Failed · Tap to Retry"
+                    className="w-full h-12 rounded-xl bg-emerald-700 text-white font-extrabold text-sm shadow-md hover:bg-emerald-800"
+                    icon={<Check className="size-4" />}
+                  >
+                    Save Milk for Cow #{selectedSingleCow?.tag}
+                  </ActionSubmitButton>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground text-center italic pt-2">
+                  Owner read-only mode. Recording is restricted to Workers and Management.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAST GROUP MILKING WORKSPACE */}
+      {milkingWorkflow === "GROUP" && (
+        <>
+          {/* 3. Group Selector Tabs (A–F) with Live Eligible Animal Counts */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                ଗୋଠ (Herd Group):
+              </span>
+              {!isOwner && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCustomSelectionMode(!customSelectionMode)}
+                    className={`flex items-center gap-1 text-[11px] font-bold rounded-lg px-2 py-1 border transition-all ${
+                      customSelectionMode
+                        ? "border-emerald-600 bg-emerald-600/15 text-emerald-800 dark:text-emerald-300"
+                        : "border-border text-muted-foreground hover:bg-card"
+                    }`}
+                  >
+                    <CheckSquare className="size-3.5" />
+                    <span>Multi-Cow Select {customSelectionMode ? "ON" : "OFF"}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
           {(
             [
               { id: "ALL", label: "All Herd", count: eligibleAnimals.length },
@@ -751,6 +1092,8 @@ export const UnifiedGroupMilking: React.FC<UnifiedGroupMilkingProps> = ({
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

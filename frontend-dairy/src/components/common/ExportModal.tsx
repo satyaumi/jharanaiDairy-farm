@@ -25,7 +25,7 @@ import {
 import { downloadReport, ReportExportParams } from "@/services/export-service";
 import { farmService } from "@/services/farm-service";
 import type { Animal } from "@/types/farm";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 
 interface ExportModalProps {
   open: boolean;

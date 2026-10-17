@@ -15,7 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 import { ExportModal } from "@/components/common/ExportModal";
 import { ImportRecordsModal } from "@/components/common/ImportRecordsModal";
 import { downloadReport } from "@/services/export-service";

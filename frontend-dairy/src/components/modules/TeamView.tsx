@@ -46,7 +46,7 @@ import type {
   UpdateUserPayload,
   UserStatus,
 } from "@/types/team";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 
 export function TeamView() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -55,8 +55,10 @@ export function TeamView() {
   const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
   const isWorker = user?.role === "WORKER";
-  const canAddWorker = isManager || isAdmin;
-  const canAddManagement = isManager || isAdmin;
+  // Enforce read-only access for Farm Owner; only authorized managers/admins may modify the team
+  const canModifyTeam = !isOwner && !isWorker && (isManager || isAdmin);
+  const canAddWorker = canModifyTeam;
+  const canAddManagement = canModifyTeam;
 
   // Data State
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -538,6 +540,24 @@ export function TeamView() {
           )}
         </div>
       </div>
+
+      {/* Owner Read-Only Mode Banner */}
+      {isOwner && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-3.5 text-xs text-sky-950 dark:text-sky-200">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Shield className="size-4.5 shrink-0 text-sky-600" />
+            <div>
+              <p className="font-extrabold text-foreground">Owner Read-Only Overview</p>
+              <p className="text-[11px] text-muted-foreground">
+                Viewing management team and worker accounts for your farm. Team accounts and worker provisioning are managed by Farm Management.
+              </p>
+            </div>
+          </div>
+          <span className="rounded-full bg-sky-600/15 text-sky-800 dark:text-sky-300 font-extrabold text-[10px] px-2.5 py-1 uppercase tracking-wider shrink-0">
+            Read-Only
+          </span>
+        </div>
+      )}
 
       {/* 2. Top Summary KPI Cards (Real DB counts) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">

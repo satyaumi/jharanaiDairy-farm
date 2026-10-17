@@ -30,7 +30,7 @@ import {
   ImportAnalyzeResult,
   ImportConfirmResult,
 } from "@/services/import-service";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 
 interface ImportRecordsModalProps {
   open: boolean;

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 import { farmService } from "@/services/farm-service";
 import type { Animal, LifecycleStatus } from "@/types/farm";
 

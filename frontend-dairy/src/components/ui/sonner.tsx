@@ -7,9 +7,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       className="toaster group"
       position="top-right"
-      expand={true}
-      visibleToasts={4}
-      gap={12}
+      expand={false}
+      visibleToasts={3}
+      gap={8}
       closeButton={true}
       richColors={true}
       toastOptions={{

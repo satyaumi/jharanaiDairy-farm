@@ -26,7 +26,7 @@ import { UnifiedGroupMilking } from "@/components/milking/UnifiedGroupMilking";
 import { ExportModal } from "@/components/common/ExportModal";
 import { ImportRecordsModal } from "@/components/common/ImportRecordsModal";
 import { farmService } from "@/services/farm-service";
-import { toast } from "sonner";
+import { notify as toast } from "@/lib/notify";
 import {
   computeGroupSummary,
   getStoredThresholds,

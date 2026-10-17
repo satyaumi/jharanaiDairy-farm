@@ -146,8 +146,12 @@ public class MilkController {
     @PostMapping
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
-    @Operation(summary = "Record individual animal milking")
     public ResponseEntity<Map<String, Object>> recordSingleMilk(@RequestBody Map<String, Object> body) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_OWNER"))) {
+            throw new org.springframework.security.access.AccessDeniedException("Farm Owners have read-only access to milk records. Recording milk is restricted to Farm Workers and Managers.");
+        }
+
         UUID farmId = getTenantFarmId();
         UUID currentUserId = TenantContext.getUserId();
         Farm farm = farmRepository.findById(farmId)
@@ -223,6 +227,11 @@ public class MilkController {
     @Operation(summary = "Fast bulk group milking entry for mobile workflow")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> recordBulkGroupMilk(@RequestBody Map<String, Object> body) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_OWNER"))) {
+            throw new org.springframework.security.access.AccessDeniedException("Farm Owners have read-only access to milk records. Recording milk is restricted to Farm Workers and Managers.");
+        }
+
         UUID farmId = getTenantFarmId();
         UUID currentUserId = TenantContext.getUserId();
         Farm farm = farmRepository.findById(farmId)
