@@ -30,12 +30,19 @@ import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/notify";
 import { useAuth } from "@/context/AuthContext";
 import { farmService } from "@/services/farm-service";
-import type { Animal } from "@/types/farm";
+import type { Animal, MilkRecord } from "@/types/farm";
+import { UnifiedGroupMilking } from "@/components/milking/UnifiedGroupMilking";
+import {
+  useActionStatus,
+  ActionSubmitButton,
+  ActionInlineFeedback,
+} from "@/components/common/ActionStatus";
 
 interface QuickAddModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   animals: Animal[];
+  records?: MilkRecord[];
   onDataUpdated?: () => void;
   initialAction?: string;
 }
@@ -54,12 +61,16 @@ export function QuickAddModal({
   open,
   onOpenChange,
   animals,
+  records,
   onDataUpdated,
   initialAction = "menu",
 }: QuickAddModalProps) {
   const [currentAction, setCurrentAction] = useState<ActionKey>(
     (initialAction as ActionKey) || "menu",
   );
+
+  const addAnimalStatus = useActionStatus();
+  const otherActionStatus = useActionStatus();
 
   // --- RECORD MILK 4-STEP STATE ---
   const [milkSession, setMilkSession] = useState<"Morning" | "Evening">(
@@ -83,6 +94,8 @@ export function QuickAddModal({
   useEffect(() => {
     if (open) {
       setCurrentAction((initialAction as ActionKey) || "menu");
+      addAnimalStatus.reset();
+      otherActionStatus.reset();
     }
   }, [open, initialAction]);
 
@@ -104,7 +117,7 @@ export function QuickAddModal({
 
   const { isWorker, isOwner } = useAuth();
 
-  // Submit Record Milk
+  // Submit Record Milk (Legacy fallback)
   const handleSaveMilk = async (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(litres);
@@ -205,7 +218,11 @@ export function QuickAddModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-lg overflow-y-auto rounded-3xl border-border/80 bg-background/95 p-4 sm:p-6">
+      <DialogContent
+        className={`max-h-[92vh] overflow-y-auto rounded-3xl border-border/80 bg-background/95 p-4 sm:p-6 transition-all duration-200 ${
+          currentAction === "record-milk" ? "max-w-3xl" : "max-w-lg"
+        }`}
+      >
         {/* Top Header */}
         <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/60">
           <div>
@@ -282,158 +299,19 @@ export function QuickAddModal({
           </div>
         )}
 
-        {/* 2. RECORD MILK (4-STEP STREAMLINED FLOW) */}
+        {/* 2. RECORD MILK (UNIFIED REUSABLE GROUP-WISE & MULTI-COW WORKFLOW) */}
         {currentAction === "record-milk" && (
-          <form onSubmit={handleSaveMilk} className="space-y-4 pt-1">
-            {/* Step 1: Session (Morning vs Evening) */}
-            <div>
-              <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                Step 1: Choose Milking Round
-              </label>
-              <div className="mt-1.5 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMilkSession("Morning")}
-                  className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl border text-sm font-extrabold transition-all active:scale-95 ${
-                    milkSession === "Morning"
-                      ? "border-amber-500 bg-amber-500/15 text-amber-900 ring-2 ring-amber-500/30 dark:text-amber-200"
-                      : "border-border/80 bg-card/60 text-muted-foreground hover:bg-card"
-                  }`}
-                >
-                  <Sun className="size-5 text-amber-500" />
-                  Morning Round
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMilkSession("Evening")}
-                  className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl border text-sm font-extrabold transition-all active:scale-95 ${
-                    milkSession === "Evening"
-                      ? "border-indigo-500 bg-indigo-500/15 text-indigo-900 ring-2 ring-indigo-500/30 dark:text-indigo-200"
-                      : "border-border/80 bg-card/60 text-muted-foreground hover:bg-card"
-                  }`}
-                >
-                  <Moon className="size-5 text-indigo-500" />
-                  Evening Round
-                </button>
-              </div>
-            </div>
-
-            {/* Step 2: Choose Animal */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                  Step 2: Choose Animal
-                </label>
-                <span className="text-[11px] text-muted-foreground">
-                  {animals.length} animals
-                </span>
-              </div>
-
-              {/* Quick Search */}
-              <div className="relative mt-1.5">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by Cow Number (e.g. C-1024)..."
-                  value={animalSearch}
-                  onChange={(e) => setAnimalSearch(e.target.value)}
-                  className="h-10 rounded-xl bg-background pl-9 text-xs"
-                />
-              </div>
-
-              {/* Animal Selection Cards */}
-              <div className="mt-2 max-h-40 overflow-y-auto space-y-1.5 pr-1">
-                {filteredAnimals.slice(0, 10).map((a) => {
-                  const isSelected = selectedAnimalId === a.id;
-                  return (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => setSelectedAnimalId(a.id)}
-                      className={`flex w-full items-center justify-between rounded-xl border p-2.5 text-left transition-all ${
-                        isSelected
-                          ? "border-emerald-600 bg-emerald-50 text-foreground ring-2 ring-emerald-500/20 dark:bg-emerald-950/40"
-                          : "border-border/70 bg-card/40 hover:bg-card"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-600/15 text-xs font-extrabold text-emerald-800 dark:text-emerald-300">
-                          <CowIcon className="size-5" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-foreground">Cow #{a.tag}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {a.breed} · {a.type}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          {a.yield > 0 ? `${a.yield.toFixed(1)} L prev` : "0 L"}
-                        </span>
-                        {isSelected && (
-                          <span className="flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white">
-                            <Check className="size-3 stroke-[3]" />
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 3: Enter Litres (Big Input + Quick Steppers) */}
-            <div>
-              <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                Step 3: Enter Litres
-              </label>
-              <div className="mt-1.5 flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="50"
-                    inputMode="decimal"
-                    value={litres}
-                    onChange={(e) => setLitres(e.target.value)}
-                    className="h-14 rounded-2xl bg-background text-center text-2xl font-extrabold tracking-tight text-foreground"
-                    placeholder="0.0"
-                    required
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                    Litres
-                  </span>
-                </div>
-              </div>
-
-              {/* Quick Stepper Buttons for Workers */}
-              <div className="mt-2 flex gap-1.5">
-                {[6.0, 7.5, 8.5, 9.5, 12.0].map((val) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setLitres(val.toFixed(1))}
-                    className="flex-1 rounded-xl border border-border/80 bg-background/60 py-1.5 text-xs font-bold text-foreground/80 hover:bg-background active:scale-95"
-                  >
-                    {val} L
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Step 4: Save Button */}
-            <div className="pt-2">
-              <Button
-                type="submit"
-                size="lg"
-                className="h-14 w-full gap-2 rounded-2xl bg-emerald-600 text-base font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 active:scale-[0.98]"
-              >
-                <Check className="size-5 stroke-[2.5]" />
-                Save Milking Record
-              </Button>
-            </div>
-          </form>
+          <div className="pt-1">
+            <UnifiedGroupMilking
+              animals={animals}
+              records={records || []}
+              onSaved={() => {
+                onDataUpdated?.();
+              }}
+              onClose={() => handleOpenChange(false)}
+              isModal={true}
+            />
+          </div>
         )}
 
         {/* 3. QUICK ADD ANIMAL (FAST 1-MINUTE ENTRY + OPTIONAL HISTORY) */}
@@ -659,22 +537,35 @@ export function QuickAddModal({
                 timeline: initialTimeline,
               };
 
-              await farmService.saveAnimal(newAnimal);
-              notify.success(`${name} (${tag}) added to herd!`, {
-                description: showAnimalHistory
-                  ? "Animal profile and historical records saved."
-                  : "Quick animal record created successfully.",
-              });
+              await addAnimalStatus.execute(
+                async () => {
+                  return await farmService.saveAnimal(newAnimal);
+                },
+                {
+                  submittingMessage: `Saving ${tag} to herd...`,
+                  successMessage: `${name} (${tag}) added to herd successfully!`,
+                  onSuccess: () => {
+                    notify.success(`${name} (${tag}) added to herd!`, {
+                      description: showAnimalHistory
+                        ? "Animal profile and historical records saved."
+                        : "Quick animal record created successfully.",
+                    });
 
-              // Reset form state
-              setShowAnimalHistory(false);
-              setBirthDate("");
-              setAiDate("");
-              setLastVaccinationDate("");
-              setFatherSelection("");
-              setMotherSelection("");
-              onDataUpdated?.();
-              handleOpenChange(false);
+                    // Reset form state
+                    setShowAnimalHistory(false);
+                    setBirthDate("");
+                    setAiDate("");
+                    setLastVaccinationDate("");
+                    setFatherSelection("");
+                    setMotherSelection("");
+                    onDataUpdated?.();
+                    setTimeout(() => handleOpenChange(false), 900);
+                  },
+                  onError: (err: any) => {
+                    toast.error(err?.message || "Failed to save animal. Form inputs preserved.");
+                  },
+                }
+              );
             }}
             className="space-y-4 pt-1"
           >
@@ -914,14 +805,25 @@ export function QuickAddModal({
               )}
             </div>
 
-            <Button
+            {/* Inline Action Feedback */}
+            <ActionInlineFeedback
+              status={addAnimalStatus.status}
+              message={addAnimalStatus.message}
+              details={addAnimalStatus.details}
+            />
+
+            <ActionSubmitButton
               type="submit"
               size="lg"
+              status={addAnimalStatus.status}
+              submittingText="Saving Animal to Herd..."
+              successText="Animal Saved Successfully!"
+              errorText="Save Failed · Tap to Retry"
               className="mt-3 h-14 w-full gap-2 rounded-2xl bg-emerald-600 text-base font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700"
+              icon={<Check className="size-5 stroke-[2.5]" />}
             >
-              <Check className="size-5 stroke-[2.5]" />
               Save Animal to Herd
-            </Button>
+            </ActionSubmitButton>
           </form>
         )}
 
@@ -1113,14 +1015,25 @@ export function QuickAddModal({
               </>
             )}
 
-            <Button
+            {/* Inline Action Feedback */}
+            <ActionInlineFeedback
+              status={otherActionStatus.status}
+              message={otherActionStatus.message}
+              details={otherActionStatus.details}
+            />
+
+            <ActionSubmitButton
               type="submit"
               size="lg"
+              status={otherActionStatus.status}
+              submittingText="Saving Record..."
+              successText="Record Saved!"
+              errorText="Failed · Tap to Retry"
               className="mt-3 h-14 w-full gap-2 rounded-2xl bg-emerald-600 text-base font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700"
+              icon={<Check className="size-5 stroke-[2.5]" />}
             >
-              <Check className="size-5 stroke-[2.5]" />
               Save Record
-            </Button>
+            </ActionSubmitButton>
           </form>
         )}
       </DialogContent>

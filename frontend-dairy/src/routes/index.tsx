@@ -493,6 +493,7 @@ export function FarmApp() {
         open={quickAddOpen}
         onOpenChange={handleCloseQuickAdd}
         animals={animals}
+        records={recentMilk}
         initialAction={quickAddInitialAction}
         onDataUpdated={loadData}
       />

@@ -22,12 +22,16 @@ import { farmService } from "@/services/farm-service";
 import { useAuth } from "@/context/AuthContext";
 import { notify } from "@/lib/notify";
 
+import { useActionStatus, ActionSubmitButton, ActionInlineFeedback } from "@/components/common/ActionStatus";
+
 interface FeedingModuleViewProps {
   onOpenQuickFeeding?: () => void;
 }
 
 export function FeedingModuleView({}: FeedingModuleViewProps) {
   const { isOwner, isWorker } = useAuth();
+  const feedRoundAction = useActionStatus();
+  const supplyAction = useActionStatus();
 
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [groups, setGroups] = useState<AnimalGroup[]>([]);
@@ -93,12 +97,12 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
     e.preventDefault();
     const qty = parseFloat(quantityKg);
     if (!selectedFeedItemId || isNaN(qty) || qty <= 0) {
-      notify.error("Please select a feed item and enter a valid positive quantity in KG.");
+      feedRoundAction.setError("Please select a feed item and enter a valid positive quantity in KG.");
       return;
     }
 
     if (qty > availableStockForSelected) {
-      notify.error(
+      feedRoundAction.setError(
         `Insufficient stock! Only ${availableStockForSelected.toFixed(1)} KG available for ${
           selectedBalance?.feedItemName || "this feed"
         }. Please record feed supply first.`
@@ -109,7 +113,7 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
     const selectedFeed = feedItems.find((f) => f.id === selectedFeedItemId);
     const selectedGroup = groups.find((g) => g.id === selectedGroupId);
 
-    setIsSubmitting(true);
+    feedRoundAction.startSubmitting("Saving feed round & deducting stock...");
     try {
       await farmService.recordFeeding({
         feedItemId: selectedFeedItemId,
@@ -122,18 +126,20 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
       });
 
       const remaining = Math.max(0, availableStockForSelected - qty);
+      feedRoundAction.setSuccess(`Saved! Deducted ${qty} KG (${remaining.toFixed(1)} KG left)`);
       notify.success("Feeding Round Saved & Stock Deducted", {
         description: `Logged ${qty} KG. Remaining balance: ${remaining.toFixed(1)} KG.`,
       });
 
-      setQuantityKg("");
-      setFeedingNotes("");
-      setRecordModalOpen(false);
-      await loadData();
+      setTimeout(async () => {
+        setQuantityKg("");
+        setFeedingNotes("");
+        setRecordModalOpen(false);
+        feedRoundAction.reset();
+        await loadData();
+      }, 1000);
     } catch (err: any) {
-      notify.error(err.message || "Failed to record feeding round.");
-    } finally {
-      setIsSubmitting(false);
+      feedRoundAction.setError(err.message || "Failed to record feeding round.");
     }
   };
 
@@ -142,11 +148,11 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
     e.preventDefault();
     const qty = parseFloat(supplyQty);
     if (!supplyFeedItemId || isNaN(qty) || qty <= 0) {
-      notify.error("Please select a feed item and enter a valid received quantity in KG.");
+      supplyAction.setError("Please select a feed item and enter a valid received quantity in KG.");
       return;
     }
 
-    setIsSubmittingSupply(true);
+    supplyAction.startSubmitting("Crediting feed supply to inventory...");
     try {
       const fullNotes = [
         supplierName ? `Supplier: ${supplierName}` : "",
@@ -168,19 +174,21 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
         notes: fullNotes || "Incoming feed supply",
       });
 
+      supplyAction.setSuccess(`Stock credited with ${qty} KG!`);
       notify.success("Feed Supply Received & Stock Added", {
         description: `Successfully credited ${qty} KG of ${targetFeed?.englishName || "Feed"}. Stock balance updated.`,
       });
 
-      setSupplyQty("");
-      setSupplierName("");
-      setSupplyNotes("");
-      setSupplyModalOpen(false);
-      await loadData();
+      setTimeout(async () => {
+        setSupplyQty("");
+        setSupplierName("");
+        setSupplyNotes("");
+        setSupplyModalOpen(false);
+        supplyAction.reset();
+        await loadData();
+      }, 1000);
     } catch (err: any) {
-      notify.error(err.message || "Failed to record feed supply.");
-    } finally {
-      setIsSubmittingSupply(false);
+      supplyAction.setError(err.message || "Failed to record feed supply.");
     }
   };
 
@@ -488,27 +496,35 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
                 />
               </div>
 
+              <ActionInlineFeedback
+                status={feedRoundAction.status}
+                message={feedRoundAction.message}
+                onDismiss={feedRoundAction.reset}
+                className="mt-2"
+              />
+
               <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setRecordModalOpen(false)}
+                  onClick={() => {
+                    feedRoundAction.reset();
+                    setRecordModalOpen(false);
+                  }}
                   className="flex-1 rounded-xl text-xs font-bold h-10"
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || availableStockForSelected <= 0}
-                  className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-10 gap-1.5"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  Save Feed Round
-                </Button>
+                <ActionSubmitButton
+                  status={feedRoundAction.status}
+                  disabled={availableStockForSelected <= 0}
+                  idleText="Save Feed Round"
+                  submittingText="Saving Feed Round..."
+                  successText="Saved!"
+                  variant="warning"
+                  icon={<Save className="size-4" />}
+                  className="flex-1 rounded-xl font-bold text-xs h-10"
+                />
               </div>
             </form>
           </div>
@@ -609,27 +625,34 @@ export function FeedingModuleView({}: FeedingModuleViewProps) {
                 />
               </div>
 
+              <ActionInlineFeedback
+                status={supplyAction.status}
+                message={supplyAction.message}
+                onDismiss={supplyAction.reset}
+                className="mt-2"
+              />
+
               <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setSupplyModalOpen(false)}
+                  onClick={() => {
+                    supplyAction.reset();
+                    setSupplyModalOpen(false);
+                  }}
                   className="flex-1 rounded-xl text-xs font-bold h-10"
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmittingSupply}
-                  className="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-10 gap-1.5"
-                >
-                  {isSubmittingSupply ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  Save Feed Supply
-                </Button>
+                <ActionSubmitButton
+                  status={supplyAction.status}
+                  idleText="Save Feed Supply"
+                  submittingText="Recording Feed Supply..."
+                  successText="Saved!"
+                  variant="primary"
+                  icon={<Save className="size-4" />}
+                  className="flex-1 rounded-xl font-bold text-xs h-10"
+                />
               </div>
             </form>
           </div>
