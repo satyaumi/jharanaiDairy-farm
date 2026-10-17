@@ -13,6 +13,8 @@ public interface AnimalGroupRepository extends JpaRepository<AnimalGroup, UUID> 
     List<AnimalGroup> findByFarmIdAndActiveTrueOrderByNameAsc(UUID farmId);
     List<AnimalGroup> findByFarmIdOrderByNameAsc(UUID farmId);
     Optional<AnimalGroup> findByIdAndFarmId(UUID id, UUID farmId);
+    Optional<AnimalGroup> findByFarmIdAndCodeIgnoreCase(UUID farmId, String code);
+    Optional<AnimalGroup> findByFarmIdAndNameIgnoreCase(UUID farmId, String name);
     boolean existsByFarmIdAndName(UUID farmId, String name);
     boolean existsByFarmIdAndNameAndIdNot(UUID farmId, String name, UUID id);
 }

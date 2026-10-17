@@ -115,14 +115,34 @@ public class AnimalGroupController {
         return ResponseEntity.ok(Map.of("success", true, "data", AnimalGroupDto.fromEntity(saved, count)));
     }
 
-    @GetMapping("/{id}/animals")
+    @GetMapping("/{idOrCode}/animals")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @Operation(summary = "Get animals belonging to a specific group for fast operations like milking")
-    public ResponseEntity<Map<String, Object>> getGroupAnimals(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> getGroupAnimals(
+            @PathVariable String idOrCode,
+            @RequestParam(required = false, defaultValue = "false") boolean lactatingOnly) {
         UUID farmId = getTenantFarmId();
-        List<AnimalDto> animals = animalRepository.findByFarmIdAndGroupIdAndActiveTrue(farmId, id).stream()
+        UUID groupId = null;
+        try {
+            groupId = UUID.fromString(idOrCode.trim());
+        } catch (IllegalArgumentException ignored) {
+            // Try resolving by code (e.g. GRP-A) or name (e.g. Group A or A)
+            String clean = idOrCode.trim();
+            AnimalGroup group = groupRepository.findByFarmIdAndCodeIgnoreCase(farmId, clean)
+                    .or(() -> groupRepository.findByFarmIdAndNameIgnoreCase(farmId, clean))
+                    .or(() -> groupRepository.findByFarmIdAndNameIgnoreCase(farmId, "Group " + clean))
+                    .orElseThrow(() -> new ResourceNotFoundException("AnimalGroup", "idOrCode", clean));
+            groupId = group.getId();
+        }
+
+        List<com.dairyfarm.app.modules.animal.model.Animal> animalEntities = lactatingOnly
+                ? animalRepository.findByFarmIdAndGroupIdAndAnimalTypeAndActiveTrue(farmId, groupId, com.dairyfarm.app.modules.animal.model.AnimalType.Lactating)
+                : animalRepository.findByFarmIdAndGroupIdAndActiveTrue(farmId, groupId);
+
+        List<AnimalDto> animals = animalEntities.stream()
                 .map(AnimalDto::fromEntity)
                 .toList();
 
-        return ResponseEntity.ok(Map.of("success", true, "data", animals));
+        return ResponseEntity.ok(Map.of("success", true, "data", animals, "count", animals.size()));
     }
 }

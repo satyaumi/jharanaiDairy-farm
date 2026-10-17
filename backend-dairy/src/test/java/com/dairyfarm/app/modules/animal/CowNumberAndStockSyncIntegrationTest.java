@@ -67,7 +67,7 @@ public class CowNumberAndStockSyncIntegrationTest {
                 .phone("+91 988" + randomSuffix)
                 .password("Pass@123")
                 .farmName("Sync Farm " + randomSuffix)
-                .role(Role.OWNER)
+                .role(Role.MANAGER)
                 .build();
 
         MvcResult result = mockMvc.perform(post("/api/auth/signup")

@@ -31,15 +31,18 @@ public class MilkController {
     private final MilkRecordRepository milkRecordRepository;
     private final AnimalRepository animalRepository;
     private final FarmRepository farmRepository;
+    private final com.dairyfarm.app.common.audit.AuditService auditService;
 
     public MilkController(
             MilkRecordRepository milkRecordRepository,
             AnimalRepository animalRepository,
-            FarmRepository farmRepository
+            FarmRepository farmRepository,
+            com.dairyfarm.app.common.audit.AuditService auditService
     ) {
         this.milkRecordRepository = milkRecordRepository;
         this.animalRepository = animalRepository;
         this.farmRepository = farmRepository;
+        this.auditService = auditService;
     }
 
     private UUID getTenantFarmId() {
@@ -141,6 +144,7 @@ public class MilkController {
     }
 
     @PostMapping
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Record individual animal milking")
     public ResponseEntity<Map<String, Object>> recordSingleMilk(@RequestBody Map<String, Object> body) {
@@ -160,25 +164,30 @@ public class MilkController {
         }
 
         Animal animal = resolveAnimal(farmId, rawCowIdent.toString());
+        if (!animal.isActive()) {
+            throw new BadRequestException("Animal " + rawCowIdent + " is inactive or archived");
+        }
         UUID animalId = animal.getId();
 
         LocalDate date = body.get("recordDate") != null ? LocalDate.parse(body.get("recordDate").toString()) : LocalDate.now();
-        String shift = body.get("shift") != null ? body.get("shift").toString() : "Morning";
+        String rawShift = body.get("shift") != null ? body.get("shift").toString() : "Morning";
+        String shift = "Evening".equalsIgnoreCase(rawShift) ? "Evening" : "Morning";
 
         if (body.get("litres") == null) {
             throw new BadRequestException("Litres amount is required");
         }
-        BigDecimal litres = new BigDecimal(body.get("litres").toString());
-        if (litres.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Litres must be non-negative");
+        BigDecimal litres = new BigDecimal(body.get("litres").toString().trim());
+        if (litres.compareTo(BigDecimal.ZERO) < 0 || litres.compareTo(new BigDecimal("100.0")) > 0) {
+            throw new BadRequestException("Litres must be between 0.0 and 100.0 L");
         }
 
-        // Check if record exists for animal/date/shift
+        // Check if record exists for animal/date/shift to prevent duplicates
         Optional<MilkRecord> existingOpt = milkRecordRepository.findByFarmIdAndAnimalIdAndRecordDateAndShift(farmId, animalId, date, shift);
         MilkRecord record;
         if (existingOpt.isPresent()) {
             record = existingOpt.get();
             record.setLitres(litres);
+            if (body.get("quality") != null) record.setQuality(body.get("quality").toString());
             if (body.get("notes") != null) record.setNotes(body.get("notes").toString());
             record.setUpdatedBy(currentUserId);
         } else {
@@ -202,10 +211,14 @@ public class MilkController {
         animal.setMilkYield(litres);
         animalRepository.save(animal);
 
+        auditService.record("RECORD_MILK", "MILK", saved.getId().toString(),
+                "Recorded " + litres + " L for Cow #" + animal.getEarTag() + " (" + shift + " session)");
+
         return new ResponseEntity<>(Map.of("success", true, "data", MilkDto.fromEntity(saved)), HttpStatus.CREATED);
     }
 
     @PostMapping("/bulk")
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'WORKER', 'ADMIN')")
     @Operation(summary = "Fast bulk group milking entry for mobile workflow")
     @SuppressWarnings("unchecked")
@@ -216,9 +229,16 @@ public class MilkController {
                 .orElseThrow(() -> new ResourceNotFoundException("Farm", "id", farmId));
 
         LocalDate date = body.get("recordDate") != null ? LocalDate.parse(body.get("recordDate").toString()) : LocalDate.now();
-        String shift = body.get("shift") != null ? body.get("shift").toString() : "Morning";
+        String rawShift = body.get("shift") != null ? body.get("shift").toString() : "Morning";
+        String shift = "Evening".equalsIgnoreCase(rawShift) ? "Evening" : "Morning";
 
-        List<Map<String, Object>> entries = (List<Map<String, Object>>) body.get("entries");
+        List<Map<String, Object>> entries = null;
+        if (body.get("entries") instanceof List<?>) {
+            entries = (List<Map<String, Object>>) body.get("entries");
+        } else if (body.get("records") instanceof List<?>) {
+            entries = (List<Map<String, Object>>) body.get("records");
+        }
+
         if (entries == null || entries.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "No milking entries provided"));
         }
@@ -241,15 +261,30 @@ public class MilkController {
                 continue;
             }
 
-            BigDecimal litres = new BigDecimal(entry.get("litres").toString());
-            if (litres.compareTo(BigDecimal.ZERO) < 0) continue;
+            if (!animal.isActive()) {
+                continue; // Skip inactive/archived animals in group entry
+            }
+
+            BigDecimal litres;
+            try {
+                litres = new BigDecimal(entry.get("litres").toString().trim());
+            } catch (NumberFormatException e) {
+                throw new BadRequestException("Invalid milk quantity for Cow #" + animal.getEarTag() + ": " + entry.get("litres"));
+            }
+
+            if (litres.compareTo(BigDecimal.ZERO) < 0 || litres.compareTo(new BigDecimal("100.0")) > 0) {
+                throw new BadRequestException("Invalid milk volume for Cow #" + animal.getEarTag() + ": must be between 0 and 100 litres");
+            }
+
             UUID animalId = animal.getId();
 
+            // Safe duplicate prevention: update existing record if already recorded for this animal, date, and shift
             Optional<MilkRecord> existingOpt = milkRecordRepository.findByFarmIdAndAnimalIdAndRecordDateAndShift(farmId, animalId, date, shift);
             MilkRecord record;
             if (existingOpt.isPresent()) {
                 record = existingOpt.get();
                 record.setLitres(litres);
+                if (entry.get("quality") != null) record.setQuality(entry.get("quality").toString());
                 if (entry.get("notes") != null) record.setNotes(entry.get("notes").toString());
                 record.setUpdatedBy(currentUserId);
             } else {
@@ -269,6 +304,7 @@ public class MilkController {
             MilkRecord saved = milkRecordRepository.save(record);
             bulkTotal = bulkTotal.add(litres);
 
+            // Update animal's lastMilkingDate and daily yield
             animal.setLastMilkingDate(Instant.now());
             animal.setMilkYield(litres);
             animalRepository.save(animal);
@@ -276,12 +312,21 @@ public class MilkController {
             savedList.add(MilkDto.fromEntity(saved));
         }
 
+        if (savedList.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "No valid animal milking records were processed"));
+        }
+
+        auditService.record("GROUP_MILKING", "MILK", farmId.toString(),
+                "Saved " + savedList.size() + " group milking entries (" + bulkTotal + " L total) for " + shift + " on " + date);
+
         return new ResponseEntity<>(Map.of(
                 "success", true,
                 "data", savedList,
                 "recordedCount", savedList.size(),
                 "totalLitres", bulkTotal,
-                "message", "Successfully recorded " + savedList.size() + " milking entries (" + bulkTotal + " L total)"
+                "shift", shift,
+                "recordDate", date.toString(),
+                "message", "Successfully saved " + savedList.size() + " group milking entries (" + bulkTotal + " L total for " + shift + " session)"
         ), HttpStatus.CREATED);
     }
 }

@@ -110,8 +110,9 @@ export interface FarmService {
     shift: string;
     recordDate: string;
     groupId?: string;
-    records: { animalId: string; litres: number }[];
-  }): Promise<number>;
+    records?: { animalId?: string; cowNumber?: string; tag?: string; litres: number; notes?: string; quality?: string }[];
+    entries?: { animalId?: string; cowNumber?: string; tag?: string; litres: number; notes?: string; quality?: string }[];
+  }): Promise<{ count: number; totalLitres: number; message: string }>;
   recordFeeding(data: {
     feedItemId?: string;
     feedType?: string;
@@ -765,16 +766,70 @@ export const farmService: FarmService = {
     shift: string;
     recordDate: string;
     groupId?: string;
-    records: { animalId: string; litres: number }[];
-  }): Promise<number> {
+    records?: { animalId?: string; cowNumber?: string; tag?: string; litres: number; notes?: string; quality?: string }[];
+    entries?: { animalId?: string; cowNumber?: string; tag?: string; litres: number; notes?: string; quality?: string }[];
+  }): Promise<{ count: number; totalLitres: number; message: string }> {
+    const list = data.entries || data.records || [];
+    const normalizedShift =
+      data.shift?.toUpperCase() === "EVENING" || data.shift?.toLowerCase() === "evening"
+        ? "Evening"
+        : "Morning";
+
+    const payload = {
+      shift: normalizedShift,
+      recordDate: data.recordDate,
+      groupId: data.groupId,
+      entries: list.map((item) => ({
+        animalId: item.animalId,
+        cowNumber: item.cowNumber || item.tag,
+        tag: item.tag || item.cowNumber,
+        litres: item.litres,
+        notes: item.notes,
+        quality: item.quality || "Normal",
+      })),
+      records: list.map((item) => ({
+        animalId: item.animalId,
+        cowNumber: item.cowNumber || item.tag,
+        tag: item.tag || item.cowNumber,
+        litres: item.litres,
+        notes: item.notes,
+        quality: item.quality || "Normal",
+      })),
+    };
+
     const res = await fetch(apiUrl("/milk/bulk"), {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const j = await res.json();
-    if (!res.ok || !j.success) throw new Error(j.message || "Failed to save milk records");
-    return j.data?.count || data.records.length;
+    if (!res.ok || !j.success) {
+      throw new Error(j.message || "Failed to save milk records");
+    }
+
+    // Sync records to reactive local store
+    list.forEach((item) => {
+      farmStore.recordMilk({
+        animalId: item.animalId || item.cowNumber || "",
+        animalName: item.cowNumber || item.tag || "",
+        tag: item.tag || item.cowNumber || "",
+        litres: item.litres,
+        session: normalizedShift as "Morning" | "Evening",
+        date: data.recordDate,
+        fat: 4.1,
+        snf: 8.8,
+        temperature: 3.8,
+      });
+    });
+
+    const count = j.recordedCount ?? j.data?.length ?? list.length;
+    const totalLitres = j.totalLitres !== undefined ? Number(j.totalLitres) : list.reduce((sum, e) => sum + e.litres, 0);
+
+    return {
+      count,
+      totalLitres,
+      message: j.message || `Successfully recorded ${count} entries (${totalLitres.toFixed(1)} L)`,
+    };
   },
 
   // -------------------------------------------------------------

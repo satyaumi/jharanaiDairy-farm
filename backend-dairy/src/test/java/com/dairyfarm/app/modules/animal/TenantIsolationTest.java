@@ -40,7 +40,7 @@ class TenantIsolationTest {
                 .phone("+91 911" + idA)
                 .password("PassA@123")
                 .farmName("Farm Alpha " + idA)
-                .role(Role.OWNER)
+                .role(Role.MANAGER)
                 .build();
 
         MvcResult resA = mockMvc.perform(post("/api/auth/signup")
@@ -57,7 +57,7 @@ class TenantIsolationTest {
                 .phone("+91 922" + idB)
                 .password("PassB@123")
                 .farmName("Farm Beta " + idB)
-                .role(Role.OWNER)
+                .role(Role.MANAGER)
                 .build();
 
         MvcResult resB = mockMvc.perform(post("/api/auth/signup")

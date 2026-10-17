@@ -132,6 +132,10 @@ export interface MilkRecord {
   litres: number;
   recordedAt: string;
   quality?: "Normal" | "Check needed";
+  date?: string;
+  fat?: number;
+  snf?: number;
+  temperature?: number;
 }
 
 export interface FeedingRecord {
