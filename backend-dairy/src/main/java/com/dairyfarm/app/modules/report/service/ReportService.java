@@ -120,37 +120,9 @@ public class ReportService {
         // Filter by specific Cow Ear Tag (individual cow report)
         if (filter.getCowTag() != null && !filter.getCowTag().isBlank() && !filter.getCowTag().equalsIgnoreCase("all")) {
             String targetTag = filter.getCowTag().trim();
-            List<Animal> matched = animals.stream()
+            animals = animals.stream()
                     .filter(a -> matchesCow(a, targetTag))
                     .collect(Collectors.toList());
-
-            if (!matched.isEmpty()) {
-                animals = matched;
-            } else {
-                // User entered custom manual cow tag not in DB (e.g. COW-001, C-999)
-                // Guarantee non-empty record by creating a dedicated dossier for this cow
-                String displayTag = targetTag.toUpperCase();
-                Animal customCow = Animal.builder()
-                        .id(UUID.nameUUIDFromBytes(displayTag.getBytes(StandardCharsets.UTF_8)))
-                        .earTag(displayTag)
-                        .animalName("Cow " + displayTag)
-                        .breed("Holstein Friesian Cross")
-                        .animalType(AnimalType.Lactating)
-                        .status("Healthy")
-                        .weight(BigDecimal.valueOf(560.0))
-                        .milkYield(BigDecimal.valueOf(24.5))
-                        .lactationCycle(2)
-                        .age("3y 8m")
-                        .pen("Milking Barn A")
-                        .fatherTag("C-050")
-                        .motherTag("C-087")
-                        .lastVaccinationDate(LocalDate.now().minusMonths(2))
-                        .build();
-                animals = new ArrayList<>(List.of(customCow));
-            }
-        } else if (filter.getLimit() != null && filter.getLimit() > animals.size()) {
-            // Expand herd up to requested custom limit if user wants e.g. 10 or 25 cow registry records
-            animals = expandHerdToLimit(animals, filter.getLimit());
         }
 
         // Filter by health status
@@ -190,34 +162,6 @@ public class ReportService {
         return false;
     }
 
-    private List<Animal> expandHerdToLimit(List<Animal> base, int targetLimit) {
-        List<Animal> list = new ArrayList<>(base);
-        String[] breeds = {"Holstein Friesian", "Jersey Cross", "Gir Dairy", "Sahiwal Pure", "Murrah Buffalo"};
-        String[] pens = {"North Barn", "South Barn", "Lactation Shed 1", "Lactation Shed 2", "Calf Nursery"};
-
-        int index = 1;
-        while (list.size() < targetLimit) {
-            String tag = String.format("C-%03d", 100 + index);
-            BigDecimal yield = BigDecimal.valueOf(18.0 + (index % 12)).setScale(1, RoundingMode.HALF_UP);
-            list.add(Animal.builder()
-                    .id(UUID.nameUUIDFromBytes(tag.getBytes(StandardCharsets.UTF_8)))
-                    .earTag(tag)
-                    .animalName("Herd Cow " + tag)
-                    .breed(breeds[index % breeds.length])
-                    .animalType(AnimalType.Lactating)
-                    .status("Healthy")
-                    .weight(BigDecimal.valueOf(480.0 + (index * 8)))
-                    .milkYield(yield)
-                    .lactationCycle((index % 4) + 1)
-                    .age(((index % 5) + 2) + "y " + ((index * 2) % 11) + "m")
-                    .pen(pens[index % pens.length])
-                    .lastVaccinationDate(LocalDate.now().minusMonths(index % 6))
-                    .build());
-            index++;
-        }
-        return list;
-    }
-
     private List<MilkRecord> resolveMilkRecords(UUID farmId, LocalDate start, LocalDate end, ReportFilterRequest filter, List<Animal> animals) {
         List<MilkRecord> dbRecords = milkRecordRepository.findRecordsWithAnimalForExport(farmId, start, end);
 
@@ -237,23 +181,7 @@ public class ReportService {
                     .collect(Collectors.toList());
         }
 
-        // If DB has insufficient records or none, synthesize across the date range so files are NEVER empty
-        int desiredLimit = (filter.getLimit() != null && filter.getLimit() > 0) ? filter.getLimit() : 200;
         List<MilkRecord> resultList = new ArrayList<>(dbRecords);
-
-        if (resultList.isEmpty() || resultList.size() < Math.min(desiredLimit, 10)) {
-            List<MilkRecord> synth = synthesizeMilkRecordsFromHerd(animals, start, end, filter.getShift(), desiredLimit - resultList.size());
-            // Avoid duplicates by key (animal tag + date + shift)
-            Set<String> existingKeys = resultList.stream()
-                    .map(r -> (r.getAnimal() != null ? r.getAnimal().getEarTag() : "") + "_" + r.getRecordDate() + "_" + r.getShift())
-                    .collect(Collectors.toSet());
-            for (MilkRecord sm : synth) {
-                String k = (sm.getAnimal() != null ? sm.getAnimal().getEarTag() : "") + "_" + sm.getRecordDate() + "_" + sm.getShift();
-                if (!existingKeys.contains(k)) {
-                    resultList.add(sm);
-                }
-            }
-        }
 
         // Sort descending by date and shift
         resultList.sort((a, b) -> {
@@ -272,106 +200,10 @@ public class ReportService {
 
     private List<FeedRecord> resolveFeedRecords(UUID farmId, LocalDate start, LocalDate end, ReportFilterRequest filter, List<Animal> animals) {
         List<FeedRecord> feeds = feedRecordRepository.findByFarmIdAndRecordDateBetweenOrderByRecordDateDescCreatedAtDesc(farmId, start, end);
-        int desiredLimit = (filter.getLimit() != null && filter.getLimit() > 0) ? filter.getLimit() : 100;
-
-        if (feeds.isEmpty() || feeds.size() < Math.min(desiredLimit, 4)) {
-            feeds = synthesizeFeedRecordsFromHerd(animals, start, end, desiredLimit);
-        }
         if (filter.getLimit() != null && filter.getLimit() > 0 && feeds.size() > filter.getLimit()) {
             feeds = feeds.subList(0, filter.getLimit());
         }
         return feeds;
-    }
-
-    private List<MilkRecord> synthesizeMilkRecordsFromHerd(List<Animal> animals, LocalDate start, LocalDate end, String shiftFilter, Integer limit) {
-        List<MilkRecord> list = new ArrayList<>();
-        LocalDate cur = end != null ? end : LocalDate.now();
-        LocalDate minDate = start != null ? start : cur.minusDays(30);
-        if (minDate.isAfter(cur)) {
-            minDate = cur.minusDays(7);
-        }
-
-        int maxRecords = (limit != null && limit > 0) ? limit : 200;
-
-        // Iterate backwards from end date to start date across all target animals
-        while (!cur.isBefore(minDate) && list.size() < maxRecords) {
-            for (Animal a : animals) {
-                if (list.size() >= maxRecords) break;
-
-                BigDecimal totalYield = (a.getMilkYield() != null && a.getMilkYield().compareTo(BigDecimal.ZERO) > 0)
-                        ? a.getMilkYield() : BigDecimal.valueOf(20.0);
-
-                int variance = Math.abs((a.getEarTag() + cur.toString()).hashCode() % 9) - 4; // -4% to +4%
-                BigDecimal adjYield = totalYield.multiply(BigDecimal.valueOf(1.0 + (variance * 0.01))).setScale(2, RoundingMode.HALF_UP);
-
-                BigDecimal morningYield = adjYield.multiply(BigDecimal.valueOf(0.55)).setScale(2, RoundingMode.HALF_UP);
-                BigDecimal eveningYield = adjYield.subtract(morningYield).setScale(2, RoundingMode.HALF_UP);
-
-                if (shiftFilter == null || shiftFilter.equalsIgnoreCase("all") || shiftFilter.equalsIgnoreCase("Morning")) {
-                    list.add(MilkRecord.builder()
-                            .animal(a)
-                            .recordDate(cur)
-                            .shift("Morning")
-                            .litres(morningYield)
-                            .quality("Normal")
-                            .fatPercentage(BigDecimal.valueOf(4.1 + (Math.abs(variance) * 0.05)).setScale(1, RoundingMode.HALF_UP))
-                            .snfPercentage(BigDecimal.valueOf(8.5 + (Math.abs(variance) * 0.03)).setScale(1, RoundingMode.HALF_UP))
-                            .sourceType("HERD_YIELD")
-                            .build());
-                }
-
-                if (list.size() < maxRecords && (shiftFilter == null || shiftFilter.equalsIgnoreCase("all") || shiftFilter.equalsIgnoreCase("Evening"))) {
-                    list.add(MilkRecord.builder()
-                            .animal(a)
-                            .recordDate(cur)
-                            .shift("Evening")
-                            .litres(eveningYield)
-                            .quality("Normal")
-                            .fatPercentage(BigDecimal.valueOf(4.3 + (Math.abs(variance) * 0.04)).setScale(1, RoundingMode.HALF_UP))
-                            .snfPercentage(BigDecimal.valueOf(8.6 + (Math.abs(variance) * 0.02)).setScale(1, RoundingMode.HALF_UP))
-                            .sourceType("HERD_YIELD")
-                            .build());
-                }
-            }
-            cur = cur.minusDays(1);
-        }
-        return list;
-    }
-
-    private List<FeedRecord> synthesizeFeedRecordsFromHerd(List<Animal> animals, LocalDate start, LocalDate end, Integer limit) {
-        List<FeedRecord> list = new ArrayList<>();
-        LocalDate cur = end != null ? end : LocalDate.now();
-        LocalDate minDate = start != null ? start : cur.minusDays(14);
-        if (minDate.isAfter(cur)) {
-            minDate = cur.minusDays(7);
-        }
-        int maxRecords = (limit != null && limit > 0) ? limit : 100;
-        int headCount = Math.max(animals.size(), 1);
-
-        String[][] feedTypes = new String[][]{
-            {"Green Fodder (Hybrid Napier & Maize)", "Milking Herd", "25.0", "Fresh chopped green silage", "Feed Manager"},
-            {"Dairy High-Protein Concentrate (18%)", "Milking Herd", "6.5", "Standard milking ration", "Feed Manager"},
-            {"Dry Fodder / Wheat Straw", "Whole Farm", "8.0", "Roughage fiber balance", "Feed Manager"},
-            {"Chelated Mineral Mix & Buffers", "Milking Herd", "0.25", "Metabolic & rumen buffer support", "Veterinary Dietitian"}
-        };
-
-        while (!cur.isBefore(minDate) && list.size() < maxRecords) {
-            for (String[] ft : feedTypes) {
-                if (list.size() >= maxRecords) break;
-                double perHead = Double.parseDouble(ft[2]);
-                list.add(FeedRecord.builder()
-                        .recordDate(cur)
-                        .feedType(ft[0])
-                        .groupName(ft[1])
-                        .quantityKg(BigDecimal.valueOf(perHead * headCount).setScale(1, RoundingMode.HALF_UP))
-                        .recordedBy(ft[4])
-                        .notes(ft[3])
-                        .sourceType("HERD_RATION")
-                        .build());
-            }
-            cur = cur.minusDays(1);
-        }
-        return list;
     }
 
     // ==========================================

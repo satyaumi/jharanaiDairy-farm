@@ -36,6 +36,7 @@ interface ImportRecordsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImportSuccess?: () => void;
+  defaultRecordType?: "MILK_RECORD" | "COW_RECORD";
 }
 
 type ImportStep = "UPLOAD" | "MAPPING" | "PREVIEW" | "CONFIRM" | "RESULT";
@@ -44,14 +45,17 @@ export function ImportRecordsModal({
   open,
   onOpenChange,
   onImportSuccess,
+  defaultRecordType,
 }: ImportRecordsModalProps) {
   const [step, setStep] = useState<ImportStep>("UPLOAD");
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<ImportAnalyzeResult | null>(null);
   const [customMappings, setCustomMappings] = useState<Record<string, string>>({});
   const [importOnlyValid, setImportOnlyValid] = useState(true);
+  const [duplicatePolicy, setDuplicatePolicy] = useState<"UPDATE" | "SKIP">("UPDATE");
   const [confirmResult, setConfirmResult] = useState<ImportConfirmResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,8 +65,24 @@ export function ImportRecordsModal({
     setFile(null);
     setAnalysisResult(null);
     setCustomMappings({});
+    setDuplicatePolicy("UPDATE");
     setConfirmResult(null);
     setErrorMsg(null);
+  };
+
+  const handleDownloadTemplate = async (format: "csv" | "xlsx") => {
+    const key = `${defaultRecordType || "MILK_RECORD"}_${format}`;
+    setDownloadingTemplate(key);
+    try {
+      await importService.downloadTemplate(defaultRecordType || "MILK_RECORD", format);
+      toast.success("Template Downloaded", {
+        description: `Official Jharanai ${defaultRecordType === "COW_RECORD" ? "Cattle Herd" : "Milk Harvest"} import template ready.`,
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to download template");
+    } finally {
+      setDownloadingTemplate(null);
+    }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,10 +103,19 @@ export function ImportRecordsModal({
   };
 
   const startAnalysis = async (targetFile: File) => {
+    if (targetFile.size === 0) {
+      setErrorMsg("Selected file is empty. Please select a valid spreadsheet.");
+      return;
+    }
+    if (targetFile.size > 15 * 1024 * 1024) {
+      setErrorMsg("File size exceeds 15MB limit. Please upload a smaller file.");
+      return;
+    }
+
     setAnalyzing(true);
     setErrorMsg(null);
     try {
-      const result = await importService.analyzeFile(targetFile);
+      const result = await importService.analyzeFile(targetFile, defaultRecordType);
       setAnalysisResult(result);
       setCustomMappings(result.detectedMappings || {});
       setStep("MAPPING");
@@ -127,6 +156,7 @@ export function ImportRecordsModal({
         recordType: analysisResult.recordType,
         fileName: analysisResult.fileName,
         importOnlyValid,
+        duplicatePolicy,
         mappings: customMappings,
         rows: rawRowsToSubmit,
       });
@@ -201,6 +231,46 @@ export function ImportRecordsModal({
         {/* STEP 1: UPLOAD */}
         {step === "UPLOAD" && (
           <div className="space-y-4 py-3">
+            {/* Download Sample Templates */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <div className="text-left">
+                <p className="text-xs font-bold text-foreground">Need an import template?</p>
+                <p className="text-[11px] text-muted-foreground">Download standard pre-formatted spreadsheets for your records</p>
+              </div>
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={downloadingTemplate !== null}
+                  onClick={() => handleDownloadTemplate("csv")}
+                  className="h-8 gap-1 rounded-lg text-xs font-bold border-emerald-500/30 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/10"
+                >
+                  {downloadingTemplate === `${defaultRecordType || "MILK_RECORD"}_csv` ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Download className="size-3" />
+                  )}
+                  Sample CSV
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={downloadingTemplate !== null}
+                  onClick={() => handleDownloadTemplate("xlsx")}
+                  className="h-8 gap-1 rounded-lg text-xs font-bold border-emerald-500/30 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/10"
+                >
+                  {downloadingTemplate === `${defaultRecordType || "MILK_RECORD"}_xlsx` ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Download className="size-3" />
+                  )}
+                  Sample Excel (.xlsx)
+                </Button>
+              </div>
+            </div>
+
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
@@ -267,6 +337,56 @@ export function ImportRecordsModal({
               <span className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-extrabold text-emerald-800 dark:text-emerald-300">
                 95% Match Confidence
               </span>
+            </div>
+
+            {/* Duplicate Policy Configuration */}
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+              <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <SlidersHorizontal className="size-3.5 text-primary" />
+                Duplicate Record Policy
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <label className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                  duplicatePolicy === "UPDATE"
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-card text-muted-foreground"
+                }`}>
+                  <input
+                    type="radio"
+                    name="dupPolicy"
+                    value="UPDATE"
+                    checked={duplicatePolicy === "UPDATE"}
+                    onChange={() => setDuplicatePolicy("UPDATE")}
+                    className="mt-0.5 text-primary"
+                  />
+                  <div>
+                    <strong className="block text-foreground text-xs font-bold">Update Existing Records</strong>
+                    <span className="text-[11px] leading-tight block text-muted-foreground">
+                      Overwrite existing records with matching keys with incoming values
+                    </span>
+                  </div>
+                </label>
+                <label className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                  duplicatePolicy === "SKIP"
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-card text-muted-foreground"
+                }`}>
+                  <input
+                    type="radio"
+                    name="dupPolicy"
+                    value="SKIP"
+                    checked={duplicatePolicy === "SKIP"}
+                    onChange={() => setDuplicatePolicy("SKIP")}
+                    className="mt-0.5 text-primary"
+                  />
+                  <div>
+                    <strong className="block text-foreground text-xs font-bold">Skip Existing Records</strong>
+                    <span className="text-[11px] leading-tight block text-muted-foreground">
+                      Preserve existing records in database and only insert brand new records
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -473,7 +593,7 @@ export function ImportRecordsModal({
               </p>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 text-left">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-left">
               <div className="rounded-xl border border-border bg-card p-3">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Rows</span>
                 <p className="text-lg font-extrabold text-foreground">{confirmResult.totalRows}</p>
@@ -485,6 +605,10 @@ export function ImportRecordsModal({
               <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3">
                 <span className="text-[10px] uppercase font-bold text-blue-800 dark:text-blue-300">Updated</span>
                 <p className="text-lg font-extrabold text-blue-800 dark:text-blue-300">{confirmResult.updatedCount}</p>
+              </div>
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                <span className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300">Skipped</span>
+                <p className="text-lg font-extrabold text-amber-800 dark:text-amber-300">{confirmResult.skippedCount}</p>
               </div>
               <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3">
                 <span className="text-[10px] uppercase font-bold text-destructive">Errors</span>

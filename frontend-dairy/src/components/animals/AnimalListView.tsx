@@ -14,6 +14,8 @@ import {
   Award,
   ListFilter,
   Trash2,
+  Download,
+  UploadCloud,
 } from "lucide-react";
 import { CowIcon } from "@/components/common/CowBrandLogo";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,8 @@ import {
   ActionSubmitButton,
   ActionInlineFeedback,
 } from "@/components/common/ActionStatus";
+import { ExportModal } from "@/components/common/ExportModal";
+import { ImportRecordsModal } from "@/components/common/ImportRecordsModal";
 
 interface AnimalListViewProps {
   animals: Animal[];
@@ -38,6 +42,7 @@ interface AnimalListViewProps {
   onEditAnimal?: (animal: Animal) => void;
   onChangeStatus?: (animal: Animal) => void;
   onAnimalDeleted?: (animal: Animal) => void;
+  onRefresh?: () => Promise<void> | void;
 }
 
 export function AnimalListView({
@@ -49,12 +54,15 @@ export function AnimalListView({
   onEditAnimal,
   onChangeStatus,
   onAnimalDeleted,
+  onRefresh,
 }: AnimalListViewProps) {
   const { role, isManager, isAdmin, isWorker, isOwner } = useAuth();
   const canDeleteAnimal = (isManager || isAdmin) && !isWorker && !isOwner;
 
   const [animalToDelete, setAnimalToDelete] = useState<Animal | null>(null);
   const [deleteReason, setDeleteReason] = useState<string>("");
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const deleteAction = useActionStatus();
 
   const handleDeleteAnimalSubmit = async (e: React.FormEvent) => {
@@ -165,15 +173,39 @@ export function AnimalListView({
           </p>
         </div>
 
-        {onAddNew && (
+        <div className="flex flex-wrap items-center gap-2">
           <Button
-            onClick={onAddNew}
-            className="h-11 gap-2 rounded-2xl bg-emerald-600 px-4 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95"
+            variant="outline"
+            size="sm"
+            onClick={() => setExportModalOpen(true)}
+            className="h-10 gap-1.5 rounded-xl text-xs font-bold border-border/80"
           >
-            <Plus className="size-4.5 stroke-[2.5]" />
-            Add Animal to Herd
+            <Download className="size-3.5" />
+            Export Records
           </Button>
-        )}
+
+          {!isOwner && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportModalOpen(true)}
+              className="h-10 gap-1.5 rounded-xl text-xs font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
+            >
+              <UploadCloud className="size-3.5" />
+              Import Records
+            </Button>
+          )}
+
+          {onAddNew && (
+            <Button
+              onClick={onAddNew}
+              className="h-10 gap-2 rounded-xl bg-emerald-600 px-4 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95"
+            >
+              <Plus className="size-4 stroke-[2.5]" />
+              Add Animal to Herd
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Sub-navigation Tabs: Herd Inventory vs Milk Performance Groups */}
@@ -729,6 +761,21 @@ export function AnimalListView({
           </div>
         </div>
       )}
+
+      {/* Export & Import Modals for Cow/Animal Records */}
+      <ExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        defaultModule="cows"
+        title="Export Cattle & Animal Herd Records"
+      />
+
+      <ImportRecordsModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        defaultRecordType="COW_RECORD"
+        onImportSuccess={onRefresh}
+      />
     </div>
   );
 }

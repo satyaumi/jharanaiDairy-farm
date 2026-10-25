@@ -24,6 +24,9 @@ public class ImportConfirmRequest {
     @Builder.Default
     private boolean importOnlyValid = true;
 
+    @Builder.Default
+    private String duplicatePolicy = "UPDATE"; // UPDATE, SKIP
+
     private Map<String, String> mappings; // header -> standardField
 
     @NotEmpty

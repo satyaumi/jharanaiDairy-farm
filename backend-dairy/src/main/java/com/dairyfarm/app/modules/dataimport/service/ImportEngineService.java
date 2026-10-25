@@ -27,8 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -58,8 +61,22 @@ public class ImportEngineService {
      */
     @Transactional(readOnly = true)
     public ImportAnalyzeResult analyzeFile(MultipartFile file) throws Exception {
+        return analyzeFile(file, null);
+    }
+
+    @Transactional(readOnly = true)
+    public ImportAnalyzeResult analyzeFile(MultipartFile file, String expectedType) throws Exception {
+        return analyzeFile(file, expectedType, null);
+    }
+
+    @Transactional(readOnly = true)
+    public ImportAnalyzeResult analyzeFile(MultipartFile file, String expectedType, UUID explicitFarmId) throws Exception {
         if (file.isEmpty()) {
             throw new BadRequestException("Uploaded file is empty");
+        }
+
+        if (file.getSize() > 15 * 1024 * 1024) {
+            throw new BadRequestException("File size exceeds 15MB limit. Please upload a smaller file.");
         }
 
         String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "records.csv";
@@ -68,7 +85,7 @@ public class ImportEngineService {
             throw new BadRequestException("Unsupported file format: ." + ext + ". Please upload .csv, .xlsx, or .xls file.");
         }
 
-        UUID farmId = getTenantFarmId();
+        UUID farmId = explicitFarmId != null ? explicitFarmId : getTenantFarmId();
 
         // 1. Parse raw tabular data (Headers + Rows)
         ParsedTable table = ext.equals("csv") ? parseCsv(file.getInputStream()) : parseExcel(file.getInputStream());
@@ -76,8 +93,14 @@ public class ImportEngineService {
             throw new BadRequestException("File contains no valid header row.");
         }
 
-        // 2. Deterministic Record Type Detection
-        String recordType = detectRecordType(table.headers);
+        // 2. Deterministic Record Type Detection (or use expectedType if specified)
+        String recordType;
+        if (expectedType != null && !expectedType.isBlank() &&
+                ("MILK_RECORD".equalsIgnoreCase(expectedType) || "COW_RECORD".equalsIgnoreCase(expectedType) || "FEED_RECORD".equalsIgnoreCase(expectedType))) {
+            recordType = expectedType.toUpperCase();
+        } else {
+            recordType = detectRecordType(table.headers);
+        }
         String recordTypeLabel = getRecordTypeLabel(recordType);
 
         // 3. Map Raw Headers to Canonical Fields
@@ -96,6 +119,10 @@ public class ImportEngineService {
         int warningCount = 0;
         int errorCount = 0;
         int conflictCount = 0;
+
+        // Intra-file duplicate tracking sets
+        Set<String> seenCowTagsInFile = new HashSet<>();
+        Set<String> seenMilkKeysInFile = new HashSet<>();
 
         for (int i = 0; i < table.rows.size(); i++) {
             Map<String, String> rawRow = table.rows.get(i);
@@ -134,12 +161,21 @@ public class ImportEngineService {
                     errors.add("Invalid or missing record date (expected YYYY-MM-DD, DD-MM-YYYY)");
                 }
 
+                String effectiveShift = (shift != null && !shift.isBlank()) ? shift : (morningMilkStr != null ? "Morning" : "Evening");
+
+                // Intra-file duplicate check for milk records
+                if (cowTag != null && recDate != null) {
+                    String milkKey = cowTag.toUpperCase() + "_" + recDate + "_" + effectiveShift.toLowerCase();
+                    if (!seenMilkKeysInFile.add(milkKey)) {
+                        warnings.add(String.format("Duplicate entry for Cow '%s' on %s (%s) within uploaded file", cowTag, recDate, effectiveShift));
+                    }
+                }
+
                 // If specific shift and litres or morning/evening columns
                 Animal matchedAnimal = cowTag != null ? animalTagMap.get(cowTag.toUpperCase()) : null;
                 if (matchedAnimal != null && recDate != null) {
-                    String checkShift = shift != null && !shift.isBlank() ? shift : (morningMilkStr != null ? "Morning" : "Evening");
                     Optional<MilkRecord> existingOpt = milkRecordRepository.findByFarmIdAndAnimalIdAndRecordDateAndShift(
-                            farmId, matchedAnimal.getId(), recDate, checkShift);
+                            farmId, matchedAnimal.getId(), recDate, effectiveShift);
 
                     if (existingOpt.isPresent()) {
                         MilkRecord existing = existingOpt.get();
@@ -159,26 +195,66 @@ public class ImportEngineService {
                 validateNumeric(morningMilkStr, "Morning Milk", false, errors);
                 validateNumeric(eveningMilkStr, "Evening Milk", false, errors);
 
+                // Range validation for litres
+                if (litresStr != null && !litresStr.isBlank()) {
+                    try {
+                        double l = Double.parseDouble(litresStr.trim());
+                        if (l > 60.0) errors.add(String.format("Quantity %.1f L exceeds realistic single-session limit (60 L)", l));
+                    } catch (NumberFormatException ignored) {}
+                }
+
             } else if ("COW_RECORD".equals(recordType)) {
                 String cowTag = getString(canonicalData, "cow_tag");
                 if (cowTag == null || cowTag.isBlank()) {
                     errors.add("Cow Tag/Ear Tag is mandatory");
-                } else if (animalTagMap.containsKey(cowTag.toUpperCase())) {
-                    action = "UPDATE";
-                    Animal existingCow = animalTagMap.get(cowTag.toUpperCase());
-                    existingData = Map.of(
-                            "name", existingCow.getAnimalName(),
-                            "breed", existingCow.getBreed(),
-                            "weight", existingCow.getWeight(),
-                            "yield", existingCow.getMilkYield() != null ? existingCow.getMilkYield() : BigDecimal.ZERO,
-                            "status", existingCow.getStatus() != null ? existingCow.getStatus() : "Healthy"
-                    );
+                } else {
+                    String cleanTag = cowTag.trim().toUpperCase();
+                    // Reject intra-file duplicate Cow Numbers
+                    if (!seenCowTagsInFile.add(cleanTag)) {
+                        errors.add(String.format("Duplicate Cow Number '%s' in uploaded spreadsheet (row %d)", cowTag, rowNum));
+                    }
+
+                    if (animalTagMap.containsKey(cleanTag)) {
+                        action = "UPDATE";
+                        conflictCount++;
+                        Animal existingCow = animalTagMap.get(cleanTag);
+                        existingData = Map.of(
+                                "name", existingCow.getAnimalName() != null ? existingCow.getAnimalName() : "",
+                                "breed", existingCow.getBreed() != null ? existingCow.getBreed() : "",
+                                "weight", existingCow.getWeight() != null ? existingCow.getWeight() : BigDecimal.ZERO,
+                                "yield", existingCow.getMilkYield() != null ? existingCow.getMilkYield() : BigDecimal.ZERO,
+                                "status", existingCow.getStatus() != null ? existingCow.getStatus() : "Healthy"
+                        );
+                    }
                 }
 
                 String weightStr = getString(canonicalData, "weight");
                 validateNumeric(weightStr, "Weight", false, errors);
+                if (weightStr != null && !weightStr.isBlank()) {
+                    try {
+                        double w = Double.parseDouble(weightStr.trim());
+                        if (w > 1500) errors.add("Weight exceeds biological maximum (1500 kg)");
+                    } catch (NumberFormatException ignored) {}
+                }
+
                 String yieldStr = getString(canonicalData, "yield");
                 validateNumeric(yieldStr, "Daily Yield", false, errors);
+                if (yieldStr != null && !yieldStr.isBlank()) {
+                    try {
+                        double y = Double.parseDouble(yieldStr.trim());
+                        if (y > 60.0) errors.add("Expected yield exceeds maximum capacity (60 L)");
+                    } catch (NumberFormatException ignored) {}
+                }
+
+                String birthDateStr = getString(canonicalData, "birth_date");
+                if (birthDateStr != null && !birthDateStr.isBlank()) {
+                    LocalDate bDate = parseDate(birthDateStr);
+                    if (bDate == null) {
+                        warnings.add("Unrecognized birth date format");
+                    } else if (bDate.isAfter(LocalDate.now())) {
+                        errors.add("Birth date cannot be in the future");
+                    }
+                }
 
             } else if ("FEED_RECORD".equals(recordType)) {
                 String feedType = getString(canonicalData, "feed_type");
@@ -239,11 +315,16 @@ public class ImportEngineService {
      */
     @Transactional
     public ImportConfirmResult confirmImport(ImportConfirmRequest request, UUID userId, String userName) {
-        UUID farmId = getTenantFarmId();
-        Farm farm = farmRepository.findById(farmId)
-                .orElseThrow(() -> new BadRequestException("Farm not found: " + farmId));
-
         User user = userId != null ? userRepository.findById(userId).orElse(null) : null;
+        UUID farmId = (user != null && user.getFarm() != null)
+                ? user.getFarm().getId()
+                : getTenantFarmId();
+        Farm farm = (user != null && user.getFarm() != null)
+                ? user.getFarm()
+                : farmRepository.findById(farmId)
+                        .orElseThrow(() -> new BadRequestException("Farm not found: " + farmId));
+
+        String dupPolicy = request.getDuplicatePolicy() != null ? request.getDuplicatePolicy().trim().toUpperCase() : "UPDATE";
 
         String batchCode = String.format("IMPORT-%s-%04d",
                 LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")),
@@ -298,19 +379,25 @@ public class ImportEngineService {
                     // Handle single shift or AM/PM split
                     if (morningLitres != null && !morningLitres.isBlank()) {
                         BigDecimal amLit = new BigDecimal(morningLitres);
-                        UpsertOutcome outcome = upsertMilkRecord(farm, animal, date, "Morning", amLit, batch.getId(), userId);
-                        if (outcome == UpsertOutcome.CREATED) created++; else updated++;
+                        UpsertOutcome outcome = upsertMilkRecord(farm, animal, date, "Morning", amLit, batch.getId(), userId, dupPolicy);
+                        if (outcome == UpsertOutcome.CREATED) created++;
+                        else if (outcome == UpsertOutcome.UPDATED) updated++;
+                        else skipped++;
                     }
                     if (eveningLitres != null && !eveningLitres.isBlank()) {
                         BigDecimal pmLit = new BigDecimal(eveningLitres);
-                        UpsertOutcome outcome = upsertMilkRecord(farm, animal, date, "Evening", pmLit, batch.getId(), userId);
-                        if (outcome == UpsertOutcome.CREATED) created++; else updated++;
+                        UpsertOutcome outcome = upsertMilkRecord(farm, animal, date, "Evening", pmLit, batch.getId(), userId, dupPolicy);
+                        if (outcome == UpsertOutcome.CREATED) created++;
+                        else if (outcome == UpsertOutcome.UPDATED) updated++;
+                        else skipped++;
                     }
                     if ((morningLitres == null || morningLitres.isBlank()) && (eveningLitres == null || eveningLitres.isBlank())) {
                         String s = (shift != null && !shift.isBlank()) ? shift : "Morning";
                         BigDecimal lit = litresStr != null && !litresStr.isBlank() ? new BigDecimal(litresStr) : BigDecimal.ZERO;
-                        UpsertOutcome outcome = upsertMilkRecord(farm, animal, date, s, lit, batch.getId(), userId);
-                        if (outcome == UpsertOutcome.CREATED) created++; else updated++;
+                        UpsertOutcome outcome = upsertMilkRecord(farm, animal, date, s, lit, batch.getId(), userId, dupPolicy);
+                        if (outcome == UpsertOutcome.CREATED) created++;
+                        else if (outcome == UpsertOutcome.UPDATED) updated++;
+                        else skipped++;
                     }
 
                     // Synchronize animal's last milking date and yield
@@ -322,9 +409,17 @@ public class ImportEngineService {
                     String name = row.get("cow_name");
                     String breed = row.get("breed");
                     String type = row.get("type");
+                    String status = row.get("status");
                     String weightStr = row.get("weight");
                     String yieldStr = row.get("yield");
                     String pen = row.get("pen");
+                    String age = row.get("age");
+                    String lactationCycleStr = row.get("lactation_cycle");
+                    String fatherTag = row.get("father_tag");
+                    String motherTag = row.get("mother_tag");
+                    String birthDateStr = row.get("birth_date");
+                    String aiDateStr = row.get("ai_date");
+                    String lastVaccinationDateStr = row.get("last_vaccination_date");
 
                     if (cowTag == null || cowTag.isBlank()) {
                         errors++;
@@ -332,33 +427,80 @@ public class ImportEngineService {
                         continue;
                     }
 
-                    if (animalMap.containsKey(cowTag.trim().toUpperCase())) {
+                    String cleanTag = cowTag.trim().toUpperCase();
+
+                    if (animalMap.containsKey(cleanTag)) {
+                        if ("SKIP".equals(dupPolicy)) {
+                            skipped++;
+                            continue;
+                        }
+
                         // Update existing cow
-                        Animal existing = animalMap.get(cowTag.trim().toUpperCase());
+                        Animal existing = animalMap.get(cleanTag);
                         if (name != null && !name.isBlank()) existing.setAnimalName(name);
                         if (breed != null && !breed.isBlank()) existing.setBreed(breed);
                         if (pen != null && !pen.isBlank()) existing.setPen(pen);
+                        if (type != null && !type.isBlank()) existing.setAnimalType(parseAnimalType(type));
+                        if (status != null && !status.isBlank()) existing.setStatus(status);
                         if (weightStr != null && !weightStr.isBlank()) existing.setWeight(new BigDecimal(weightStr));
                         if (yieldStr != null && !yieldStr.isBlank()) existing.setMilkYield(new BigDecimal(yieldStr));
+                        if (age != null && !age.isBlank()) existing.setAge(age);
+                        if (lactationCycleStr != null && !lactationCycleStr.isBlank()) {
+                            try { existing.setLactationCycle(Integer.parseInt(lactationCycleStr.trim())); } catch (Exception ignored) {}
+                        }
+                        if (fatherTag != null && !fatherTag.isBlank()) existing.setFatherTag(fatherTag);
+                        if (motherTag != null && !motherTag.isBlank()) existing.setMotherTag(motherTag);
+                        if (birthDateStr != null && !birthDateStr.isBlank()) {
+                            LocalDate bd = parseDate(birthDateStr);
+                            if (bd != null) existing.setBirthDate(bd);
+                        }
+                        if (aiDateStr != null && !aiDateStr.isBlank()) {
+                            LocalDate ad = parseDate(aiDateStr);
+                            if (ad != null) existing.setAiDate(ad);
+                        }
+                        if (lastVaccinationDateStr != null && !lastVaccinationDateStr.isBlank()) {
+                            LocalDate vd = parseDate(lastVaccinationDateStr);
+                            if (vd != null) existing.setLastVaccinationDate(vd);
+                        }
+
                         animalRepository.save(existing);
                         updated++;
                         auditService.record("IMPORT_UPDATE_COW", "Animal", existing.getId().toString(),
                                 "Updated cow " + cowTag + " from batch " + batchCode);
                     } else {
                         // Create new cow
-                        Animal newCow = Animal.builder()
+                        Animal.AnimalBuilder builder = Animal.builder()
                                 .farm(farm)
-                                .earTag(cowTag.trim().toUpperCase())
+                                .earTag(cleanTag)
                                 .animalName(name != null && !name.isBlank() ? name : "Cow-" + cowTag)
                                 .breed(breed != null && !breed.isBlank() ? breed : "Holstein")
                                 .animalType(type != null && !type.isBlank() ? parseAnimalType(type) : AnimalType.Lactating)
-                                .status("Healthy")
+                                .status(status != null && !status.isBlank() ? status : "Healthy")
                                 .weight(weightStr != null && !weightStr.isBlank() ? new BigDecimal(weightStr) : BigDecimal.valueOf(450))
                                 .milkYield(yieldStr != null && !yieldStr.isBlank() ? new BigDecimal(yieldStr) : BigDecimal.ZERO)
                                 .pen(pen != null && !pen.isBlank() ? pen : "Barn A")
-                                .active(true)
-                                .build();
-                        Animal saved = animalRepository.save(newCow);
+                                .active(true);
+
+                        if (age != null && !age.isBlank()) builder.age(age);
+                        if (lactationCycleStr != null && !lactationCycleStr.isBlank()) {
+                            try { builder.lactationCycle(Integer.parseInt(lactationCycleStr.trim())); } catch (Exception ignored) {}
+                        }
+                        if (fatherTag != null && !fatherTag.isBlank()) builder.fatherTag(fatherTag);
+                        if (motherTag != null && !motherTag.isBlank()) builder.motherTag(motherTag);
+                        if (birthDateStr != null && !birthDateStr.isBlank()) {
+                            LocalDate bd = parseDate(birthDateStr);
+                            if (bd != null) builder.birthDate(bd);
+                        }
+                        if (aiDateStr != null && !aiDateStr.isBlank()) {
+                            LocalDate ad = parseDate(aiDateStr);
+                            if (ad != null) builder.aiDate(ad);
+                        }
+                        if (lastVaccinationDateStr != null && !lastVaccinationDateStr.isBlank()) {
+                            LocalDate vd = parseDate(lastVaccinationDateStr);
+                            if (vd != null) builder.lastVaccinationDate(vd);
+                        }
+
+                        Animal saved = animalRepository.save(builder.build());
                         animalMap.put(saved.getEarTag().toUpperCase(), saved);
                         created++;
                         auditService.record("IMPORT_CREATE_COW", "Animal", saved.getId().toString(),
@@ -406,7 +548,7 @@ public class ImportEngineService {
         importBatchRepository.save(batch);
 
         auditService.record("IMPORT_BATCH_COMPLETED", "ImportBatch", batch.getId().toString(),
-                String.format("Batch %s: created=%d, updated=%d, errors=%d", batchCode, created, updated, errors));
+                String.format("Batch %s: created=%d, updated=%d, skipped=%d, errors=%d", batchCode, created, updated, skipped, errors));
 
         return ImportConfirmResult.builder()
                 .batchCode(batchCode)
@@ -418,20 +560,23 @@ public class ImportEngineService {
                 .skippedCount(skipped)
                 .errorCount(errors)
                 .status(batch.getStatus())
-                .message(String.format("Successfully synchronized %d records (%d created, %d updated).",
-                        created + updated, created, updated))
+                .message(String.format("Successfully synchronized %d records (%d created, %d updated, %d skipped).",
+                        created + updated, created, updated, skipped))
                 .errorDetails(errorDetails)
                 .build();
     }
 
-    private enum UpsertOutcome { CREATED, UPDATED }
+    private enum UpsertOutcome { CREATED, UPDATED, SKIPPED }
 
     private UpsertOutcome upsertMilkRecord(Farm farm, Animal animal, LocalDate date, String shift,
-                                          BigDecimal litres, UUID batchId, UUID userId) {
+                                          BigDecimal litres, UUID batchId, UUID userId, String dupPolicy) {
         Optional<MilkRecord> existingOpt = milkRecordRepository.findByFarmIdAndAnimalIdAndRecordDateAndShift(
                 farm.getId(), animal.getId(), date, shift);
 
         if (existingOpt.isPresent()) {
+            if ("SKIP".equals(dupPolicy)) {
+                return UpsertOutcome.SKIPPED;
+            }
             MilkRecord existing = existingOpt.get();
             BigDecimal oldLitres = existing.getLitres();
             existing.setLitres(litres);
@@ -596,10 +741,28 @@ public class ImportEngineService {
             String target = null;
 
             if (norm.contains("cow") || norm.contains("tag") || norm.contains("cattle") || norm.contains("animalid")) {
-                if (norm.contains("name")) target = "cow_name";
+                if (norm.contains("sire") || norm.contains("father")) target = "father_tag";
+                else if (norm.contains("dam") || norm.contains("mother")) target = "mother_tag";
+                else if (norm.contains("name")) target = "cow_name";
                 else target = "cow_tag";
+            } else if (norm.contains("birth") || norm.contains("dob")) {
+                target = "birth_date";
             } else if (norm.contains("date") || norm.contains("day")) {
                 target = "record_date";
+            } else if (norm.contains("status") || norm.contains("health")) {
+                target = "status";
+            } else if (norm.contains("lactation")) {
+                target = "lactation_cycle";
+            } else if (norm.contains("age")) {
+                target = "age";
+            } else if (norm.contains("sire") || norm.contains("father")) {
+                target = "father_tag";
+            } else if (norm.contains("dam") || norm.contains("mother")) {
+                target = "mother_tag";
+            } else if (norm.contains("ai") || norm.contains("insemination")) {
+                target = "ai_date";
+            } else if (norm.contains("vaccin")) {
+                target = "last_vaccination_date";
             } else if (norm.contains("morning") || norm.equals("am") || norm.contains("ammilk")) {
                 target = "morning_milk";
             } else if (norm.contains("evening") || norm.equals("pm") || norm.contains("pmmilk")) {
@@ -641,13 +804,21 @@ public class ImportEngineService {
             );
         } else if ("COW_RECORD".equals(recordType)) {
             return List.of(
-                    new ImportAnalyzeResult.FieldDefinition("cow_tag", "Ear Tag", true, "COW-101", "Ear Tag ID"),
-                    new ImportAnalyzeResult.FieldDefinition("cow_name", "Animal Name", false, "Gauri", "Name or identifier"),
-                    new ImportAnalyzeResult.FieldDefinition("breed", "Breed", false, "Holstein", "Cattle breed"),
+                    new ImportAnalyzeResult.FieldDefinition("cow_tag", "Ear Tag / Cow Number", true, "COW-101", "Unique Ear Tag identifying the cow"),
+                    new ImportAnalyzeResult.FieldDefinition("cow_name", "Animal Name", false, "Lakshmi", "Name or identifier"),
+                    new ImportAnalyzeResult.FieldDefinition("breed", "Breed", false, "Sahiwal", "Cattle breed"),
                     new ImportAnalyzeResult.FieldDefinition("type", "Type / Life Stage", false, "Lactating", "Lactating, Pregnant, Calf, Dry"),
+                    new ImportAnalyzeResult.FieldDefinition("status", "Health Status", false, "Healthy", "Healthy, Sick, Needs check, etc."),
                     new ImportAnalyzeResult.FieldDefinition("weight", "Weight (kg)", false, "480", "Animal weight in kg"),
                     new ImportAnalyzeResult.FieldDefinition("yield", "Daily Yield (L)", false, "22.5", "Expected daily milk yield"),
-                    new ImportAnalyzeResult.FieldDefinition("pen", "Pen / Shed", false, "Barn A", "Living enclosure")
+                    new ImportAnalyzeResult.FieldDefinition("pen", "Pen / Shed", false, "Barn A", "Living enclosure"),
+                    new ImportAnalyzeResult.FieldDefinition("birth_date", "Birth Date", false, "2022-04-10", "Date of birth (YYYY-MM-DD)"),
+                    new ImportAnalyzeResult.FieldDefinition("lactation_cycle", "Lactation Cycle", false, "2", "Number of completed lactations"),
+                    new ImportAnalyzeResult.FieldDefinition("age", "Age", false, "3y 6m", "Approximate age"),
+                    new ImportAnalyzeResult.FieldDefinition("father_tag", "Sire / Father Tag", false, "SIRE-01", "Father Ear Tag"),
+                    new ImportAnalyzeResult.FieldDefinition("mother_tag", "Dam / Mother Tag", false, "DAM-01", "Mother Ear Tag"),
+                    new ImportAnalyzeResult.FieldDefinition("ai_date", "AI Insemination Date", false, "2024-03-10", "Date of Artificial Insemination"),
+                    new ImportAnalyzeResult.FieldDefinition("last_vaccination_date", "Last Vaccination Date", false, "2024-07-01", "Date of last vaccination")
             );
         } else {
             return List.of(
@@ -656,6 +827,79 @@ public class ImportEngineService {
                     new ImportAnalyzeResult.FieldDefinition("record_date", "Date", true, "2026-10-03", "Feeding date"),
                     new ImportAnalyzeResult.FieldDefinition("group_name", "Target Group", false, "Milking herd", "Target herd group")
             );
+        }
+    }
+
+    public byte[] generateTemplate(String recordType, String format) throws Exception {
+        boolean isXlsx = "xlsx".equalsIgnoreCase(format);
+        boolean isCow = "COW_RECORD".equalsIgnoreCase(recordType) || "cow".equalsIgnoreCase(recordType) || "cows".equalsIgnoreCase(recordType) || "cattle".equalsIgnoreCase(recordType);
+
+        if (isXlsx) {
+            try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                Sheet sheet = workbook.createSheet(isCow ? "Cattle Herd Template" : "Milk Harvest Template");
+                CellStyle headerStyle = workbook.createCellStyle();
+                Font hFont = workbook.createFont();
+                hFont.setBold(true);
+                hFont.setColor(IndexedColors.WHITE.getIndex());
+                headerStyle.setFont(hFont);
+                headerStyle.setFillForegroundColor(IndexedColors.GREEN.getIndex());
+                headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+                String[] headers = isCow
+                        ? new String[]{"Cow Tag", "Animal Name", "Breed", "Type", "Status", "Weight (kg)", "Daily Yield (L)", "Pen", "Birth Date", "Lactation Cycle", "Sire Tag", "Dam Tag"}
+                        : new String[]{"Cow Tag", "Record Date", "Session", "Litres", "Morning Milk", "Evening Milk", "Notes"};
+
+                Row hRow = sheet.createRow(0);
+                for (int i = 0; i < headers.length; i++) {
+                    Cell c = hRow.createCell(i);
+                    c.setCellValue(headers[i]);
+                    c.setCellStyle(headerStyle);
+                }
+
+                String[][] samples = isCow
+                        ? new String[][]{
+                            {"COW-101", "Lakshmi", "Sahiwal", "Lactating", "Healthy", "460", "18.5", "Barn A", "2022-04-10", "2", "SIRE-01", "DAM-01"},
+                            {"COW-102", "Radha", "Gir", "Pregnant", "Healthy", "490", "15.0", "Barn B", "2021-08-15", "3", "SIRE-02", "DAM-02"},
+                            {"COW-103", "Gauri", "Holstein", "Calf", "Healthy", "120", "0.0", "Nursery", "2024-02-01", "0", "", ""}
+                        }
+                        : new String[][]{
+                            {"COW-101", LocalDate.now().toString(), "Morning", "12.5", "", "", "Normal harvest"},
+                            {"COW-101", LocalDate.now().toString(), "Evening", "11.0", "", "", "Normal harvest"},
+                            {"COW-102", LocalDate.now().toString(), "Morning", "14.0", "", "", "High yield"}
+                        };
+
+                for (int r = 0; r < samples.length; r++) {
+                    Row row = sheet.createRow(r + 1);
+                    for (int c = 0; c < samples[r].length; c++) {
+                        row.createCell(c).setCellValue(samples[r][c]);
+                    }
+                }
+
+                for (int i = 0; i < headers.length; i++) {
+                    sheet.autoSizeColumn(i);
+                }
+
+                workbook.write(baos);
+                return baos.toByteArray();
+            }
+        } else {
+            // CSV
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(baos, StandardCharsets.UTF_8))) {
+                if (isCow) {
+                    writer.println("Cow Tag,Animal Name,Breed,Type,Status,Weight (kg),Daily Yield (L),Pen,Birth Date,Lactation Cycle,Sire Tag,Dam Tag");
+                    writer.println("COW-101,Lakshmi,Sahiwal,Lactating,Healthy,460,18.5,Barn A,2022-04-10,2,SIRE-01,DAM-01");
+                    writer.println("COW-102,Radha,Gir,Pregnant,Healthy,490,15.0,Barn B,2021-08-15,3,SIRE-02,DAM-02");
+                    writer.println("COW-103,Gauri,Holstein,Calf,Healthy,120,0.0,Nursery,2024-02-01,0,,");
+                } else {
+                    writer.println("Cow Tag,Record Date,Session,Litres,Morning Milk,Evening Milk,Notes");
+                    writer.println("COW-101," + LocalDate.now() + ",Morning,12.5,,,Normal harvest");
+                    writer.println("COW-101," + LocalDate.now() + ",Evening,11.0,,,Normal harvest");
+                    writer.println("COW-102," + LocalDate.now() + ",Morning,14.0,,,High yield");
+                }
+                writer.flush();
+            }
+            return baos.toByteArray();
         }
     }
 

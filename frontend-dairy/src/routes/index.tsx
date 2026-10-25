@@ -385,6 +385,7 @@ export function FarmApp() {
                     : undefined
                 }
                 onAnimalDeleted={loadData}
+                onRefresh={loadData}
               />
             )}
 

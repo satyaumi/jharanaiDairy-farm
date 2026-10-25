@@ -39,6 +39,7 @@ export interface ImportConfirmRequest {
   recordType: string;
   fileName: string;
   importOnlyValid?: boolean;
+  duplicatePolicy?: "UPDATE" | "SKIP";
   mappings: Record<string, string>;
   rows: Record<string, string>[];
 }
@@ -81,11 +82,15 @@ function getAuthHeaders(): HeadersInit {
 }
 
 export const importService = {
-  async analyzeFile(file: File): Promise<ImportAnalyzeResult> {
+  async analyzeFile(file: File, recordType?: string): Promise<ImportAnalyzeResult> {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(apiUrl("/import/analyze"), {
+    const url = recordType
+      ? apiUrl(`/import/analyze?recordType=${encodeURIComponent(recordType)}`)
+      : apiUrl("/import/analyze");
+
+    const response = await fetch(url, {
       method: "POST",
       headers: getAuthHeaders(),
       body: formData,
@@ -98,6 +103,31 @@ export const importService = {
 
     const json = await response.json();
     return json.data;
+  },
+
+  async downloadTemplate(type: string = "MILK_RECORD", format: "csv" | "xlsx" = "csv"): Promise<void> {
+    const response = await fetch(
+      apiUrl(`/import/template?type=${encodeURIComponent(type)}&format=${encodeURIComponent(format)}`),
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.message || "Failed to download import template");
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const label = type === "COW_RECORD" ? "Cattle_Herd" : "Milk_Harvest";
+    link.href = downloadUrl;
+    link.download = `Jharanai_Farm_${label}_Template.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
   },
 
   async confirmImport(request: ImportConfirmRequest): Promise<ImportConfirmResult> {

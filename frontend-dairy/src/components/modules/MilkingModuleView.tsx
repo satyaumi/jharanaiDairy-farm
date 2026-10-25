@@ -716,6 +716,8 @@ export function MilkingModuleView({
       <ImportRecordsModal
         open={importModalOpen}
         onOpenChange={setImportModalOpen}
+        defaultRecordType="MILK_RECORD"
+        onImportSuccess={handleManualRefresh}
       />
     </div>
   );

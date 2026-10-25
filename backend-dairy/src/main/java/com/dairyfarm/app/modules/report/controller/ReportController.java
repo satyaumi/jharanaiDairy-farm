@@ -27,17 +27,17 @@ public class ReportController {
     private final ReportService reportService;
 
     @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER', 'ADMIN', 'WORKER')")
     @Operation(summary = "Export farm report in CSV, Excel (.xlsx), or PDF format")
     public ResponseEntity<byte[]> exportReport(
             @ModelAttribute ReportFilterRequest filter,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         try {
-            // Worker role authorization check
+            // Worker role authorization check: restricted from managerial/audit reports
             if (currentUser != null && currentUser.getRole() == Role.WORKER) {
                 String mod = filter.getModule() != null ? filter.getModule().toLowerCase() : "";
-                if ("team".equals(mod) || "audit".equals(mod) || "financial".equals(mod)) {
+                if ("team".equals(mod) || "audit".equals(mod) || "financial".equals(mod) || "users".equals(mod) || "settings".equals(mod)) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
             }
