@@ -36,6 +36,7 @@ import type {
 } from "@/types/farm";
 import { ExportRecordsButton } from "@/components/common/ExportRecordsButton";
 import { farmService } from "@/services/farm-service";
+import { calculateAgeFromDob, formatDateDisplay } from "@/lib/age-calculator";
 
 interface AnimalProfileModalProps {
   animal: Animal | null;
@@ -151,7 +152,7 @@ export function AnimalProfileModal({
                   )}
                 </div>
                 <DialogDescription className="mt-0.5 text-xs text-muted-foreground">
-                  {animal.breed} · {animal.age || "Age not set"} · Pen: {animal.pen || "Unassigned"}
+                  {animal.breed} · <strong>Age:</strong> {calculateAgeFromDob(animal.birthDate, animal.age)} {animal.birthDate && `(DOB: ${formatDateDisplay(animal.birthDate)})`} · Pen: {animal.pen || "Unassigned"}
                 </DialogDescription>
               </div>
             </div>
@@ -250,10 +251,29 @@ export function AnimalProfileModal({
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5">
                   <p className="text-[10px] font-extrabold uppercase text-muted-foreground">
-                    Age
+                    Date of Birth & Age
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                    {calculateAgeFromDob(animal.birthDate, animal.age)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    DOB: {formatDateDisplay(animal.birthDate)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5">
+                  <p className="text-[10px] font-extrabold uppercase text-muted-foreground">
+                    Status Category
                   </p>
                   <p className="mt-1 text-sm font-bold text-foreground">
-                    {animal.age || "Not specified"}
+                    {animal.animalStatusCategory || (animal.type === "Calf" ? "Calf" : "Mother Active")}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5">
+                  <p className="text-[10px] font-extrabold uppercase text-muted-foreground">
+                    Milking Status & Group
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-foreground">
+                    {animal.milkingStatus || animal.type} · Group {animal.milkingGroup || "A"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5">
@@ -290,6 +310,19 @@ export function AnimalProfileModal({
                     {animal.yield > 0
                       ? `${animal.yield.toFixed(1)} L`
                       : "0 L (Dry / Young)"}
+                  </p>
+                  {animal.bestYield && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Best: {animal.bestYield} L
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5">
+                  <p className="text-[10px] font-extrabold uppercase text-muted-foreground">
+                    Vaccination Status
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-foreground">
+                    {animal.vaccinationStatus || (animal.lastVaccinationDate ? "Verified" : "Pending")}
                   </p>
                 </div>
               </div>
@@ -447,7 +480,7 @@ export function AnimalProfileModal({
 
               <div className="rounded-2xl border border-border/70 bg-card/60 p-4 space-y-2">
                 <p className="text-xs font-bold text-foreground pb-1 border-b border-border/60">
-                  Recorded Breeding Details
+                  Recorded Breeding & Calving Details
                 </p>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between py-1 border-b border-border/40">
@@ -458,6 +491,44 @@ export function AnimalProfileModal({
                       {animal.aiDate || "No AI date recorded"}
                     </span>
                   </div>
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">AI Attempts & Result:</span>
+                    <span className="font-semibold text-foreground">
+                      {animal.aiAttemptsCount ?? 1} Attempt(s) · {animal.aiSuccess !== undefined ? (animal.aiSuccess ? "Success (Pregnant)" : "Not Successful") : "Pending"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">Bull Used / Semen:</span>
+                    <span className="font-semibold text-foreground">
+                      {animal.bullUsed || "Not specified"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">Heat Date:</span>
+                    <span className="font-semibold text-foreground">
+                      {animal.heatDate || "Not logged"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">Last Calving Date:</span>
+                    <span className="font-semibold text-foreground">
+                      {animal.lastCalvingDate || "Not recorded"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">Drying Date:</span>
+                    <span className="font-semibold text-foreground">
+                      {animal.dryingDate || "Not logged"}
+                    </span>
+                  </div>
+                  {animal.calfDob && (
+                    <div className="flex justify-between py-1 border-b border-border/40">
+                      <span className="text-muted-foreground">Last Calf Born:</span>
+                      <span className="font-semibold text-foreground">
+                        {animal.calfDob} {animal.calfSex ? `(${animal.calfSex})` : ""}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between py-1 border-b border-border/40">
                     <span className="text-muted-foreground">Sire (Bull / Father):</span>
                     <span className="font-semibold text-foreground">
@@ -488,7 +559,7 @@ export function AnimalProfileModal({
                     ? "border-destructive/30 bg-destructive/5"
                     : animal.status === "Needs check"
                     ? "border-amber-500/30 bg-amber-500/5"
-                    : "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-emerald-500/30 bg-emerald-50/5"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -506,7 +577,7 @@ export function AnimalProfileModal({
                       Overall Herd Health Condition
                     </p>
                     <p className="text-base font-extrabold text-foreground">
-                      {animal.status}
+                      {animal.status} ({animal.animalStatusCategory || "Active"})
                     </p>
                   </div>
                 </div>
@@ -524,6 +595,34 @@ export function AnimalProfileModal({
                   Health & Veterinary Observations
                 </p>
                 <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">Vaccination Status:</span>
+                    <span className="font-semibold text-foreground">
+                      {animal.vaccinationStatus || (animal.lastVaccinationDate ? "All Completed" : "None")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">Last Vaccine Administered:</span>
+                    <span className="font-semibold text-foreground">
+                      {animal.lastVaccineName || "FMD"} ({animal.lastVaccinationDate || "Date unrecorded"})
+                    </span>
+                  </div>
+                  {animal.medicineUsed && (
+                    <div className="flex justify-between py-1 border-b border-border/40">
+                      <span className="text-muted-foreground">Medicine & Dose:</span>
+                      <span className="font-semibold text-foreground">
+                        {animal.medicineUsed} {animal.medicineDose ? `(${animal.medicineDose})` : ""}
+                      </span>
+                    </div>
+                  )}
+                  {animal.remarks && (
+                    <div className="flex justify-between py-1 border-b border-border/40">
+                      <span className="text-muted-foreground">Remarks:</span>
+                      <span className="font-semibold text-foreground">
+                        {animal.remarks}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between py-1 border-b border-border/40">
                     <span className="text-muted-foreground">Last Health Check:</span>
                     <span className="font-semibold text-foreground">

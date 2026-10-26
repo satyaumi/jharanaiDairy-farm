@@ -23,7 +23,13 @@ public class ImportAnalyzeResult {
     private int warningCount;
     private int errorCount;
     private int conflictCount;
+    private int newCount;
+    private int existingCount;
+    private int duplicateCount;
 
+    private List<String> availableSheets;
+    private String selectedSheet;
+    private List<String> unmappedHeaders;
     private List<String> rawHeaders;
     private Map<String, String> detectedMappings; // rawHeader -> targetField
     private List<FieldDefinition> availableFields;

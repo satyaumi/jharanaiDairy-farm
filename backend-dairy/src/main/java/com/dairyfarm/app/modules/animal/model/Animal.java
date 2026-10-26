@@ -129,6 +129,63 @@ public class Animal extends AuditableEntity {
     @Column(name = "lifecycle_notes", columnDefinition = "TEXT")
     private String lifecycleNotes;
 
+    @Column(name = "last_calving_date")
+    private LocalDate lastCalvingDate;
+
+    @Column(name = "milking_status", length = 50)
+    private String milkingStatus;
+
+    @Column(name = "animal_status_category", length = 50)
+    private String animalStatusCategory;
+
+    @Column(name = "photo_url", length = 500)
+    private String photoUrl;
+
+    @Column(name = "vaccination_status", length = 50)
+    private String vaccinationStatus;
+
+    @Column(name = "last_vaccine_name", length = 100)
+    private String lastVaccineName;
+
+    @Column(name = "heat_date")
+    private LocalDate heatDate;
+
+    @Column(name = "ai_attempts_count")
+    private Integer aiAttemptsCount;
+
+    @Column(name = "ai_success")
+    private Boolean aiSuccess;
+
+    @Column(name = "bull_used", length = 100)
+    private String bullUsed;
+
+    @Column(name = "drying_date")
+    private LocalDate dryingDate;
+
+    @Column(name = "calf_dob")
+    private LocalDate calfDob;
+
+    @Column(name = "calf_sex", length = 20)
+    private String calfSex;
+
+    @Column(name = "best_yield", precision = 7, scale = 2)
+    private BigDecimal bestYield;
+
+    @Column(name = "medicine_used", length = 150)
+    private String medicineUsed;
+
+    @Column(name = "medicine_dose", length = 50)
+    private String medicineDose;
+
+    @Column(name = "gestation_days")
+    private Integer gestationDays;
+
+    @Column(name = "inter_calving_days")
+    private Integer interCalvingDays;
+
+    @Column(columnDefinition = "TEXT")
+    private String remarks;
+
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;

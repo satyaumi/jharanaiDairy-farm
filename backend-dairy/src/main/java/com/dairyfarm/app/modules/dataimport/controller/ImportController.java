@@ -40,9 +40,10 @@ public class ImportController {
     public ResponseEntity<ApiResponse<ImportAnalyzeResult>> analyzeFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "recordType", required = false) String expectedType,
+            @RequestParam(value = "sheetName", required = false) String sheetName,
             @AuthenticationPrincipal UserPrincipal userPrincipal) throws Exception {
         UUID farmId = userPrincipal != null ? userPrincipal.getFarmId() : null;
-        ImportAnalyzeResult result = importEngineService.analyzeFile(file, expectedType, farmId);
+        ImportAnalyzeResult result = importEngineService.analyzeFile(file, expectedType, farmId, sheetName);
         return ResponseEntity.ok(ApiResponse.ok("File analyzed successfully", result));
     }
 

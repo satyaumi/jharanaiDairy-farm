@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/notify";
 import { farmService } from "@/services/farm-service";
 import type { Animal, AnimalType, AnimalStatus, UpdateAnimalData } from "@/types/farm";
+import { calculateAgeFromDob, formatDateDisplay } from "@/lib/age-calculator";
 
 interface EditAnimalModalProps {
   animal: Animal | null;
@@ -41,6 +42,7 @@ export function EditAnimalModal({
 }: EditAnimalModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvancedHistory, setShowAdvancedHistory] = useState(false);
+  const [activeTab, setActiveTab] = useState<"basic" | "production" | "breeding" | "health">("basic");
 
   // Form Fields State
   const [name, setName] = useState("");
@@ -48,9 +50,13 @@ export function EditAnimalModal({
   const [breed, setBreed] = useState("Holstein");
   const [animalType, setAnimalType] = useState<AnimalType>("Lactating");
   const [status, setStatus] = useState<AnimalStatus>("Healthy");
+  const [animalStatusCategory, setAnimalStatusCategory] = useState("Mother Active");
+  const [milkingStatus, setMilkingStatus] = useState("Milking");
+  const [milkingGroup, setMilkingGroup] = useState("A");
   const [weight, setWeight] = useState<string>("");
   const [pen, setPen] = useState("");
   const [lactationCycle, setLactationCycle] = useState<number>(1);
+  const [bestYield, setBestYield] = useState<string>("");
   const [feedRation, setFeedRation] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -62,7 +68,21 @@ export function EditAnimalModal({
   const [manualMotherTag, setManualMotherTag] = useState("");
   const [manualMotherName, setManualMotherName] = useState("");
   const [aiDate, setAiDate] = useState("");
+  const [lastCalvingDate, setLastCalvingDate] = useState("");
+  const [heatDate, setHeatDate] = useState("");
+  const [aiAttemptsCount, setAiAttemptsCount] = useState<string>("1");
+  const [aiSuccess, setAiSuccess] = useState<string>("");
+  const [bullUsed, setBullUsed] = useState("");
+  const [dryingDate, setDryingDate] = useState("");
+  const [calfDob, setCalfDob] = useState("");
+  const [calfSex, setCalfSex] = useState("");
+  const [vaccinationStatus, setVaccinationStatus] = useState("All Completed");
+  const [lastVaccineName, setLastVaccineName] = useState("FMD");
   const [lastVaccinationDate, setLastVaccinationDate] = useState("");
+  const [medicineUsed, setMedicineUsed] = useState("");
+  const [medicineDose, setMedicineDose] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [lastHealthCheck, setLastHealthCheck] = useState("");
 
   // Sync state when animal prop changes
@@ -83,6 +103,25 @@ export function EditAnimalModal({
       setAiDate(animal.aiDate || "");
       setLastVaccinationDate(animal.lastVaccinationDate || "");
       setLastHealthCheck(animal.lastHealthCheck || "");
+
+      setAnimalStatusCategory(animal.animalStatusCategory || (animal.type === "Calf" ? "Calf" : "Mother Active"));
+      setMilkingStatus(animal.milkingStatus || (animal.type === "Dry" ? "Dry NP" : "Milking"));
+      setMilkingGroup(animal.milkingGroup || "A");
+      setBestYield(animal.bestYield !== undefined ? String(animal.bestYield) : "");
+      setLastCalvingDate(animal.lastCalvingDate || "");
+      setHeatDate(animal.heatDate || "");
+      setAiAttemptsCount(animal.aiAttemptsCount !== undefined ? String(animal.aiAttemptsCount) : "1");
+      setAiSuccess(animal.aiSuccess === true ? "Yes" : animal.aiSuccess === false ? "No" : "");
+      setBullUsed(animal.bullUsed || "");
+      setDryingDate(animal.dryingDate || "");
+      setCalfDob(animal.calfDob || "");
+      setCalfSex(animal.calfSex || "");
+      setVaccinationStatus(animal.vaccinationStatus || "All Completed");
+      setLastVaccineName(animal.lastVaccineName || "FMD");
+      setMedicineUsed(animal.medicineUsed || "");
+      setMedicineDose(animal.medicineDose || "");
+      setRemarks(animal.remarks || "");
+      setPhotoUrl(animal.photoUrl || "");
 
       // Father init
       if (animal.fatherAnimalId) {
@@ -221,7 +260,12 @@ export function EditAnimalModal({
       breed: breed.trim(),
       type: animalType,
       status: status,
+      animalStatusCategory,
+      milkingStatus,
+      milkingGroup,
+      age: calculateAgeFromDob(birthDate, animal.age),
       weight: weight ? parseFloat(weight) : undefined,
+      bestYield: bestYield ? parseFloat(bestYield) : undefined,
       pen: pen.trim() || undefined,
       lactationCycle: lactationCycle || 1,
       feedRation: feedRation.trim() || undefined,
@@ -235,7 +279,21 @@ export function EditAnimalModal({
       motherTag: finalMotherTag,
       motherName: finalMotherName,
       aiDate: aiDate || undefined,
+      lastCalvingDate: lastCalvingDate || undefined,
+      heatDate: heatDate || undefined,
+      aiAttemptsCount: aiAttemptsCount ? parseInt(aiAttemptsCount, 10) : undefined,
+      aiSuccess: aiSuccess === "Yes" ? true : aiSuccess === "No" ? false : undefined,
+      bullUsed: bullUsed.trim() || undefined,
+      dryingDate: dryingDate || undefined,
+      calfDob: calfDob || undefined,
+      calfSex: calfSex || undefined,
+      vaccinationStatus: vaccinationStatus || undefined,
+      lastVaccineName: lastVaccineName.trim() || undefined,
       lastVaccinationDate: lastVaccinationDate || undefined,
+      medicineUsed: medicineUsed.trim() || undefined,
+      medicineDose: medicineDose.trim() || undefined,
+      remarks: remarks.trim() || undefined,
+      photoUrl: photoUrl.trim() || undefined,
       lastHealthCheck: lastHealthCheck || undefined,
     };
 
@@ -440,7 +498,7 @@ export function EditAnimalModal({
 
             {showAdvancedHistory && (
               <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
-                {/* Birth */}
+                {/* Birth & Live Dynamic Age */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-[10px] font-bold text-muted-foreground">
@@ -453,23 +511,82 @@ export function EditAnimalModal({
                       onChange={(e) => setBirthDate(e.target.value)}
                       className="mt-1 h-10 rounded-xl text-xs"
                     />
+                    {birthDate && (
+                      <div className="mt-1 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px]">
+                        <span className="text-muted-foreground font-semibold">Calculated Age:</span>
+                        <span className="font-extrabold text-emerald-800 dark:text-emerald-300">
+                          {calculateAgeFromDob(birthDate, animal.age)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-muted-foreground">
-                      Birth Status
+                      Animal Status Category
                     </label>
                     <select
-                      value={birthStatus}
-                      onChange={(e) => setBirthStatus(e.target.value)}
+                      value={animalStatusCategory}
+                      onChange={(e) => setAnimalStatusCategory(e.target.value)}
                       className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
                     >
-                      <option value="">None / Not recorded</option>
-                      <option value="Normal Calving">Normal Calving</option>
-                      <option value="Assisted Birth">Assisted Birth</option>
-                      <option value="Twin Calving">Twin Calving</option>
-                      <option value="Caesarean">Caesarean</option>
-                      <option value="Purchased / Unknown">Purchased / Unknown</option>
+                      <option value="Mother Active">Mother Active</option>
+                      <option value="Calf">Calf</option>
+                      <option value="Herd">Herd</option>
+                      <option value="Mother Sick">Mother Sick</option>
+                      <option value="Calf Sick">Calf Sick</option>
+                      <option value="Aged">Aged</option>
+                      <option value="Other">Other</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Milking Status & Milking Group */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Milking Status
+                    </label>
+                    <select
+                      value={milkingStatus}
+                      onChange={(e) => setMilkingStatus(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                    >
+                      <option value="Milking">Milking</option>
+                      <option value="Dry NP">Dry NP (Non-Pregnant)</option>
+                      <option value="Milking NP">Milking NP (Non-Pregnant)</option>
+                      <option value="Dry P">Dry P (Pregnant)</option>
+                      <option value="Milking P">Milking P (Pregnant)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Milking Group
+                    </label>
+                    <select
+                      value={milkingGroup}
+                      onChange={(e) => setMilkingGroup(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                    >
+                      <option value="A">Group A (High)</option>
+                      <option value="B">Group B (Mid)</option>
+                      <option value="C">Group C (Low)</option>
+                      <option value="D">Group D (Fresh)</option>
+                      <option value="E">Group E (Dry)</option>
+                      <option value="F">Group F (Heifer/Calf)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Best Yield (L)
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={bestYield}
+                      onChange={(e) => setBestYield(e.target.value)}
+                      placeholder="e.g. 26.5"
+                      className="mt-1 h-10 rounded-xl text-xs font-bold"
+                    />
                   </div>
                 </div>
 
@@ -552,8 +669,32 @@ export function EditAnimalModal({
                   </div>
                 </div>
 
-                {/* AI & Vaccination Dates */}
+                {/* Reproduction details */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Last Calving Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={lastCalvingDate}
+                      max={todayStr}
+                      onChange={(e) => setLastCalvingDate(e.target.value)}
+                      className="mt-1 h-10 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Heat Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={heatDate}
+                      max={todayStr}
+                      onChange={(e) => setHeatDate(e.target.value)}
+                      className="mt-1 h-10 rounded-xl text-xs"
+                    />
+                  </div>
                   <div>
                     <label className="text-[10px] font-bold text-muted-foreground">
                       AI Date (Insemination)
@@ -566,7 +707,75 @@ export function EditAnimalModal({
                       className="mt-1 h-10 rounded-xl text-xs"
                     />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      AI Attempts
+                    </label>
+                    <Input
+                      type="number"
+                      value={aiAttemptsCount}
+                      min="0"
+                      onChange={(e) => setAiAttemptsCount(e.target.value)}
+                      className="mt-1 h-10 rounded-xl text-xs font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      AI Success
+                    </label>
+                    <select
+                      value={aiSuccess}
+                      onChange={(e) => setAiSuccess(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                    >
+                      <option value="">Pending / Unknown</option>
+                      <option value="Yes">Yes (Pregnant)</option>
+                      <option value="No">No (Not Pregnant)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Bull Used / Semen
+                    </label>
+                    <Input
+                      value={bullUsed}
+                      onChange={(e) => setBullUsed(e.target.value)}
+                      placeholder="e.g. ABS-901"
+                      className="mt-1 h-10 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Health & Treatment */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Vaccination Status
+                    </label>
+                    <select
+                      value={vaccinationStatus}
+                      onChange={(e) => setVaccinationStatus(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                    >
+                      <option value="All Completed">All Completed</option>
+                      <option value="Part Completed">Part Completed</option>
+                      <option value="None">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Last Vaccine Name
+                    </label>
+                    <Input
+                      value={lastVaccineName}
+                      onChange={(e) => setLastVaccineName(e.target.value)}
+                      placeholder="e.g. FMD"
+                      className="mt-1 h-10 rounded-xl text-xs"
+                    />
+                  </div>
                   <div>
                     <label className="text-[10px] font-bold text-muted-foreground">
                       Last Vaccination Date
@@ -579,19 +788,43 @@ export function EditAnimalModal({
                       className="mt-1 h-10 rounded-xl text-xs"
                     />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-[10px] font-bold text-muted-foreground">
-                      Last Health Check Date
+                      Medicine Used
                     </label>
                     <Input
-                      type="date"
-                      value={lastHealthCheck}
-                      max={todayStr}
-                      onChange={(e) => setLastHealthCheck(e.target.value)}
+                      value={medicineUsed}
+                      onChange={(e) => setMedicineUsed(e.target.value)}
+                      placeholder="e.g. Oxytetracycline"
                       className="mt-1 h-10 rounded-xl text-xs"
                     />
                   </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground">
+                      Dose
+                    </label>
+                    <Input
+                      value={medicineDose}
+                      onChange={(e) => setMedicineDose(e.target.value)}
+                      placeholder="e.g. 20 ml"
+                      className="mt-1 h-10 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground">
+                    Remarks & Notes
+                  </label>
+                  <Input
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="General health, weight history or management notes..."
+                    className="mt-1 h-10 rounded-xl text-xs"
+                  />
                 </div>
               </div>
             )}

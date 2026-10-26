@@ -32,6 +32,7 @@ import {
 } from "@/components/common/ActionStatus";
 import { ExportModal } from "@/components/common/ExportModal";
 import { ImportRecordsModal } from "@/components/common/ImportRecordsModal";
+import { calculateAgeFromDob } from "@/lib/age-calculator";
 
 interface AnimalListViewProps {
   animals: Animal[];
@@ -459,7 +460,7 @@ export function AnimalListView({
                               </span>
                             </div>
                             <p className="truncate text-[11px] text-muted-foreground">
-                              {animal.breed} · {animal.age} · {animal.pen || "Unassigned"}
+                              {animal.breed} · {calculateAgeFromDob(animal.birthDate, animal.age)} · {animal.pen || "Unassigned"}
                             </p>
                           </div>
                         </div>
@@ -486,9 +487,11 @@ export function AnimalListView({
                       >
                         <div>
                           <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                            Group
+                            Status & Group
                           </span>
-                          <p className="font-bold text-foreground">{animal.type}</p>
+                          <p className="font-bold text-foreground">
+                            {animal.milkingStatus || animal.type} {animal.milkingGroup ? `· Group ${animal.milkingGroup}` : ""}
+                          </p>
                         </div>
 
                         <div className="text-right">
@@ -598,13 +601,20 @@ export function AnimalListView({
                                 {animal.breed}
                               </p>
                               <p className="text-[11px] text-muted-foreground">
-                                {animal.age || "—"}
+                                {calculateAgeFromDob(animal.birthDate, animal.age)}
                               </p>
                             </td>
                             <td className="px-4 py-3.5">
-                              <span className="rounded-full bg-secondary/80 px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
-                                {animal.type}
-                              </span>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="rounded-full bg-secondary/80 px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground inline-block w-fit">
+                                  {animal.milkingStatus || animal.type}
+                                </span>
+                                {animal.milkingGroup && (
+                                  <span className="text-[10px] font-extrabold text-muted-foreground">
+                                    Group {animal.milkingGroup}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-3.5">
                               <span

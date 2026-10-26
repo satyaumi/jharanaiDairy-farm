@@ -29,7 +29,13 @@ export interface ImportAnalyzeResult {
   warningCount: number;
   errorCount: number;
   conflictCount: number;
+  newCount?: number;
+  existingCount?: number;
+  duplicateCount?: number;
+  availableSheets?: string[];
+  selectedSheet?: string;
   rawHeaders: string[];
+  unmappedHeaders?: string[];
   detectedMappings: Record<string, string>;
   availableFields: FieldDefinition[];
   previewRows: PreviewRow[];
@@ -82,13 +88,16 @@ function getAuthHeaders(): HeadersInit {
 }
 
 export const importService = {
-  async analyzeFile(file: File, recordType?: string): Promise<ImportAnalyzeResult> {
+  async analyzeFile(file: File, recordType?: string, sheetName?: string): Promise<ImportAnalyzeResult> {
     const formData = new FormData();
     formData.append("file", file);
 
-    const url = recordType
-      ? apiUrl(`/import/analyze?recordType=${encodeURIComponent(recordType)}`)
-      : apiUrl("/import/analyze");
+    const params = new URLSearchParams();
+    if (recordType) params.append("recordType", recordType);
+    if (sheetName) params.append("sheetName", sheetName);
+
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    const url = apiUrl(`/import/analyze${queryString}`);
 
     const response = await fetch(url, {
       method: "POST",

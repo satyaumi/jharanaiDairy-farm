@@ -254,12 +254,8 @@ public class AnimalService {
             throw new BadRequestException("Mother cannot be the same animal being created");
         }
 
-        // Calculate age string if not provided
-        String age = request.getAge();
-        if ((age == null || age.isBlank()) && birthDate != null) {
-            Period period = Period.between(birthDate, today);
-            age = String.format("%dy %dm", period.getYears(), period.getMonths());
-        }
+        // Calculate age string dynamically if birthDate is known or fallback
+        String age = AnimalDto.calculateAgeDisplay(birthDate, request.getAge());
 
         // Resolve Animal Group
         AnimalGroup group = null;
@@ -292,6 +288,7 @@ public class AnimalService {
                 .pen(group != null ? group.getName() : request.getPen())
                 .lactationCycle(request.getLactationCycle())
                 .feedRation(request.getFeedRation())
+                .dueDate(request.getDueDate())
                 .birthDate(birthDate)
                 .birthStatus(request.getResolvedBirthStatus())
                 .father(father)
@@ -302,6 +299,25 @@ public class AnimalService {
                 .motherName(motherName)
                 .aiDate(aiDate)
                 .lastVaccinationDate(lastVaccinationDate)
+                .lastCalvingDate(request.getLastCalvingDate())
+                .milkingStatus(request.getMilkingStatus())
+                .animalStatusCategory(request.getAnimalStatusCategory())
+                .photoUrl(request.getPhotoUrl())
+                .vaccinationStatus(request.getVaccinationStatus())
+                .lastVaccineName(request.getLastVaccineName())
+                .heatDate(request.getHeatDate())
+                .aiAttemptsCount(request.getAiAttemptsCount())
+                .aiSuccess(request.getAiSuccess())
+                .bullUsed(request.getBullUsed())
+                .dryingDate(request.getDryingDate())
+                .calfDob(request.getCalfDob())
+                .calfSex(request.getCalfSex())
+                .bestYield(request.getBestYield())
+                .medicineUsed(request.getMedicineUsed())
+                .medicineDose(request.getMedicineDose())
+                .gestationDays(request.getGestationDays())
+                .interCalvingDays(request.getInterCalvingDays())
+                .remarks(request.getRemarks())
                 .active(true)
                 .build();
 
@@ -343,7 +359,8 @@ public class AnimalService {
                     .eventType(HistoryEventType.VACCINATION)
                     .eventDate(lastVaccinationDate)
                     .title("Vaccination Verified")
-                    .detail("Prior vaccination verified and recorded at animal registration.")
+                    .detail(String.format("Vaccination recorded%s.",
+                            request.getLastVaccineName() != null ? " (" + request.getLastVaccineName() + ")" : ""))
                     .badge("Vaccinated")
                     .recordedBy(currentUser)
                     .build());
@@ -358,8 +375,38 @@ public class AnimalService {
                     .title("Artificial Insemination (AI)")
                     .detail(String.format("Insemination recorded on %s%s.",
                             aiDate,
-                            fatherTag != null ? " with Sire: " + fatherTag : ""))
+                            fatherTag != null ? " with Sire: " + fatherTag : (request.getBullUsed() != null ? " with Bull: " + request.getBullUsed() : "")))
                     .badge("AI Done")
+                    .recordedBy(currentUser)
+                    .build());
+        }
+
+        if (request.getLastCalvingDate() != null) {
+            initialEvents.add(AnimalHistory.builder()
+                    .animal(savedAnimal)
+                    .farm(farm)
+                    .eventType(HistoryEventType.CALVING)
+                    .eventDate(request.getLastCalvingDate())
+                    .title("Calving Recorded")
+                    .detail(String.format("Calved on %s.%s",
+                            request.getLastCalvingDate(),
+                            request.getCalfSex() != null ? " Calf sex: " + request.getCalfSex() : ""))
+                    .badge("Calving")
+                    .recordedBy(currentUser)
+                    .build());
+        }
+
+        if (request.getMedicineUsed() != null && !request.getMedicineUsed().isBlank()) {
+            initialEvents.add(AnimalHistory.builder()
+                    .animal(savedAnimal)
+                    .farm(farm)
+                    .eventType(HistoryEventType.HEALTH_CHECK)
+                    .eventDate(today)
+                    .title("Medicine Administration")
+                    .detail(String.format("Administered %s%s",
+                            request.getMedicineUsed(),
+                            request.getMedicineDose() != null ? " (Dose: " + request.getMedicineDose() + ")" : ""))
+                    .badge("Medicine")
                     .recordedBy(currentUser)
                     .build());
         }
@@ -455,14 +502,8 @@ public class AnimalService {
                 throw new BadRequestException("Birth date cannot be in the future");
             }
             animal.setBirthDate(request.getBirthDate());
-            if (request.getAge() == null || request.getAge().isBlank()) {
-                Period period = Period.between(request.getBirthDate(), today);
-                animal.setAge(String.format("%dy %dm", period.getYears(), period.getMonths()));
-            }
         }
-        if (request.getAge() != null && !request.getAge().isBlank()) {
-            animal.setAge(request.getAge());
-        }
+        animal.setAge(AnimalDto.calculateAgeDisplay(animal.getBirthDate(), request.getAge() != null ? request.getAge() : animal.getAge()));
         if (request.getBirthStatus() != null) {
             animal.setBirthStatus(request.getBirthStatus());
         }
@@ -498,7 +539,7 @@ public class AnimalService {
             animal.setMotherName(request.getMotherName());
         }
 
-        // 5. AI, Vaccination, and Health Dates
+        // 5. AI, Calving, Vaccination, Health, and Excel Fields
         if (request.getAiDate() != null) {
             if (request.getAiDate().isAfter(today)) {
                 throw new BadRequestException("AI date cannot be in the future");
@@ -522,6 +563,63 @@ public class AnimalService {
                 throw new BadRequestException("Last health check date cannot be in the future");
             }
             animal.setLastHealthCheck(request.getLastHealthCheck());
+        }
+        if (request.getLastCalvingDate() != null) {
+            animal.setLastCalvingDate(request.getLastCalvingDate());
+        }
+        if (request.getMilkingStatus() != null) {
+            animal.setMilkingStatus(request.getMilkingStatus().trim());
+        }
+        if (request.getAnimalStatusCategory() != null) {
+            animal.setAnimalStatusCategory(request.getAnimalStatusCategory().trim());
+        }
+        if (request.getPhotoUrl() != null) {
+            animal.setPhotoUrl(request.getPhotoUrl().trim());
+        }
+        if (request.getVaccinationStatus() != null) {
+            animal.setVaccinationStatus(request.getVaccinationStatus().trim());
+        }
+        if (request.getLastVaccineName() != null) {
+            animal.setLastVaccineName(request.getLastVaccineName().trim());
+        }
+        if (request.getHeatDate() != null) {
+            animal.setHeatDate(request.getHeatDate());
+        }
+        if (request.getAiAttemptsCount() != null) {
+            animal.setAiAttemptsCount(request.getAiAttemptsCount());
+        }
+        if (request.getAiSuccess() != null) {
+            animal.setAiSuccess(request.getAiSuccess());
+        }
+        if (request.getBullUsed() != null) {
+            animal.setBullUsed(request.getBullUsed().trim());
+        }
+        if (request.getDryingDate() != null) {
+            animal.setDryingDate(request.getDryingDate());
+        }
+        if (request.getCalfDob() != null) {
+            animal.setCalfDob(request.getCalfDob());
+        }
+        if (request.getCalfSex() != null) {
+            animal.setCalfSex(request.getCalfSex().trim());
+        }
+        if (request.getBestYield() != null) {
+            animal.setBestYield(request.getBestYield());
+        }
+        if (request.getMedicineUsed() != null) {
+            animal.setMedicineUsed(request.getMedicineUsed().trim());
+        }
+        if (request.getMedicineDose() != null) {
+            animal.setMedicineDose(request.getMedicineDose().trim());
+        }
+        if (request.getGestationDays() != null) {
+            animal.setGestationDays(request.getGestationDays());
+        }
+        if (request.getInterCalvingDays() != null) {
+            animal.setInterCalvingDays(request.getInterCalvingDays());
+        }
+        if (request.getRemarks() != null) {
+            animal.setRemarks(request.getRemarks().trim());
         }
 
         // 6. Lifecycle & Active Status

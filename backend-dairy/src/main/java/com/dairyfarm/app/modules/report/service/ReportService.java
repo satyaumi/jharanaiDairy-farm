@@ -231,24 +231,40 @@ public class ReportService {
         writer.println();
 
         if ("cows".equals(module) || "animals".equals(module) || "herd".equals(module)) {
-            writer.println("Cow ID,Tag,Name,Breed,Type,Status,Weight (kg),Daily Yield (L),Pen,Lactation,Age,Sire Tag,Dam Tag,AI Date,Last Vaccination");
+            writer.println("Animal No,Breed,Date of Birth,Age,Animal Status,No of Lactation,Sire,Dam,Last Calving Date,Milking Status,Weight,Vaccination,Last Vaccine Name,Date of Vaccination,Heating Date,No of AI Attempts,Last AI Date,Success,Bull Used,Drying Date,Expected Due Date,Calf DoB,Calf Sex,Daily Yield (L),Milking Group,Medicine Used,Medicine Dose,Gestation Days,Inter Calving Days,Remarks");
             for (Animal a : animals) {
+                String dynamicAge = AnimalDto.calculateAgeDisplay(a.getBirthDate(), a.getAge());
                 writer.println(String.join(",",
-                        ExportSecurityUtil.escapeCsv(a.getId() != null ? a.getId().toString() : ""),
                         ExportSecurityUtil.escapeCsv(a.getEarTag()),
-                        ExportSecurityUtil.escapeCsv(a.getAnimalName()),
                         ExportSecurityUtil.escapeCsv(a.getBreed()),
-                        ExportSecurityUtil.escapeCsv(a.getAnimalType() != null ? a.getAnimalType().name() : ""),
-                        ExportSecurityUtil.escapeCsv(a.getStatus() != null ? a.getStatus() : "Healthy"),
-                        ExportSecurityUtil.escapeCsv(a.getWeight() != null ? a.getWeight().toString() : "0"),
-                        ExportSecurityUtil.escapeCsv(a.getMilkYield() != null ? a.getMilkYield().toString() : "0"),
-                        ExportSecurityUtil.escapeCsv(a.getPen() != null ? a.getPen() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getBirthDate() != null ? a.getBirthDate().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(dynamicAge),
+                        ExportSecurityUtil.escapeCsv(a.getAnimalStatusCategory() != null ? a.getAnimalStatusCategory() : (a.getStatus() != null ? a.getStatus() : "Mother Active")),
                         ExportSecurityUtil.escapeCsv(String.valueOf(a.getLactationCycle())),
-                        ExportSecurityUtil.escapeCsv(a.getAge() != null ? a.getAge() : ""),
                         ExportSecurityUtil.escapeCsv(a.getFatherTag() != null ? a.getFatherTag() : ""),
                         ExportSecurityUtil.escapeCsv(a.getMotherTag() != null ? a.getMotherTag() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getLastCalvingDate() != null ? a.getLastCalvingDate().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getMilkingStatus() != null ? a.getMilkingStatus() : "Milking"),
+                        ExportSecurityUtil.escapeCsv(a.getWeight() != null ? a.getWeight().toString() : "0"),
+                        ExportSecurityUtil.escapeCsv(a.getVaccinationStatus() != null ? a.getVaccinationStatus() : "All Completed"),
+                        ExportSecurityUtil.escapeCsv(a.getLastVaccineName() != null ? a.getLastVaccineName() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getLastVaccinationDate() != null ? a.getLastVaccinationDate().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getHeatDate() != null ? a.getHeatDate().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getAiAttemptsCount() != null ? a.getAiAttemptsCount().toString() : "0"),
                         ExportSecurityUtil.escapeCsv(a.getAiDate() != null ? a.getAiDate().toString() : ""),
-                        ExportSecurityUtil.escapeCsv(a.getLastVaccinationDate() != null ? a.getLastVaccinationDate().toString() : "")
+                        ExportSecurityUtil.escapeCsv(a.getAiSuccess() != null ? (a.getAiSuccess() ? "Yes" : "No") : ""),
+                        ExportSecurityUtil.escapeCsv(a.getBullUsed() != null ? a.getBullUsed() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getDryingDate() != null ? a.getDryingDate().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getDueDate() != null ? a.getDueDate().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getCalfDob() != null ? a.getCalfDob().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getCalfSex() != null ? a.getCalfSex() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getMilkYield() != null ? a.getMilkYield().toString() : "0"),
+                        ExportSecurityUtil.escapeCsv(a.getPen() != null ? a.getPen() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getMedicineUsed() != null ? a.getMedicineUsed() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getMedicineDose() != null ? a.getMedicineDose() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getGestationDays() != null ? a.getGestationDays().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getInterCalvingDays() != null ? a.getInterCalvingDays().toString() : ""),
+                        ExportSecurityUtil.escapeCsv(a.getRemarks() != null ? a.getRemarks() : "")
                 ));
             }
             writer.println();
@@ -352,7 +368,15 @@ public class ReportService {
             String[] headers;
 
             if ("cows".equals(module) || "animals".equals(module) || "herd".equals(module)) {
-                headers = new String[]{"Tag", "Name", "Breed", "Type", "Status", "Weight (kg)", "Daily Yield (L)", "Pen", "Lactation", "Age", "Sire Tag", "Dam Tag"};
+                headers = new String[]{
+                    "Animal No", "Breed", "Date of Birth", "Age", "Animal Status",
+                    "No of Lactation", "Sire", "Dam", "Last Calving Date", "Milking Status",
+                    "Weight", "Vaccination", "Last Vaccine Name", "Date of Vaccination",
+                    "Heating Date", "No of AI Attempts", "Last AI Date", "Success",
+                    "Bull Used", "Drying Date", "Expected Due Date", "Calf DoB", "Calf Sex",
+                    "Daily Yield (L)", "Milking Group", "Medicine Used", "Medicine Dose",
+                    "Gestation Days", "Inter Calving Days", "Remarks"
+                };
                 Row hRow = sheet.createRow(rowIdx++);
                 for (int i = 0; i < headers.length; i++) {
                     Cell c = hRow.createCell(i);
@@ -362,22 +386,42 @@ public class ReportService {
 
                 for (Animal a : animals) {
                     Row r = sheet.createRow(rowIdx++);
-                    r.createCell(0).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getEarTag()));
-                    r.createCell(1).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getAnimalName()));
-                    r.createCell(2).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getBreed()));
-                    r.createCell(3).setCellValue(a.getAnimalType() != null ? a.getAnimalType().name() : "");
-                    r.createCell(4).setCellValue(a.getStatus() != null ? a.getStatus() : "Healthy");
-                    Cell cW = r.createCell(5);
+                    String dynamicAge = AnimalDto.calculateAgeDisplay(a.getBirthDate(), a.getAge());
+                    int col = 0;
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getEarTag()));
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getBreed()));
+                    r.createCell(col++).setCellValue(a.getBirthDate() != null ? a.getBirthDate().toString() : "");
+                    r.createCell(col++).setCellValue(dynamicAge);
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getAnimalStatusCategory() != null ? a.getAnimalStatusCategory() : (a.getStatus() != null ? a.getStatus() : "Mother Active")));
+                    r.createCell(col++).setCellValue(a.getLactationCycle());
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getFatherTag() != null ? a.getFatherTag() : ""));
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getMotherTag() != null ? a.getMotherTag() : ""));
+                    r.createCell(col++).setCellValue(a.getLastCalvingDate() != null ? a.getLastCalvingDate().toString() : "");
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getMilkingStatus() != null ? a.getMilkingStatus() : "Milking"));
+                    Cell cW = r.createCell(col++);
                     cW.setCellValue(a.getWeight() != null ? a.getWeight().doubleValue() : 0.0);
                     cW.setCellStyle(numStyle);
-                    Cell cY = r.createCell(6);
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getVaccinationStatus() != null ? a.getVaccinationStatus() : "All Completed"));
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getLastVaccineName() != null ? a.getLastVaccineName() : ""));
+                    r.createCell(col++).setCellValue(a.getLastVaccinationDate() != null ? a.getLastVaccinationDate().toString() : "");
+                    r.createCell(col++).setCellValue(a.getHeatDate() != null ? a.getHeatDate().toString() : "");
+                    r.createCell(col++).setCellValue(a.getAiAttemptsCount() != null ? a.getAiAttemptsCount() : 0);
+                    r.createCell(col++).setCellValue(a.getAiDate() != null ? a.getAiDate().toString() : "");
+                    r.createCell(col++).setCellValue(a.getAiSuccess() != null ? (a.getAiSuccess() ? "Yes" : "No") : "");
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getBullUsed() != null ? a.getBullUsed() : ""));
+                    r.createCell(col++).setCellValue(a.getDryingDate() != null ? a.getDryingDate().toString() : "");
+                    r.createCell(col++).setCellValue(a.getDueDate() != null ? a.getDueDate().toString() : "");
+                    r.createCell(col++).setCellValue(a.getCalfDob() != null ? a.getCalfDob().toString() : "");
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getCalfSex() != null ? a.getCalfSex() : ""));
+                    Cell cY = r.createCell(col++);
                     cY.setCellValue(a.getMilkYield() != null ? a.getMilkYield().doubleValue() : 0.0);
                     cY.setCellStyle(numStyle);
-                    r.createCell(7).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getPen()));
-                    r.createCell(8).setCellValue(a.getLactationCycle());
-                    r.createCell(9).setCellValue(a.getAge() != null ? a.getAge() : "");
-                    r.createCell(10).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getFatherTag()));
-                    r.createCell(11).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getMotherTag()));
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getPen() != null ? a.getPen() : ""));
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getMedicineUsed() != null ? a.getMedicineUsed() : ""));
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getMedicineDose() != null ? a.getMedicineDose() : ""));
+                    r.createCell(col++).setCellValue(a.getGestationDays() != null ? a.getGestationDays() : 0);
+                    r.createCell(col++).setCellValue(a.getInterCalvingDays() != null ? a.getInterCalvingDays() : 0);
+                    r.createCell(col++).setCellValue(ExportSecurityUtil.sanitizeForSpreadsheet(a.getRemarks() != null ? a.getRemarks() : ""));
                 }
 
             } else if ("feeding".equals(module) || "feed".equals(module)) {

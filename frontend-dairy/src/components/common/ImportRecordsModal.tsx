@@ -31,6 +31,7 @@ import {
   ImportConfirmResult,
 } from "@/services/import-service";
 import { notify as toast } from "@/lib/notify";
+import { calculateAgeFromDob, formatDateDisplay } from "@/lib/age-calculator";
 
 interface ImportRecordsModalProps {
   open: boolean;
@@ -60,10 +61,13 @@ export function ImportRecordsModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [selectedSheet, setSelectedSheet] = useState<string>("");
+
   const resetState = () => {
     setStep("UPLOAD");
     setFile(null);
     setAnalysisResult(null);
+    setSelectedSheet("");
     setCustomMappings({});
     setDuplicatePolicy("UPDATE");
     setConfirmResult(null);
@@ -102,7 +106,7 @@ export function ImportRecordsModal({
     }
   };
 
-  const startAnalysis = async (targetFile: File) => {
+  const startAnalysis = async (targetFile: File, sheetName?: string) => {
     if (targetFile.size === 0) {
       setErrorMsg("Selected file is empty. Please select a valid spreadsheet.");
       return;
@@ -115,8 +119,9 @@ export function ImportRecordsModal({
     setAnalyzing(true);
     setErrorMsg(null);
     try {
-      const result = await importService.analyzeFile(targetFile, defaultRecordType);
+      const result = await importService.analyzeFile(targetFile, defaultRecordType, sheetName);
       setAnalysisResult(result);
+      setSelectedSheet(result.selectedSheet || "");
       setCustomMappings(result.detectedMappings || {});
       setStep("MAPPING");
     } catch (err: any) {
@@ -125,6 +130,11 @@ export function ImportRecordsModal({
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const handleSheetChange = async (sheet: string) => {
+    if (!file || sheet === selectedSheet) return;
+    await startAnalysis(file, sheet);
   };
 
   const handleProceedToPreview = () => {
@@ -325,7 +335,7 @@ export function ImportRecordsModal({
         {/* STEP 2: SCHEMA & COLUMN MAPPING */}
         {step === "MAPPING" && analysisResult && (
           <div className="space-y-4 py-3">
-            <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
               <div>
                 <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
                   Detected Record Type: <strong>{analysisResult.recordTypeLabel}</strong>
@@ -334,9 +344,27 @@ export function ImportRecordsModal({
                   File: {analysisResult.fileName} · {analysisResult.totalRows} rows parsed
                 </p>
               </div>
-              <span className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-extrabold text-emerald-800 dark:text-emerald-300">
-                95% Match Confidence
-              </span>
+              <div className="flex items-center gap-2">
+                {analysisResult.availableSheets && analysisResult.availableSheets.length > 1 && (
+                  <div className="flex items-center gap-1.5 bg-background/80 px-2 py-1 rounded-lg border border-border text-xs">
+                    <span className="text-[11px] font-semibold text-muted-foreground">Sheet:</span>
+                    <select
+                      value={selectedSheet || analysisResult.selectedSheet || analysisResult.availableSheets[0]}
+                      onChange={(e) => handleSheetChange(e.target.value)}
+                      className="bg-transparent font-bold text-foreground text-xs focus:outline-none cursor-pointer"
+                    >
+                      {analysisResult.availableSheets.map((s) => (
+                        <option key={s} value={s} className="bg-background text-foreground">
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <span className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-extrabold text-emerald-800 dark:text-emerald-300">
+                  {analysisResult.confidence ?? 95}% Match
+                </span>
+              </div>
             </div>
 
             {/* Duplicate Policy Configuration */}
@@ -455,24 +483,47 @@ export function ImportRecordsModal({
         {step === "PREVIEW" && analysisResult && (
           <div className="space-y-4 py-2">
             {/* Metric Counters */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="rounded-xl border border-border/70 bg-card p-2.5 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="rounded-xl border border-border/70 bg-card p-2 text-center">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Rows</span>
-                <p className="text-lg font-black text-foreground">{analysisResult.totalRows}</p>
+                <p className="text-base font-black text-foreground">{analysisResult.totalRows}</p>
               </div>
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-center">
-                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">Valid</span>
-                <p className="text-lg font-black text-emerald-800 dark:text-emerald-300">{analysisResult.validCount}</p>
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2 text-center">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">New Animals</span>
+                <p className="text-base font-black text-emerald-800 dark:text-emerald-300">
+                  {analysisResult.newCount ?? Math.max(0, analysisResult.validCount - (analysisResult.existingCount ?? analysisResult.conflictCount))}
+                </p>
               </div>
-              <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-center">
-                <span className="text-[10px] uppercase font-bold text-blue-800 dark:text-blue-300">Updates / Matches</span>
-                <p className="text-lg font-black text-blue-800 dark:text-blue-300">{analysisResult.conflictCount}</p>
+              <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-2 text-center">
+                <span className="text-[10px] uppercase font-bold text-blue-800 dark:text-blue-300">Existing Matched</span>
+                <p className="text-base font-black text-blue-800 dark:text-blue-300">
+                  {analysisResult.existingCount ?? analysisResult.conflictCount}
+                </p>
               </div>
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-center">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-center">
+                <span className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300">Duplicates</span>
+                <p className="text-base font-black text-amber-800 dark:text-amber-300">
+                  {analysisResult.duplicateCount ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-2 text-center">
                 <span className="text-[10px] uppercase font-bold text-destructive">Errors</span>
-                <p className="text-lg font-black text-destructive">{analysisResult.errorCount}</p>
+                <p className="text-base font-black text-destructive">{analysisResult.errorCount}</p>
               </div>
             </div>
+
+            {/* Unmapped Headers Banner */}
+            {analysisResult.unmappedHeaders && analysisResult.unmappedHeaders.length > 0 && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+                <p className="font-bold flex items-center gap-1.5">
+                  <AlertCircle className="size-3.5 text-amber-600" />
+                  Unmapped columns detected ({analysisResult.unmappedHeaders.length}):
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {analysisResult.unmappedHeaders.join(", ")} — these are safely preserved as remarks/history.
+                </p>
+              </div>
+            )}
 
             {/* Validation Table / Cards */}
             <div className="space-y-2">
@@ -487,11 +538,21 @@ export function ImportRecordsModal({
                 {analysisResult.previewRows.slice(0, 10).map((row) => (
                   <div key={row.rowNumber} className="p-3 bg-card hover:bg-muted/30 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-[10px] text-muted-foreground">Row #{row.rowNumber}</span>
                         <span className="font-extrabold text-foreground">
                           {row.data["cow_tag"] || row.data["cow_id"] || row.data["feed_type"] || "Record"}
                         </span>
+                        {row.data["breed"] && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {row.data["breed"]}
+                          </span>
+                        )}
+                        {row.data["birth_date"] && (
+                          <span className="text-[11px] text-muted-foreground">
+                            DOB: {formatDateDisplay(row.data["birth_date"])} (Age: {calculateAgeFromDob(row.data["birth_date"])})
+                          </span>
+                        )}
                         {row.data["record_date"] && (
                           <span className="text-muted-foreground text-[11px]">({row.data["record_date"]})</span>
                         )}

@@ -43,6 +43,26 @@ public class AnimalDto {
     private Instant lastMilkingDate;
     private LocalDate lastHealthCheck;
 
+    private LocalDate lastCalvingDate;
+    private String milkingStatus;
+    private String animalStatusCategory;
+    private String photoUrl;
+    private String vaccinationStatus;
+    private String lastVaccineName;
+    private LocalDate heatDate;
+    private Integer aiAttemptsCount;
+    private Boolean aiSuccess;
+    private String bullUsed;
+    private LocalDate dryingDate;
+    private LocalDate calfDob;
+    private String calfSex;
+    private BigDecimal bestYield;
+    private String medicineUsed;
+    private String medicineDose;
+    private Integer gestationDays;
+    private Integer interCalvingDays;
+    private String remarks;
+
     // Animal History details
     private LocalDate birthDate;
     private String birthStatus;
@@ -60,6 +80,30 @@ public class AnimalDto {
     @Builder.Default
     private List<AnimalHistoryDto> timeline = new ArrayList<>();
 
+    public static String calculateAgeDisplay(LocalDate birthDate, String fallbackAge) {
+        if (birthDate == null) {
+            return (fallbackAge != null && !fallbackAge.isBlank()) ? fallbackAge : "Unknown";
+        }
+        LocalDate now = LocalDate.now();
+        if (birthDate.isAfter(now)) {
+            return "Invalid (Future Date)";
+        }
+        java.time.Period period = java.time.Period.between(birthDate, now);
+        int years = period.getYears();
+        int months = period.getMonths();
+        int days = period.getDays();
+
+        if (years > 0 && months > 0) {
+            return years + (years == 1 ? " year, " : " years, ") + months + (months == 1 ? " month" : " months");
+        } else if (years > 0) {
+            return years + (years == 1 ? " year" : " years");
+        } else if (months > 0) {
+            return months + (months == 1 ? " month" : " months");
+        } else {
+            return days + (days == 1 ? " day" : " days");
+        }
+    }
+
     public static AnimalDto fromEntity(Animal animal) {
         if (animal == null) return null;
 
@@ -69,6 +113,8 @@ public class AnimalDto {
                     .map(AnimalHistoryDto::fromEntity)
                     .toList();
         }
+
+        String calculatedAge = calculateAgeDisplay(animal.getBirthDate(), animal.getAge());
 
         return AnimalDto.builder()
                 .id(animal.getId())
@@ -81,7 +127,7 @@ public class AnimalDto {
                 .lifecycleDate(animal.getLifecycleDate())
                 .lifecycleReason(animal.getLifecycleReason())
                 .lifecycleNotes(animal.getLifecycleNotes())
-                .age(animal.getAge())
+                .age(calculatedAge)
                 .weight(animal.getWeight())
                 .yield(animal.getMilkYield())
                 .pen(animal.getPen())
@@ -102,6 +148,25 @@ public class AnimalDto {
                 .motherName(animal.getMotherName() != null ? animal.getMotherName() : (animal.getMother() != null ? animal.getMother().getAnimalName() : null))
                 .aiDate(animal.getAiDate())
                 .lastVaccinationDate(animal.getLastVaccinationDate())
+                .lastCalvingDate(animal.getLastCalvingDate())
+                .milkingStatus(animal.getMilkingStatus())
+                .animalStatusCategory(animal.getAnimalStatusCategory())
+                .photoUrl(animal.getPhotoUrl())
+                .vaccinationStatus(animal.getVaccinationStatus())
+                .lastVaccineName(animal.getLastVaccineName())
+                .heatDate(animal.getHeatDate())
+                .aiAttemptsCount(animal.getAiAttemptsCount())
+                .aiSuccess(animal.getAiSuccess())
+                .bullUsed(animal.getBullUsed())
+                .dryingDate(animal.getDryingDate())
+                .calfDob(animal.getCalfDob())
+                .calfSex(animal.getCalfSex())
+                .bestYield(animal.getBestYield())
+                .medicineUsed(animal.getMedicineUsed())
+                .medicineDose(animal.getMedicineDose())
+                .gestationDays(animal.getGestationDays())
+                .interCalvingDays(animal.getInterCalvingDays())
+                .remarks(animal.getRemarks())
                 .active(animal.isActive())
                 .timeline(historyDtos)
                 .build();

@@ -65,6 +65,26 @@ export interface Animal {
   vaccinations?:
     { name: string; date: string; status: "Done" | "Due" }[] | undefined;
   timeline?: TimelineEvent[] | undefined;
+  // Expanded Jharanai Farm Excel Compatible Fields
+  lastCalvingDate?: string | undefined;
+  milkingStatus?: string | undefined;
+  animalStatusCategory?: string | undefined;
+  photoUrl?: string | undefined;
+  vaccinationStatus?: string | undefined;
+  lastVaccineName?: string | undefined;
+  heatDate?: string | undefined;
+  aiAttemptsCount?: number | undefined;
+  aiSuccess?: boolean | undefined;
+  bullUsed?: string | undefined;
+  dryingDate?: string | undefined;
+  calfDob?: string | undefined;
+  calfSex?: string | undefined;
+  bestYield?: number | undefined;
+  medicineUsed?: string | undefined;
+  medicineDose?: string | undefined;
+  gestationDays?: number | undefined;
+  interCalvingDays?: number | undefined;
+  remarks?: string | undefined;
 }
 
 export interface UpdateAnimalData {
@@ -93,6 +113,25 @@ export interface UpdateAnimalData {
   lastVaccinationDate?: string | undefined;
   lastHealthCheck?: string | undefined;
   active?: boolean | undefined;
+  lastCalvingDate?: string | undefined;
+  milkingStatus?: string | undefined;
+  animalStatusCategory?: string | undefined;
+  photoUrl?: string | undefined;
+  vaccinationStatus?: string | undefined;
+  lastVaccineName?: string | undefined;
+  heatDate?: string | undefined;
+  aiAttemptsCount?: number | undefined;
+  aiSuccess?: boolean | undefined;
+  bullUsed?: string | undefined;
+  dryingDate?: string | undefined;
+  calfDob?: string | undefined;
+  calfSex?: string | undefined;
+  bestYield?: number | undefined;
+  medicineUsed?: string | undefined;
+  medicineDose?: string | undefined;
+  gestationDays?: number | undefined;
+  interCalvingDays?: number | undefined;
+  remarks?: string | undefined;
 }
 
 export interface ChangeLifecycleStatusData {

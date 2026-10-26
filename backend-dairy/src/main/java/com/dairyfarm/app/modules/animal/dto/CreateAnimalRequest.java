@@ -55,7 +55,29 @@ public class CreateAnimalRequest {
 
     private String feedRation;
 
-    // 2. OPTIONAL HISTORY SECTION (Flat representation)
+    // 2. PRODUCTION, BREEDING & HEALTH EXPANDED FIELDS
+    private LocalDate dueDate;
+    private LocalDate lastCalvingDate;
+    private String milkingStatus;
+    private String animalStatusCategory;
+    private String photoUrl;
+    private String vaccinationStatus;
+    private String lastVaccineName;
+    private LocalDate heatDate;
+    private Integer aiAttemptsCount;
+    private Boolean aiSuccess;
+    private String bullUsed;
+    private LocalDate dryingDate;
+    private LocalDate calfDob;
+    private String calfSex;
+    private BigDecimal bestYield;
+    private String medicineUsed;
+    private String medicineDose;
+    private Integer gestationDays;
+    private Integer interCalvingDays;
+    private String remarks;
+
+    // 3. OPTIONAL HISTORY SECTION (Flat representation)
     private LocalDate birthDate;
     private String birthStatus;
     private UUID fatherAnimalId;
