@@ -57,6 +57,22 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolationException(org.springframework.dao.DataIntegrityViolationException ex) {
+        log.warn("Database constraint/integrity violation: {}", ex.getMessage());
+        String msg = "Database integrity violation";
+        String rootMsg = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        if (rootMsg != null && (rootMsg.contains("uk_animals_farm") || rootMsg.contains("animals_farm_id_ear_tag") || rootMsg.contains("ear_tag") || rootMsg.contains("uk_animal_farm_ear_tag"))) {
+            msg = "Duplicate Animal Number – This cow already exists in the herd.";
+        } else if (rootMsg != null && rootMsg.contains("uk_milk_record_shift")) {
+            msg = "Duplicate Milk Record – A milking record for this cow on this date and shift already exists.";
+        } else if (rootMsg != null && rootMsg.contains("animal_history")) {
+            msg = "Duplicate Historical Record – This event has already been recorded for this animal.";
+        }
+        ApiError apiError = ApiError.of(msg, "DUPLICATE_RESOURCE");
+        return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiError> handleUnauthorizedException(UnauthorizedException ex) {
         log.warn("Unauthorized: {}", ex.getMessage());

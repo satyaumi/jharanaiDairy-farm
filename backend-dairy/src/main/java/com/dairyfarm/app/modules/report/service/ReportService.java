@@ -1,6 +1,7 @@
 package com.dairyfarm.app.modules.report.service;
 
 import com.dairyfarm.app.common.context.TenantContext;
+import com.dairyfarm.app.modules.animal.dto.AnimalDto;
 import com.dairyfarm.app.modules.animal.model.Animal;
 import com.dairyfarm.app.modules.animal.model.AnimalType;
 import com.dairyfarm.app.modules.animal.repository.AnimalRepository;

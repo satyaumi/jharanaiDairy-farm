@@ -42,6 +42,8 @@ export interface Animal {
   lifecycleReason?: string | undefined;
   lifecycleNotes?: string | undefined;
   active?: boolean | undefined;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
   age: string;
   weight: number;
   yield: number;
@@ -113,6 +115,8 @@ export interface UpdateAnimalData {
   lastVaccinationDate?: string | undefined;
   lastHealthCheck?: string | undefined;
   active?: boolean | undefined;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
   lastCalvingDate?: string | undefined;
   milkingStatus?: string | undefined;
   animalStatusCategory?: string | undefined;

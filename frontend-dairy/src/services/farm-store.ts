@@ -130,9 +130,9 @@ class FarmStore {
     let updated: Animal[];
     if (existingIndex >= 0) {
       updated = [...list];
-      updated[existingIndex] = animal;
+      updated[existingIndex] = { ...list[existingIndex], ...animal };
     } else {
-      updated = [animal, ...list];
+      updated = [{ ...animal, createdAt: animal.createdAt || new Date().toISOString() }, ...list];
     }
     this.setStorage(STORAGE_KEY_ANIMALS, updated);
     return updated;

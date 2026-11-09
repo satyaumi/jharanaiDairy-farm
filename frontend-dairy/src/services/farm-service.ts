@@ -36,6 +36,7 @@ export interface FarmService {
     active?: boolean;
     lifecycleStatus?: LifecycleStatus;
     search?: string;
+    sort?: string;
   }): Promise<Animal[]>;
   getAnimalById(id: string): Promise<Animal>;
   saveAnimal(animal: Partial<Animal>): Promise<Animal[]>;
@@ -134,6 +135,8 @@ export const farmService: FarmService = {
       const query = new URLSearchParams();
       if (params?.active !== undefined) query.set("active", String(params.active));
       if (params?.lifecycleStatus) query.set("lifecycleStatus", params.lifecycleStatus);
+      if (params?.sort) query.set("sort", params.sort);
+      else query.set("sort", "createdAt,desc");
 
       const url = apiUrl(`/animals/all${query.toString() ? `?${query.toString()}` : ""}`);
       const response = await fetch(url, {

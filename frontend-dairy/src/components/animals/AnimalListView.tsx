@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
+  ArrowUpDown,
   Plus,
   Filter,
   ChevronRight,
@@ -33,6 +34,15 @@ import {
 import { ExportModal } from "@/components/common/ExportModal";
 import { ImportRecordsModal } from "@/components/common/ImportRecordsModal";
 import { calculateAgeFromDob } from "@/lib/age-calculator";
+
+
+export type AnimalSortOption =
+  | "recently-added"
+  | "oldest-added"
+  | "cow-number-asc"
+  | "cow-number-desc"
+  | "breed-asc"
+  | "breed-desc";
 
 interface AnimalListViewProps {
   animals: Animal[];
@@ -93,6 +103,14 @@ export function AnimalListView({
   const [activeTab, setActiveTab] = useState<"inventory" | "performance">("inventory");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("Active");
+  const [sortOption, setSortOption] = useState<AnimalSortOption>("recently-added");
+  const [pageSize, setPageSize] = useState<string>("25");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Reset to first page when search, filter, or sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeFilter, sortOption, pageSize]);
 
   const FILTERS = [
     "Active",
@@ -128,33 +146,77 @@ export function AnimalListView({
   ).length;
   const inactiveCount = animals.filter((a) => a.active === false).length;
 
-  const filteredAnimals = animals.filter((animal) => {
-    const matchesSearch =
-      `${animal.tag} ${animal.breed}`
-        .toLowerCase()
-        .includes(search.toLowerCase());
+  const filteredAnimals = useMemo(() => {
+    return animals.filter((animal) => {
+      const matchesSearch =
+        `${animal.tag} ${animal.breed}`
+          .toLowerCase()
+          .includes(search.toLowerCase());
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-    if (activeFilter === "All") return true;
-    if (activeFilter === "Active") return animal.active !== false;
-    if (activeFilter === "Lactating")
-      return animal.active !== false && animal.type === "Lactating";
-    if (activeFilter === "Pregnant")
-      return animal.active !== false && animal.type === "Pregnant";
-    if (activeFilter === "Calves")
-      return animal.active !== false && animal.type === "Calf";
-    if (activeFilter === "Sick")
-      return (
-        animal.status === "Sick" ||
-        animal.status === "Needs check" ||
-        animal.lifecycleStatus === "SICK"
-      );
-    if (activeFilter === "Sold") return animal.lifecycleStatus === "SOLD";
-    if (activeFilter === "Deceased") return animal.lifecycleStatus === "DECEASED";
-    if (activeFilter === "Retired") return animal.lifecycleStatus === "RETIRED";
-    return true;
-  });
+      if (activeFilter === "All") return true;
+      if (activeFilter === "Active") return animal.active !== false;
+      if (activeFilter === "Lactating")
+        return animal.active !== false && animal.type === "Lactating";
+      if (activeFilter === "Pregnant")
+        return animal.active !== false && animal.type === "Pregnant";
+      if (activeFilter === "Calves")
+        return animal.active !== false && animal.type === "Calf";
+      if (activeFilter === "Sick")
+        return (
+          animal.status === "Sick" ||
+          animal.status === "Needs check" ||
+          animal.lifecycleStatus === "SICK"
+        );
+      if (activeFilter === "Sold") return animal.lifecycleStatus === "SOLD";
+      if (activeFilter === "Deceased") return animal.lifecycleStatus === "DECEASED";
+      if (activeFilter === "Retired") return animal.lifecycleStatus === "RETIRED";
+      return true;
+    });
+  }, [animals, search, activeFilter]);
+
+  const sortedAnimals = useMemo(() => {
+    const list = [...filteredAnimals];
+    list.sort((a, b) => {
+      if (sortOption === "recently-added") {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return (b.tag || "").localeCompare(a.tag || "", undefined, { numeric: true, sensitivity: "base" });
+      }
+      if (sortOption === "oldest-added") {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (timeA !== timeB) return timeA - timeB;
+        return (a.tag || "").localeCompare(b.tag || "", undefined, { numeric: true, sensitivity: "base" });
+      }
+      if (sortOption === "cow-number-asc") {
+        return (a.tag || "").localeCompare(b.tag || "", undefined, { numeric: true, sensitivity: "base" });
+      }
+      if (sortOption === "cow-number-desc") {
+        return (b.tag || "").localeCompare(a.tag || "", undefined, { numeric: true, sensitivity: "base" });
+      }
+      if (sortOption === "breed-asc") {
+        const cmp = (a.breed || "").localeCompare(b.breed || "");
+        return cmp !== 0 ? cmp : (a.tag || "").localeCompare(b.tag || "", undefined, { numeric: true, sensitivity: "base" });
+      }
+      if (sortOption === "breed-desc") {
+        const cmp = (b.breed || "").localeCompare(a.breed || "");
+        return cmp !== 0 ? cmp : (a.tag || "").localeCompare(b.tag || "", undefined, { numeric: true, sensitivity: "base" });
+      }
+      return 0;
+    });
+    return list;
+  }, [filteredAnimals, sortOption]);
+
+  const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(sortedAnimals.length / Number(pageSize)));
+  const paginatedAnimals = useMemo(() => {
+    if (pageSize === "all") return sortedAnimals;
+    const size = Number(pageSize);
+    const start = (currentPage - 1) * size;
+    return sortedAnimals.slice(start, start + size);
+  }, [sortedAnimals, pageSize, currentPage]);
 
   return (
     <div className="space-y-4">
@@ -380,6 +442,26 @@ export function AnimalListView({
                   Clear Search
                 </Button>
               )}
+
+              {/* Professional Herd Inventory Sorting Control */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                  <ArrowUpDown className="size-3.5 text-emerald-800 dark:text-emerald-300" />
+                  <span className="hidden sm:inline">Sort:</span>
+                </span>
+                <select
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value as AnimalSortOption)}
+                  className="h-11 rounded-xl border border-input bg-background/90 px-3 text-xs font-bold text-foreground focus:outline-none shadow-xs"
+                >
+                  <option value="recently-added">Recently Added – Newest First (Default)</option>
+                  <option value="oldest-added">Oldest Added – Oldest First</option>
+                  <option value="cow-number-asc">Cow Number – Ascending (A–Z / 1–9)</option>
+                  <option value="cow-number-desc">Cow Number – Descending (Z–A / 9–1)</option>
+                  <option value="breed-asc">Breed – Ascending (A–Z)</option>
+                  <option value="breed-desc">Breed – Descending (Z–A)</option>
+                </select>
+              </div>
             </div>
 
             {/* Filter Pills */}
@@ -403,7 +485,7 @@ export function AnimalListView({
           </div>
 
           {/* ANIMALS LIST: MOBILE CARDS vs DESKTOP TABLE */}
-          {filteredAnimals.length === 0 ? (
+          {sortedAnimals.length === 0 ? (
             <div className="farm-glass grid min-h-60 place-content-center rounded-3xl p-8 text-center">
               <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
                 <CowIcon className="size-8" />
@@ -429,7 +511,7 @@ export function AnimalListView({
             <>
               {/* 1. MOBILE-FIRST CARDS VIEW */}
               <div className="space-y-2.5 md:hidden">
-                {filteredAnimals.map((animal) => {
+                {paginatedAnimals.map((animal) => {
                   const isSick =
                     animal.status === "Sick" || animal.status === "Needs check";
                   const isInactive = animal.active === false;
@@ -572,7 +654,7 @@ export function AnimalListView({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
-                      {filteredAnimals.map((animal) => {
+                      {paginatedAnimals.map((animal) => {
                         const isInactive = animal.active === false;
                         return (
                           <tr
@@ -683,6 +765,65 @@ export function AnimalListView({
                   </table>
                 </div>
               </div>
+
+              {/* Pagination Controls Bar */}
+              {sortedAnimals.length > 0 && (
+                <div className="farm-glass rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <span>
+                      Showing{" "}
+                      <strong className="text-foreground">
+                        {sortedAnimals.length === 0 ? 0 : (currentPage - 1) * (pageSize === "all" ? sortedAnimals.length : Number(pageSize)) + 1}
+                      </strong>{" "}
+                      to{" "}
+                      <strong className="text-foreground">
+                        {pageSize === "all" ? sortedAnimals.length : Math.min(currentPage * Number(pageSize), sortedAnimals.length)}
+                      </strong>{" "}
+                      of <strong className="text-foreground">{sortedAnimals.length}</strong> animals
+                    </span>
+                    <span className="text-border">|</span>
+                    <label className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <span>Rows:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => setPageSize(e.target.value)}
+                        className="h-8 rounded-lg border border-input bg-background px-2 text-xs font-bold"
+                      >
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option value="all">All records ({sortedAnimals.length})</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  {pageSize !== "all" && totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage <= 1}
+                        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                        className="h-8 rounded-xl px-3 text-xs font-bold"
+                      >
+                        Previous
+                      </Button>
+                      <span className="px-2 text-xs font-bold text-foreground">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                        className="h-8 rounded-xl px-3 text-xs font-bold"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </>

@@ -41,17 +41,14 @@ public class CreateAnimalRequest {
 
     private String age;
 
-    @Builder.Default
-    private BigDecimal weight = BigDecimal.valueOf(560);
+    private BigDecimal weight;
 
     @Builder.Default
     private BigDecimal yield = BigDecimal.ZERO;
 
-    @Builder.Default
-    private String pen = "North barn";
+    private String pen;
 
-    @Builder.Default
-    private Integer lactationCycle = 1;
+    private Integer lactationCycle;
 
     private String feedRation;
 
@@ -69,6 +66,7 @@ public class CreateAnimalRequest {
     private String bullUsed;
     private LocalDate dryingDate;
     private LocalDate calfDob;
+    @JsonAlias({"gender", "sex", "animalGender", "animalSex"})
     private String calfSex;
     private BigDecimal bestYield;
     private String medicineUsed;

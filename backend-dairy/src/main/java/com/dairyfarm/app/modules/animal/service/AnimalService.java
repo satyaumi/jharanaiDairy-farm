@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -119,21 +121,33 @@ public class AnimalService {
 
     @Transactional(readOnly = true)
     public List<AnimalDto> getAllActiveAnimals() {
+        return getAllActiveAnimals(Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AnimalDto> getAllActiveAnimals(Sort sort) {
         UUID farmId = getTenantFarmId();
-        return animalRepository.findByFarmIdAndActiveTrue(farmId).stream()
+        Sort effectiveSort = (sort != null) ? sort : Sort.by(Sort.Direction.DESC, "createdAt");
+        return animalRepository.findByFarmIdAndActiveTrue(farmId, effectiveSort).stream()
                 .map(AnimalDto::fromEntity)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<AnimalDto> getAllAnimals(Boolean active, LifecycleStatus lifecycleStatus) {
+        return getAllAnimals(active, lifecycleStatus, Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AnimalDto> getAllAnimals(Boolean active, LifecycleStatus lifecycleStatus, Sort sort) {
         UUID farmId = getTenantFarmId();
+        Sort effectiveSort = (sort != null) ? sort : Sort.by(Sort.Direction.DESC, "createdAt");
         if (Boolean.TRUE.equals(active)) {
-            return animalRepository.findByFarmIdAndActiveTrue(farmId).stream()
+            return animalRepository.findByFarmIdAndActiveTrue(farmId, effectiveSort).stream()
                     .map(AnimalDto::fromEntity)
                     .toList();
         } else {
-            return animalRepository.findByFarmId(farmId).stream()
+            return animalRepository.findByFarmId(farmId, effectiveSort).stream()
                     .filter(a -> lifecycleStatus == null || a.getLifecycleStatus() == lifecycleStatus)
                     .filter(a -> active == null || a.isActive() == active)
                     .map(AnimalDto::fromEntity)
@@ -194,7 +208,8 @@ public class AnimalService {
 
         // 1. Uniqueness check within farm
         if (animalRepository.existsByFarmIdAndEarTagIgnoreCase(farmId, earTag)) {
-            throw new DuplicateResourceException("Cow Number '" + earTag + "' already exists on this farm. Please use a unique Cow Number.");
+            throw new DuplicateResourceException(
+                    String.format("Cow Number '%s' already exists on this farm. Please use a unique Cow Number.", earTag));
         }
 
         // 2. Date Validations
@@ -444,7 +459,8 @@ public class AnimalService {
             String newTag = request.getTag().trim().toUpperCase();
             if (!newTag.equalsIgnoreCase(animal.getEarTag())) {
                 if (animalRepository.existsByFarmIdAndEarTagIgnoreCaseAndIdNot(farmId, newTag, animal.getId())) {
-                    throw new DuplicateResourceException("Cow Number '" + newTag + "' already exists on this farm. Please use a unique Cow Number.");
+                    throw new DuplicateResourceException(
+                            String.format("Cow Number '%s' already exists on this farm. Please use a unique Cow Number.", newTag));
                 }
                 animal.setEarTag(newTag);
                 animal.setAnimalName(newTag);
@@ -791,6 +807,16 @@ public class AnimalService {
 
         if (animal.getBirthDate() != null && request.getEventDate().isBefore(animal.getBirthDate())) {
             throw new BadRequestException("Event date cannot be earlier than the animal's birth date");
+        }
+
+        // Prevent duplicate history event submission (same type, date, and title)
+        boolean isDuplicate = historyRepository.findByAnimalIdAndFarmIdOrderByEventDateDescCreatedAtDesc(animalId, farmId)
+                .stream()
+                .anyMatch(h -> h.getEventType() == request.getEventType()
+                        && h.getEventDate().equals(request.getEventDate())
+                        && Objects.equals(h.getTitle(), request.getTitle()));
+        if (isDuplicate) {
+            throw new DuplicateResourceException("Duplicate Record – A " + request.getEventType() + " record ('" + request.getTitle() + "') already exists on " + request.getEventDate());
         }
 
         AnimalHistory history = AnimalHistory.builder()

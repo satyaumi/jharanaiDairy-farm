@@ -3,6 +3,7 @@ package com.dairyfarm.app.modules.animal.repository;
 import com.dairyfarm.app.modules.animal.model.Animal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -28,8 +29,12 @@ public interface AnimalRepository extends JpaRepository<Animal, UUID>, JpaSpecif
     Page<Animal> findByFarmIdAndActiveTrue(UUID farmId, Pageable pageable);
 
     List<Animal> findByFarmIdAndActiveTrue(UUID farmId);
+    List<Animal> findByFarmIdAndActiveTrue(UUID farmId, Sort sort);
+    List<Animal> findByFarmIdAndActiveTrueOrderByCreatedAtDesc(UUID farmId);
 
     List<Animal> findByFarmId(UUID farmId);
+    List<Animal> findByFarmId(UUID farmId, Sort sort);
+    List<Animal> findByFarmIdOrderByCreatedAtDesc(UUID farmId);
 
     List<Animal> findByFarmIdAndGroupIdAndActiveTrue(UUID farmId, UUID groupId);
     List<Animal> findByFarmIdAndGroupIdAndAnimalTypeAndActiveTrue(UUID farmId, UUID groupId, com.dairyfarm.app.modules.animal.model.AnimalType animalType);

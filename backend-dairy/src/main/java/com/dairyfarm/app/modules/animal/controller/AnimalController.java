@@ -32,6 +32,44 @@ public class AnimalController {
         this.animalService = animalService;
     }
 
+    private Sort parseSort(String[] sort) {
+        if (sort == null || sort.length == 0) {
+            return Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+        String property = "createdAt";
+        Sort.Direction direction = Sort.Direction.DESC;
+
+        if (sort.length == 1 && sort[0].contains(",")) {
+            String[] parts = sort[0].split(",");
+            property = parts[0].trim();
+            if (parts.length > 1 && parts[1].trim().equalsIgnoreCase("asc")) {
+                direction = Sort.Direction.ASC;
+            }
+        } else if (sort.length >= 2) {
+            property = sort[0].trim();
+            if (sort[1].trim().equalsIgnoreCase("asc")) {
+                direction = Sort.Direction.ASC;
+            }
+        } else if (sort.length == 1) {
+            property = sort[0].trim();
+        }
+
+        // Map friendly query aliases to Animal database entity fields
+        if ("cowNumber".equalsIgnoreCase(property) || "tag".equalsIgnoreCase(property) || "earTag".equalsIgnoreCase(property) || "cowno".equalsIgnoreCase(property)) {
+            property = "earTag";
+        } else if ("breed".equalsIgnoreCase(property)) {
+            property = "breed";
+        } else if ("status".equalsIgnoreCase(property)) {
+            property = "status";
+        } else if ("birthDate".equalsIgnoreCase(property) || "dob".equalsIgnoreCase(property)) {
+            property = "birthDate";
+        } else {
+            property = "createdAt";
+        }
+
+        return Sort.by(direction, property);
+    }
+
     @GetMapping
     @Operation(summary = "Get paginated animals with optional search, status, lifecycle, and breed filters")
     public ResponseEntity<ApiResponse<PagedResponse<AnimalDto>>> getAnimals(
@@ -45,27 +83,24 @@ public class AnimalController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
 
-        Sort sortObj = Sort.by(Sort.Direction.DESC, "createdAt");
-        if (sort.length >= 2) {
-            Sort.Direction dir = sort[1].equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
-            sortObj = Sort.by(dir, sort[0]);
-        }
-
+        Sort sortObj = parseSort(sort);
         Pageable pageable = PageRequest.of(page, size, sortObj);
         PagedResponse<AnimalDto> response = animalService.getAnimals(search, status, type, breed, lifecycleStatus, active, pageable);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     @GetMapping("/all")
-    @Operation(summary = "Get all animals with optional active and lifecycle filters")
+    @Operation(summary = "Get all animals with optional active, lifecycle, and sorting filters")
     public ResponseEntity<ApiResponse<List<AnimalDto>>> getAllAnimals(
             @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) LifecycleStatus lifecycleStatus) {
+            @RequestParam(required = false) LifecycleStatus lifecycleStatus,
+            @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
+        Sort sortObj = parseSort(sort);
         if (active == null && lifecycleStatus == null) {
-            List<AnimalDto> animals = animalService.getAllActiveAnimals();
+            List<AnimalDto> animals = animalService.getAllActiveAnimals(sortObj);
             return ResponseEntity.ok(ApiResponse.ok(animals));
         }
-        List<AnimalDto> animals = animalService.getAllAnimals(active, lifecycleStatus);
+        List<AnimalDto> animals = animalService.getAllAnimals(active, lifecycleStatus, sortObj);
         return ResponseEntity.ok(ApiResponse.ok(animals));
     }
 

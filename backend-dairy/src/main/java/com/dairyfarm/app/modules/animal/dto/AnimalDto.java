@@ -55,6 +55,7 @@ public class AnimalDto {
     private String bullUsed;
     private LocalDate dryingDate;
     private LocalDate calfDob;
+    @com.fasterxml.jackson.annotation.JsonAlias({"gender", "sex", "animalGender", "animalSex"})
     private String calfSex;
     private BigDecimal bestYield;
     private String medicineUsed;
@@ -76,6 +77,8 @@ public class AnimalDto {
     private LocalDate lastVaccinationDate;
 
     private boolean active;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     @Builder.Default
     private List<AnimalHistoryDto> timeline = new ArrayList<>();
@@ -168,6 +171,8 @@ public class AnimalDto {
                 .interCalvingDays(animal.getInterCalvingDays())
                 .remarks(animal.getRemarks())
                 .active(animal.isActive())
+                .createdAt(animal.getCreatedAt())
+                .updatedAt(animal.getUpdatedAt())
                 .timeline(historyDtos)
                 .build();
     }

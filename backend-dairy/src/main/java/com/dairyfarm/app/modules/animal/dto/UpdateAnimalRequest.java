@@ -48,6 +48,7 @@ public class UpdateAnimalRequest {
     private String bullUsed;
     private LocalDate dryingDate;
     private LocalDate calfDob;
+    @JsonAlias({"gender", "sex", "animalGender", "animalSex"})
     private String calfSex;
     private BigDecimal bestYield;
     private String medicineUsed;

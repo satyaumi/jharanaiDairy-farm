@@ -656,10 +656,11 @@ public class ImportEngineService {
                                            LocalDate aiDate, String bullUsed,
                                            LocalDate calvingDate, String calfSex,
                                            String medicineUsed, String medicineDose) {
+        List<AnimalHistory> existingHistories = animalHistoryRepository.findByAnimalIdAndFarmIdOrderByEventDateDescCreatedAtDesc(animal.getId(), farm.getId());
         List<AnimalHistory> events = new ArrayList<>();
+
         if (birthDate != null) {
-            boolean hasBirth = animalHistoryRepository.findByAnimalIdAndFarmIdOrderByEventDateDescCreatedAtDesc(animal.getId(), farm.getId())
-                    .stream().anyMatch(h -> h.getEventType() == HistoryEventType.BIRTH);
+            boolean hasBirth = existingHistories.stream().anyMatch(h -> h.getEventType() == HistoryEventType.BIRTH);
             if (!hasBirth) {
                 events.add(AnimalHistory.builder()
                         .animal(animal)
@@ -674,52 +675,64 @@ public class ImportEngineService {
             }
         }
         if (vaccinationDate != null) {
-            events.add(AnimalHistory.builder()
-                    .animal(animal)
-                    .farm(farm)
-                    .eventType(HistoryEventType.VACCINATION)
-                    .eventDate(vaccinationDate)
-                    .title("Vaccination Verified")
-                    .detail(String.format("Vaccination recorded: %s", vaccineName != null ? vaccineName : "Standard routine"))
-                    .badge("Vaccinated")
-                    .recordedBy(user)
-                    .build());
+            boolean hasVac = existingHistories.stream().anyMatch(h -> h.getEventType() == HistoryEventType.VACCINATION && vaccinationDate.equals(h.getEventDate()));
+            if (!hasVac) {
+                events.add(AnimalHistory.builder()
+                        .animal(animal)
+                        .farm(farm)
+                        .eventType(HistoryEventType.VACCINATION)
+                        .eventDate(vaccinationDate)
+                        .title("Vaccination Verified")
+                        .detail(String.format("Vaccination recorded: %s", vaccineName != null ? vaccineName : "Standard routine"))
+                        .badge("Vaccinated")
+                        .recordedBy(user)
+                        .build());
+            }
         }
         if (aiDate != null) {
-            events.add(AnimalHistory.builder()
-                    .animal(animal)
-                    .farm(farm)
-                    .eventType(HistoryEventType.AI)
-                    .eventDate(aiDate)
-                    .title("Artificial Insemination (AI)")
-                    .detail(String.format("Insemination on %s%s", aiDate, bullUsed != null ? " with Bull: " + bullUsed : ""))
-                    .badge("AI")
-                    .recordedBy(user)
-                    .build());
+            boolean hasAi = existingHistories.stream().anyMatch(h -> h.getEventType() == HistoryEventType.AI && aiDate.equals(h.getEventDate()));
+            if (!hasAi) {
+                events.add(AnimalHistory.builder()
+                        .animal(animal)
+                        .farm(farm)
+                        .eventType(HistoryEventType.AI)
+                        .eventDate(aiDate)
+                        .title("Artificial Insemination (AI)")
+                        .detail(String.format("Insemination on %s%s", aiDate, bullUsed != null ? " with Bull: " + bullUsed : ""))
+                        .badge("AI")
+                        .recordedBy(user)
+                        .build());
+            }
         }
         if (calvingDate != null) {
-            events.add(AnimalHistory.builder()
-                    .animal(animal)
-                    .farm(farm)
-                    .eventType(HistoryEventType.CALVING)
-                    .eventDate(calvingDate)
-                    .title("Calving Recorded")
-                    .detail(String.format("Calved on %s%s", calvingDate, calfSex != null ? " (Calf: " + calfSex + ")" : ""))
-                    .badge("Calving")
-                    .recordedBy(user)
-                    .build());
+            boolean hasCalving = existingHistories.stream().anyMatch(h -> h.getEventType() == HistoryEventType.CALVING && calvingDate.equals(h.getEventDate()));
+            if (!hasCalving) {
+                events.add(AnimalHistory.builder()
+                        .animal(animal)
+                        .farm(farm)
+                        .eventType(HistoryEventType.CALVING)
+                        .eventDate(calvingDate)
+                        .title("Calving Recorded")
+                        .detail(String.format("Calved on %s%s", calvingDate, calfSex != null ? " (Calf: " + calfSex + ")" : ""))
+                        .badge("Calving")
+                        .recordedBy(user)
+                        .build());
+            }
         }
         if (medicineUsed != null && !medicineUsed.isBlank()) {
-            events.add(AnimalHistory.builder()
-                    .animal(animal)
-                    .farm(farm)
-                    .eventType(HistoryEventType.HEALTH_CHECK)
-                    .eventDate(LocalDate.now())
-                    .title("Medical Treatment")
-                    .detail(String.format("Administered %s%s", medicineUsed, medicineDose != null ? " (Dose: " + medicineDose + ")" : ""))
-                    .badge("Medicine")
-                    .recordedBy(user)
-                    .build());
+            boolean hasTreatment = existingHistories.stream().anyMatch(h -> h.getEventType() == HistoryEventType.HEALTH_CHECK && h.getDetail() != null && h.getDetail().contains(medicineUsed));
+            if (!hasTreatment) {
+                events.add(AnimalHistory.builder()
+                        .animal(animal)
+                        .farm(farm)
+                        .eventType(HistoryEventType.HEALTH_CHECK)
+                        .eventDate(vaccinationDate != null ? vaccinationDate : LocalDate.now())
+                        .title("Medical Treatment")
+                        .detail(String.format("Administered %s%s", medicineUsed, medicineDose != null ? " (Dose: " + medicineDose + ")" : ""))
+                        .badge("Medicine")
+                        .recordedBy(user)
+                        .build());
+            }
         }
         if (!events.isEmpty()) {
             animalHistoryRepository.saveAll(events);
@@ -784,23 +797,43 @@ public class ImportEngineService {
     private ParsedTable parseCsv(InputStream in) throws Exception {
         ParsedTable table = new ParsedTable();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-            String line = reader.readLine();
-            if (line == null) return table;
+            List<String> allLines = new ArrayList<>();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) {
+                    allLines.add(line);
+                }
+            }
+            if (allLines.isEmpty()) return table;
 
-            if (line.startsWith("\uFEFF")) {
-                line = line.substring(1);
+            int headerLineIdx = 0;
+            for (int i = 0; i < Math.min(6, allLines.size()); i++) {
+                String l = allLines.get(i).toLowerCase();
+                if (l.contains("animal no") || l.contains("cow no") || l.contains("cow number") || l.contains("ear tag") || l.contains("animal number") || (l.contains("breed") && l.contains("status")) || l.contains("record date") || l.contains("litres") || (l.contains("breed") && l.contains("sire"))) {
+                    headerLineIdx = i;
+                    break;
+                }
             }
 
-            List<String> rawHeaders = parseCsvLine(line);
+            String headerLine = allLines.get(headerLineIdx);
+            if (headerLine.startsWith("\uFEFF")) {
+                headerLine = headerLine.substring(1);
+            }
+
+            List<String> rawHeaders = parseCsvLine(headerLine);
             table.headers = rawHeaders.stream().map(String::trim).collect(Collectors.toList());
 
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
-                List<String> cells = parseCsvLine(line);
+            for (int i = headerLineIdx + 1; i < allLines.size(); i++) {
+                String rowLine = allLines.get(i);
+                String trimmedLower = rowLine.trim().toLowerCase();
+                if (trimmedLower.startsWith("total") || trimmedLower.startsWith("\"total") || trimmedLower.startsWith("grand total") || trimmedLower.startsWith("\"grand total")) {
+                    continue;
+                }
+                List<String> cells = parseCsvLine(rowLine);
                 Map<String, String> row = new LinkedHashMap<>();
-                for (int i = 0; i < table.headers.size(); i++) {
-                    String val = i < cells.size() ? cells.get(i).trim() : "";
-                    row.put(table.headers.get(i), val);
+                for (int c = 0; c < table.headers.size(); c++) {
+                    String val = c < cells.size() ? cells.get(c).trim() : "";
+                    row.put(table.headers.get(c), val);
                 }
                 table.rows.add(row);
             }
@@ -930,13 +963,19 @@ public class ImportEngineService {
 
                 Map<String, String> rowMap = new LinkedHashMap<>();
                 boolean hasContent = false;
+                boolean isFooterRow = false;
                 for (int c = 0; c < table.headers.size(); c++) {
                     Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                     String val = cell != null ? formatter.formatCellValue(cell).trim() : "";
-                    if (!val.isEmpty()) hasContent = true;
+                    if (!val.isEmpty()) {
+                        hasContent = true;
+                        if (c <= 1 && (val.equalsIgnoreCase("total") || val.toLowerCase().startsWith("total ") || val.toLowerCase().startsWith("grand total"))) {
+                            isFooterRow = true;
+                        }
+                    }
                     rowMap.put(table.headers.get(c), val);
                 }
-                if (hasContent) {
+                if (hasContent && !isFooterRow) {
                     table.rows.add(rowMap);
                 }
             }

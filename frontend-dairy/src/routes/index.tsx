@@ -494,6 +494,7 @@ export function FarmApp() {
         records={recentMilk}
         initialAction={quickAddInitialAction}
         onDataUpdated={loadData}
+        onSelectAnimal={handleSelectAnimal}
       />
 
       <AnimalProfileModal
