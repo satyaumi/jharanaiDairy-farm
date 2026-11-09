@@ -235,6 +235,10 @@ public class ReportService {
             writer.println("Animal No,Breed,Date of Birth,Age,Animal Status,No of Lactation,Sire,Dam,Last Calving Date,Milking Status,Weight,Vaccination,Last Vaccine Name,Date of Vaccination,Heating Date,No of AI Attempts,Last AI Date,Success,Bull Used,Drying Date,Expected Due Date,Calf DoB,Calf Sex,Daily Yield (L),Milking Group,Medicine Used,Medicine Dose,Gestation Days,Inter Calving Days,Remarks");
             for (Animal a : animals) {
                 String dynamicAge = AnimalDto.calculateAgeDisplay(a.getBirthDate(), a.getAge());
+                String remarks = a.getRemarks() != null ? a.getRemarks() : "";
+                if (a.getAnimalName() != null && !a.getAnimalName().isBlank() && !a.getAnimalName().equalsIgnoreCase(a.getEarTag())) {
+                    remarks = remarks.isBlank() ? a.getAnimalName() : a.getAnimalName() + (remarks.isBlank() ? "" : " - " + remarks);
+                }
                 writer.println(String.join(",",
                         ExportSecurityUtil.escapeCsv(a.getEarTag()),
                         ExportSecurityUtil.escapeCsv(a.getBreed()),
@@ -265,7 +269,7 @@ public class ReportService {
                         ExportSecurityUtil.escapeCsv(a.getMedicineDose() != null ? a.getMedicineDose() : ""),
                         ExportSecurityUtil.escapeCsv(a.getGestationDays() != null ? a.getGestationDays().toString() : ""),
                         ExportSecurityUtil.escapeCsv(a.getInterCalvingDays() != null ? a.getInterCalvingDays().toString() : ""),
-                        ExportSecurityUtil.escapeCsv(a.getRemarks() != null ? a.getRemarks() : "")
+                        ExportSecurityUtil.escapeCsv(remarks)
                 ));
             }
             writer.println();

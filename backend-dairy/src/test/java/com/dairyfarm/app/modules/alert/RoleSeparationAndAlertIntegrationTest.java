@@ -148,11 +148,11 @@ public class RoleSeparationAndAlertIntegrationTest {
                         .header("Authorization", "Bearer " + workerToken))
                 .andExpect(status().isForbidden());
 
-        // Worker trying to export Certified Reports -> 403 Forbidden
+        // Worker trying to export Managerial/Certified Audit Reports -> 403 Forbidden
         mockMvc.perform(get("/api/reports/export")
                         .header("Authorization", "Bearer " + workerToken)
                         .param("format", "csv")
-                        .param("module", "milk"))
+                        .param("module", "audit"))
                 .andExpect(status().isForbidden());
 
         // Manager CAN access Team Management

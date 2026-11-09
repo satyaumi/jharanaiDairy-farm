@@ -518,21 +518,28 @@ export function AnimalListView({
                   return (
                     <div
                       key={animal.id}
-                      className={`flex flex-col gap-2 rounded-2xl border p-3.5 transition-all ${
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onSelectAnimal(animal)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectAnimal(animal);
+                        }
+                      }}
+                      aria-label={`View Cow #${animal.tag} profile`}
+                      className={`group flex flex-col gap-2 rounded-2xl border p-3.5 transition-all cursor-pointer select-none active:scale-[0.985] hover:shadow-md ${
                         isInactive
                           ? "border-muted bg-muted/20 opacity-85"
                           : isSick
-                          ? "border-destructive/30 bg-destructive/5"
-                          : "border-border/70 bg-card/70"
+                          ? "border-destructive/30 bg-destructive/5 hover:border-destructive/50"
+                          : "border-border/70 bg-card/70 hover:border-emerald-500/50 hover:bg-card"
                       }`}
                     >
                       {/* Top Line: Tag, Name & Health/Lifecycle Status */}
-                      <div
-                        onClick={() => onSelectAnimal(animal)}
-                        className="flex items-center justify-between gap-2 cursor-pointer"
-                      >
+                      <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+                          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 transition-transform group-hover:scale-105">
                             <CowIcon className="size-6" />
                           </div>
                           <div className="min-w-0">
@@ -563,10 +570,7 @@ export function AnimalListView({
                       </div>
 
                       {/* Middle Line: Lactation / Breeding Info */}
-                      <div
-                        onClick={() => onSelectAnimal(animal)}
-                        className="flex items-center justify-between rounded-xl bg-background/50 px-3 py-2 text-xs cursor-pointer"
-                      >
+                      <div className="flex items-center justify-between rounded-xl bg-background/50 px-3 py-2 text-xs">
                         <div>
                           <span className="text-[10px] font-bold uppercase text-muted-foreground">
                             Status & Group
@@ -604,8 +608,11 @@ export function AnimalListView({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => onEditAnimal(animal)}
-                              className="h-8 px-2 text-xs font-bold text-muted-foreground hover:text-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditAnimal(animal);
+                              }}
+                              className="h-8 px-2 text-xs font-bold text-muted-foreground hover:text-foreground active:scale-95"
                             >
                               <Edit3 className="size-3.5 mr-1" />
                               Edit
@@ -615,8 +622,11 @@ export function AnimalListView({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setAnimalToDelete(animal)}
-                              className="h-8 px-2 text-xs font-bold text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAnimalToDelete(animal);
+                              }}
+                              className="h-8 px-2 text-xs font-bold text-destructive hover:bg-destructive/10 hover:text-destructive active:scale-95"
                               title="Delete Animal (Management Only)"
                             >
                               <Trash2 className="size-3.5 mr-1" />
@@ -626,8 +636,11 @@ export function AnimalListView({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => onSelectAnimal(animal)}
-                            className="h-8 px-2.5 text-xs font-bold text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectAnimal(animal);
+                            }}
+                            className="h-8 px-2.5 text-xs font-bold text-primary group-hover:text-emerald-700 dark:group-hover:text-emerald-400 active:scale-95"
                           >
                             Profile <ChevronRight className="size-3.5 ml-0.5" />
                           </Button>

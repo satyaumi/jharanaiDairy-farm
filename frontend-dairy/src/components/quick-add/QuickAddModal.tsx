@@ -480,63 +480,42 @@ export function QuickAddModal({
             }}
             className="space-y-4 pt-1"
           >
-            {/* Live Duplicate Warning */}
-            {duplicateMatch && (
-              <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3.5 text-xs text-destructive flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-                <div>
-                  <p className="font-extrabold flex items-center gap-1.5">
-                    <span className="text-sm">⚠️</span>
-                    Duplicate Animal Number
-                  </p>
-                  <p className="mt-0.5 text-foreground">
-                    Cow <strong>#{tagInput.trim()}</strong> already exists in herd ({duplicateMatch.breed}, {duplicateMatch.milkingStatus || duplicateMatch.status || 'Active'}).
-                  </p>
-                </div>
-                {onSelectAnimal && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      onSelectAnimal(duplicateMatch);
-                      handleOpenChange(false);
-                    }}
-                    className="shrink-0 h-8 rounded-xl text-xs font-bold border-destructive/40 hover:bg-destructive/15 text-destructive"
-                  >
-                    View Cow #{duplicateMatch.tag} Profile
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* Basic Registration Fields */}
+            {/* 1. BASIC INFORMATION (STREAMLINED 1-MINUTE WORKER ENTRY) */}
             <div className="space-y-3.5">
-              {/* Row 1: Cow Number & Breed */}
+              {/* Cow Number & Breed */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                     <span>Cow / Animal Number *</span>
-                    <span className="text-[10px] text-muted-foreground lowercase">Unique ID</span>
+                    {duplicateMatch && (
+                      <span className="text-[11px] font-bold text-destructive">Already Exists!</span>
+                    )}
                   </label>
                   <Input
-                    name="tag"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value.toUpperCase())}
-                    placeholder="e.g. 243, A-18, C-1024"
-                    className="mt-1 h-11 rounded-xl text-sm font-bold uppercase"
+                    placeholder="e.g. 265, C-102, Ganga"
+                    className={`mt-1 h-11 rounded-xl text-sm font-black uppercase ${
+                      duplicateMatch ? "border-destructive ring-1 ring-destructive focus-visible:ring-destructive" : ""
+                    }`}
                     required
+                    autoFocus
                   />
+                  {duplicateMatch && (
+                    <p className="mt-1 text-[11px] font-bold text-destructive flex items-center gap-1">
+                      ⚠️ Cow #{duplicateMatch.tag} already exists in herd ({duplicateMatch.breed}, {duplicateMatch.type}).
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
                     Breed *
                   </label>
                   <select
-                    name="breed"
                     value={breedInput}
                     onChange={(e) => setBreedInput(e.target.value)}
-                    className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold"
+                    className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-xs font-bold"
                     required
                   >
                     <option value="Holstein">Holstein Friesian (HF)</option>
@@ -547,57 +526,51 @@ export function QuickAddModal({
                     <option value="Brown Swiss">Brown Swiss</option>
                     <option value="Guernsey">Guernsey</option>
                     <option value="Crossbred">Crossbred</option>
-                    <option value="Other">Other</option>
+                    <option value="Other">Other Breed</option>
                   </select>
                 </div>
               </div>
 
-              {/* Row 2: Date of Birth & Dynamic Age Display */}
-              <div className="rounded-xl border border-border/80 bg-muted/20 p-3 space-y-2">
+              {/* Date of Birth & Dynamic Age Calculator */}
+              <div className="rounded-2xl border border-border/80 bg-muted/20 p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-foreground">
-                    Date of Birth <span className="text-[10px] text-muted-foreground font-normal">(Optional if unknown)</span>
+                    Date of Birth <span className="text-muted-foreground font-normal">(Optional if unknown)</span>
                   </label>
                   <span className="text-[11px] text-muted-foreground">
-                    Recalculates age automatically
+                    Calculates age automatically
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Input
                     type="date"
-                    name="birthDate"
                     value={birthDate}
                     max={new Date().toISOString().split("T")[0]}
                     onChange={(e) => setBirthDate(e.target.value)}
-                    className="h-10 rounded-xl text-xs font-medium"
+                    className="h-10 rounded-xl text-xs font-semibold bg-background"
                   />
                   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-background border border-border text-xs">
                     <span className="text-muted-foreground font-semibold">Calculated Age:</span>
-                    <span className="font-black text-emerald-800 dark:text-emerald-300">
+                    <span className="font-black text-emerald-700 dark:text-emerald-400">
                       {calculateAgeFromDob(birthDate)}
                     </span>
                   </div>
                 </div>
-                {birthDate && (
-                  <p className="text-[11px] text-muted-foreground">
-                    <strong>Date of Birth:</strong> {formatDateDisplay(birthDate)} · <strong>Age:</strong> {calculateAgeFromDob(birthDate)}
-                  </p>
-                )}
               </div>
 
-              {/* Row 3: Animal Type & Gender */}
+              {/* Animal Type & Gender (Clean Segmented Selectors) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                    Animal Type *
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Animal Type
                   </label>
-                  <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-muted/50 p-1">
+                  <div className="mt-1 grid grid-cols-2 gap-1.5 rounded-xl bg-muted/50 p-1">
                     <button
                       type="button"
                       onClick={() => setAnimalTypeSelection("Adult")}
                       className={`h-9 rounded-lg text-xs font-bold transition-all ${
                         animalTypeSelection === "Adult"
-                          ? "bg-background text-foreground shadow-sm"
+                          ? "bg-background text-foreground shadow-xs font-black"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -608,145 +581,82 @@ export function QuickAddModal({
                       onClick={() => setAnimalTypeSelection("Calf")}
                       className={`h-9 rounded-lg text-xs font-bold transition-all ${
                         animalTypeSelection === "Calf"
-                          ? "bg-background text-foreground shadow-sm"
+                          ? "bg-background text-foreground shadow-xs font-black"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      Calf
+                      Calf (ବାଛୁରୀ)
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                    Gender *
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Gender
                   </label>
-                  <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-muted/50 p-1">
+                  <div className="mt-1 grid grid-cols-2 gap-1.5 rounded-xl bg-muted/50 p-1">
                     <button
                       type="button"
                       onClick={() => setGenderSelection("Female")}
                       className={`h-9 rounded-lg text-xs font-bold transition-all ${
                         genderSelection === "Female"
-                          ? "bg-background text-foreground shadow-sm"
+                          ? "bg-background text-foreground shadow-xs font-black"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      Female (Cow/Heifer)
+                      Female (ମାଈ)
                     </button>
                     <button
                       type="button"
                       onClick={() => setGenderSelection("Male")}
                       className={`h-9 rounded-lg text-xs font-bold transition-all ${
                         genderSelection === "Male"
-                          ? "bg-background text-foreground shadow-sm"
+                          ? "bg-background text-foreground shadow-xs font-black"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      Male (Bull)
+                      Male (ଅଣ୍ଡିରା)
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Row 4: Sire & Dam Selection */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Sire / Father <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
-                  </label>
-                  <select
-                    value={sireSelection}
-                    onChange={(e) => setSireSelection(e.target.value)}
-                    className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold"
-                  >
-                    <option value="">None / Unknown</option>
-                    <option value="manual">Enter Tag Manually...</option>
-                    {animals
-                      .filter((a) => a.tag !== tagInput.trim())
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          Cow #{a.tag} ({a.breed})
-                        </option>
-                      ))}
-                  </select>
-                  {sireSelection === "manual" && (
-                    <Input
-                      placeholder="Enter Sire Tag (e.g. BULL-01)"
-                      value={manualSireTag}
-                      onChange={(e) => setManualSireTag(e.target.value.toUpperCase())}
-                      className="mt-1.5 h-9 rounded-xl text-xs uppercase"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Dam / Mother <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
-                  </label>
-                  <select
-                    value={damSelection}
-                    onChange={(e) => setDamSelection(e.target.value)}
-                    className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold"
-                  >
-                    <option value="">None / Unknown</option>
-                    <option value="manual">Enter Tag Manually...</option>
-                    {animals
-                      .filter((a) => a.tag !== tagInput.trim())
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          Cow #{a.tag} ({a.breed})
-                        </option>
-                      ))}
-                  </select>
-                  {damSelection === "manual" && (
-                    <Input
-                      placeholder="Enter Dam Tag (e.g. COW-102)"
-                      value={manualDamTag}
-                      onChange={(e) => setManualDamTag(e.target.value.toUpperCase())}
-                      className="mt-1.5 h-9 rounded-xl text-xs uppercase"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Row 5: Initial Herd Status, Pen Location, Initial Weight */}
+              {/* Initial Herd Status, Pen Location & Initial Weight */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
                     Initial Herd Status
                   </label>
                   <select
                     value={herdStatusSelection}
                     onChange={(e) => setHerdStatusSelection(e.target.value as any)}
-                    className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold"
+                    className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-bold"
                   >
                     <option value="Active">Active (Healthy)</option>
-                    <option value="Sick">Sick (Needs Care)</option>
+                    <option value="Sick">Sick (Needs Check)</option>
                     <option value="Aged">Aged / Retired</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Pen / Barn <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Pen / Barn Location
                   </label>
                   <Input
                     value={penInput}
                     onChange={(e) => setPenInput(e.target.value)}
-                    placeholder="e.g. Barn A, Pen 3"
-                    className="mt-1 h-10 rounded-xl text-xs font-medium"
+                    placeholder="e.g. Barn A, North barn"
+                    className="mt-1 h-10 rounded-xl text-xs font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Initial Weight (kg) <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Initial Weight (kg)
                   </label>
                   <Input
                     type="number"
-                    step="0.1"
-                    min="1"
                     value={weightInput}
                     onChange={(e) => setWeightInput(e.target.value)}
                     placeholder="e.g. 450"
@@ -754,105 +664,166 @@ export function QuickAddModal({
                   />
                 </div>
               </div>
-            </div>
 
-            {/* EXPANDABLE ANIMAL HISTORY (OPTIONAL, COLLAPSED BY DEFAULT) */}
-            <div className="rounded-2xl border border-border/80 bg-muted/15 p-3 transition-all">
-              <button
-                type="button"
-                onClick={() => setShowHistory(!showHistory)}
-                className="flex w-full items-center justify-between text-left text-xs font-extrabold text-foreground"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Sparkles className="size-3.5 text-emerald-800 dark:text-emerald-300" />
-                  {showHistory ? "– Hide Animal History" : "+ Add Animal History (Optional)"}
-                </span>
-                {showHistory ? (
-                  <ChevronUp className="size-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="size-4 text-muted-foreground" />
-                )}
-              </button>
-
-              {showHistory && (
-                <div className="space-y-3 pt-3 mt-2 border-t border-border/60 animate-in fade-in-50">
-                  <p className="text-[11px] text-muted-foreground">
-                    Optional historical pedigree and previous farm details. Sire and Dam entered above are linked automatically.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground">
-                        Previous Owner / Source
-                      </label>
-                      <Input
-                        value={previousOwner}
-                        onChange={(e) => setPreviousOwner(e.target.value)}
-                        placeholder="e.g. Purchased from Anand Dairy Farm"
-                        className="mt-1 h-9 rounded-xl text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground">
-                        Birth Status
-                      </label>
-                      <select
-                        value={birthStatus}
-                        onChange={(e) => setBirthStatus(e.target.value)}
-                        className="mt-1 h-9 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold"
-                      >
-                        <option value="Normal">Normal Delivery</option>
-                        <option value="Assisted">Assisted Delivery</option>
-                        <option value="C-Section">C-Section</option>
-                        <option value="Twin">Twin</option>
-                        <option value="Premature">Premature</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground">
-                        Previous Calving Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={previousCalvingDate}
-                        max={new Date().toISOString().split("T")[0]}
-                        onChange={(e) => setPreviousCalvingDate(e.target.value)}
-                        className="mt-1 h-9 rounded-xl text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground">
-                        Previous Lactation Count
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={previousLactationCount}
-                        onChange={(e) => setPreviousLactationCount(e.target.value)}
-                        placeholder="e.g. 2 (completed cycles)"
-                        className="mt-1 h-9 rounded-xl text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold text-muted-foreground">
-                      Previous Herd History & Background Notes
-                    </label>
+              {/* Sire & Dam Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Sire / Father (Optional)
+                  </label>
+                  <select
+                    value={sireSelection}
+                    onChange={(e) => setSireSelection(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold"
+                  >
+                    <option value="">None / Unknown</option>
+                    <option value="manual">+ Enter Manual Tag / Semen Code</option>
+                    {animals.filter(a => a.calfSex === "Male" || a.type === "Bull" || (a.tag || "").startsWith("B-") || (a.tag || "").startsWith("Bull")).map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.tag} {a.name && a.name !== a.tag ? `(${a.name})` : ""} · {a.breed}
+                      </option>
+                    ))}
+                    {animals.filter(a => !(a.calfSex === "Male" || a.type === "Bull" || (a.tag || "").startsWith("B-") || (a.tag || "").startsWith("Bull"))).map((a) => (
+                      <option key={a.id} value={a.id}>
+                        Cow #{a.tag}
+                      </option>
+                    ))}
+                  </select>
+                  {sireSelection === "manual" && (
                     <Input
-                      value={historyRemarks}
-                      onChange={(e) => setHistoryRemarks(e.target.value)}
-                      placeholder="Any known prior diseases, pedigree registry ID, or purchase remarks..."
-                      className="mt-1 h-9 rounded-xl text-xs"
+                      value={manualSireTag}
+                      onChange={(e) => setManualSireTag(e.target.value.toUpperCase())}
+                      placeholder="Sire Tag / Semen Code (e.g. ABS-901)"
+                      className="mt-1.5 h-9 rounded-xl text-xs uppercase font-bold"
                     />
-                  </div>
+                  )}
                 </div>
-              )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Dam / Mother (Optional)
+                  </label>
+                  <select
+                    value={damSelection}
+                    onChange={(e) => setDamSelection(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold"
+                  >
+                    <option value="">None / Unknown</option>
+                    <option value="manual">+ Enter Manual Tag</option>
+                    {animals.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        Cow #{a.tag} {a.name && a.name !== a.tag ? `(${a.name})` : ""} · {a.breed}
+                      </option>
+                    ))}
+                  </select>
+                  {damSelection === "manual" && (
+                    <Input
+                      value={manualDamTag}
+                      onChange={(e) => setManualDamTag(e.target.value.toUpperCase())}
+                      placeholder="Dam Tag (e.g. 509, C-101)"
+                      className="mt-1.5 h-9 rounded-xl text-xs uppercase font-bold"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 2. EXPANDABLE ANIMAL HISTORY (OPTIONAL & COLLAPSIBLE) */}
+              <div className="rounded-2xl border border-border/80 bg-muted/10 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((prev) => !prev)}
+                  className="w-full flex items-center justify-between p-3 text-xs font-extrabold text-foreground hover:bg-muted/30 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                    <Sparkles className="size-3.5" />
+                    + Add Animal History (Optional)
+                  </span>
+                  {showHistory ? (
+                    <ChevronUp className="size-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="size-4 text-muted-foreground" />
+                  )}
+                </button>
+
+                {showHistory && (
+                  <div className="p-3 pt-0 space-y-3 border-t border-border/50 animate-fade-in">
+                    <p className="text-[11px] text-muted-foreground">
+                      Optional background information for previously calved cows, purchased stock, or pedigree records.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-muted-foreground">
+                          Previous Owner / Source
+                        </label>
+                        <Input
+                          value={previousOwner}
+                          onChange={(e) => setPreviousOwner(e.target.value)}
+                          placeholder="e.g. Anand Dairy Farm, Local Market"
+                          className="mt-1 h-10 rounded-xl text-xs font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-muted-foreground">
+                          Birth Status / Calving Type
+                        </label>
+                        <select
+                          value={birthStatus}
+                          onChange={(e) => setBirthStatus(e.target.value)}
+                          className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-medium"
+                        >
+                          <option value="Normal">Normal Delivery</option>
+                          <option value="Twin">Twin Birth</option>
+                          <option value="Assisted">Assisted Delivery</option>
+                          <option value="Caesarean">Caesarean / Surgical</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-muted-foreground">
+                          Previous Calving Date
+                        </label>
+                        <Input
+                          type="date"
+                          value={previousCalvingDate}
+                          max={new Date().toISOString().split("T")[0]}
+                          onChange={(e) => setPreviousCalvingDate(e.target.value)}
+                          className="mt-1 h-10 rounded-xl text-xs font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-muted-foreground">
+                          Previous Lactation Count
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={previousLactationCount}
+                          onChange={(e) => setPreviousLactationCount(e.target.value)}
+                          placeholder="e.g. 1 or 2 (0 if heifer)"
+                          className="mt-1 h-10 rounded-xl text-xs font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-muted-foreground">
+                        Historical Notes & Remarks
+                      </label>
+                      <Input
+                        value={historyRemarks}
+                        onChange={(e) => setHistoryRemarks(e.target.value)}
+                        placeholder="Pedigree details, previous farm tag, health background..."
+                        className="mt-1 h-10 rounded-xl text-xs font-medium"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Inline Action Feedback */}
@@ -862,29 +833,18 @@ export function QuickAddModal({
               details={addAnimalStatus.details}
             />
 
-            <div className="flex items-center gap-2 pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-                className="h-12 flex-1 rounded-2xl text-xs font-bold"
-              >
-                Cancel
-              </Button>
-              <ActionSubmitButton
-                type="submit"
-                size="lg"
-                status={addAnimalStatus.status}
-                submittingText="Registering Cow..."
-                successText="Cow Registered!"
-                errorText="Registration Failed · Retry"
-                disabled={!tagInput.trim() || !!duplicateMatch}
-                className="h-12 flex-2 gap-2 rounded-2xl bg-emerald-600 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 disabled:opacity-50"
-                icon={<Check className="size-4 stroke-[2.5]" />}
-              >
-                Save Animal to Herd
-              </ActionSubmitButton>
-            </div>
+            <ActionSubmitButton
+              type="submit"
+              size="lg"
+              status={addAnimalStatus.status}
+              submittingText="Saving Animal to Herd..."
+              successText="Animal Saved Successfully!"
+              errorText="Save Failed · Tap to Retry"
+              className="mt-2 h-13 w-full gap-2 rounded-2xl bg-emerald-600 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700"
+              icon={<Check className="size-4 stroke-[2.5]" />}
+            >
+              Save Animal to Herd
+            </ActionSubmitButton>
           </form>
         )}
 
@@ -895,7 +855,7 @@ export function QuickAddModal({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              notify.success("Farm entry saved successfully", {
+              toast.success("Farm entry saved successfully", {
                 description: "Recorded in local dairy records.",
               });
               onDataUpdated?.();

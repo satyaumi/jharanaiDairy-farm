@@ -194,20 +194,35 @@ export function WorkerOperationsHome({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {/* Card 1: Animals & Herd Management */}
-          <div className="flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md hover:border-emerald-500/40">
+          {/* Card 1: Animals & Herd Management (Entire card clickable) */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigateModule("animals")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNavigateModule("animals");
+              }
+            }}
+            aria-label="Open Herd Records Module"
+            className="group flex flex-col justify-between rounded-3xl border border-emerald-500/30 bg-card p-4 sm:p-5 shadow-xs transition-all cursor-pointer hover:shadow-md hover:border-emerald-500/60 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 active:scale-[0.985] select-none"
+          >
             <div>
               <div className="flex items-start justify-between">
-                <span className="grid size-12 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-700">
+                <span className="grid size-12 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-700 transition-transform group-hover:scale-105">
                   <CowIcon className="size-7 text-emerald-700" />
                 </span>
                 <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300">
                   {animals.length} Cows Registered
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-black text-foreground">
-                ଗୋପାଳନ · Herd Records
-              </h3>
+              <div className="mt-3 flex items-center justify-between">
+                <h3 className="text-base font-black text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                  ଗୋପାଳନ · Herd Records
+                </h3>
+                <ChevronRight className="size-4 text-muted-foreground opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Add new cows, search by Cow Number, update weight, pen location, lactation cycle, and health status.
               </p>
@@ -215,36 +230,57 @@ export function WorkerOperationsHome({
             <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border/50">
               <Button
                 size="sm"
-                onClick={() => onOpenQuickAdd("add-animal")}
-                className="flex-1 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenQuickAdd("add-animal");
+                }}
+                className="flex-1 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold active:scale-95"
               >
-                <Plus className="size-3.5 mr-1" /> Add Cow
+                <Plus className="size-3.5 mr-1 stroke-[2.5]" /> Add Cow
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onNavigateModule("animals")}
-                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigateModule("animals");
+                }}
+                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80 hover:bg-muted active:scale-95"
               >
                 Open List <ChevronRight className="size-3.5 ml-0.5" />
               </Button>
             </div>
           </div>
 
-          {/* Card 2: Milk Harvest */}
-          <div className="flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md hover:border-sky-500/40">
+          {/* Card 2: Milk Harvest (Entire card clickable) */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigateModule("milking")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNavigateModule("milking");
+              }
+            }}
+            aria-label="Open Milk Harvest Module"
+            className="group flex flex-col justify-between rounded-3xl border border-sky-500/30 bg-card p-4 sm:p-5 shadow-xs transition-all cursor-pointer hover:shadow-md hover:border-sky-500/60 hover:bg-sky-50/20 dark:hover:bg-sky-950/20 active:scale-[0.985] select-none"
+          >
             <div>
               <div className="flex items-start justify-between">
-                <span className="grid size-12 place-items-center rounded-2xl bg-sky-500/15 text-sky-700">
+                <span className="grid size-12 place-items-center rounded-2xl bg-sky-500/15 text-sky-700 transition-transform group-hover:scale-105">
                   <Milk className="size-6 text-sky-700" />
                 </span>
                 <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-extrabold text-sky-800 dark:text-sky-300">
                   Shift Harvest
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-black text-foreground">
-                ଦୁଗ୍ଧ ସଂଗ୍ରହ · Milk Harvest
-              </h3>
+              <div className="mt-3 flex items-center justify-between">
+                <h3 className="text-base font-black text-foreground group-hover:text-sky-700 dark:group-hover:text-sky-400 transition-colors">
+                  ଦୁଗ୍ଧ ସଂଗ୍ରହ · Milk Harvest
+                </h3>
+                <ChevronRight className="size-4 text-muted-foreground opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Log morning and evening milk yields for individual cows or use fast bulk group entry for stall rounds.
               </p>
@@ -252,36 +288,57 @@ export function WorkerOperationsHome({
             <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border/50">
               <Button
                 size="sm"
-                onClick={() => onOpenQuickAdd("record-milk")}
-                className="flex-1 h-9 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenQuickAdd("record-milk");
+                }}
+                className="flex-1 h-9 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold active:scale-95"
               >
-                <Plus className="size-3.5 mr-1" /> Record Milk
+                <Plus className="size-3.5 mr-1 stroke-[2.5]" /> Record Milk
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onNavigateModule("milking")}
-                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigateModule("milking");
+                }}
+                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80 hover:bg-muted active:scale-95"
               >
                 Milking Logs <ChevronRight className="size-3.5 ml-0.5" />
               </Button>
             </div>
           </div>
 
-          {/* Card 3: Feed & Rations */}
-          <div className="flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md hover:border-amber-500/40">
+          {/* Card 3: Feed & Rations (Entire card clickable) */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigateModule("feeding")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNavigateModule("feeding");
+              }
+            }}
+            aria-label="Open Feed and Rations Module"
+            className="group flex flex-col justify-between rounded-3xl border border-amber-500/30 bg-card p-4 sm:p-5 shadow-xs transition-all cursor-pointer hover:shadow-md hover:border-amber-500/60 hover:bg-amber-50/20 dark:hover:bg-amber-950/20 active:scale-[0.985] select-none"
+          >
             <div>
               <div className="flex items-start justify-between">
-                <span className="grid size-12 place-items-center rounded-2xl bg-amber-500/15 text-amber-700">
+                <span className="grid size-12 place-items-center rounded-2xl bg-amber-500/15 text-amber-700 transition-transform group-hover:scale-105">
                   <Wheat className="size-6 text-amber-700" />
                 </span>
                 <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-800 dark:text-amber-300">
                   Daily Rations
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-black text-foreground">
-                ଖାଦ୍ୟ ବଣ୍ଟନ · Feed & Rations
-              </h3>
+              <div className="mt-3 flex items-center justify-between">
+                <h3 className="text-base font-black text-foreground group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                  ଖାଦ୍ୟ ବଣ୍ଟନ · Feed & Rations
+                </h3>
+                <ChevronRight className="size-4 text-muted-foreground opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Record green fodder, dry straw, and concentrate feeding rounds. Deducts automatically from warehouse stock.
               </p>
@@ -289,36 +346,57 @@ export function WorkerOperationsHome({
             <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border/50">
               <Button
                 size="sm"
-                onClick={() => onOpenQuickAdd("feeding")}
-                className="flex-1 h-9 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenQuickAdd("feeding");
+                }}
+                className="flex-1 h-9 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold active:scale-95"
               >
-                <Plus className="size-3.5 mr-1" /> Save Feed Round
+                <Plus className="size-3.5 mr-1 stroke-[2.5]" /> Save Feed Round
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onNavigateModule("feeding")}
-                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigateModule("feeding");
+                }}
+                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80 hover:bg-muted active:scale-95"
               >
                 Feed Details <ChevronRight className="size-3.5 ml-0.5" />
               </Button>
             </div>
           </div>
 
-          {/* Card 4: Stock & Feed Supply */}
-          <div className="flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md hover:border-cyan-500/40">
+          {/* Card 4: Stock & Feed Supply (Entire card clickable) */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigateModule("stock")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNavigateModule("stock");
+              }
+            }}
+            aria-label="Open Stock and Supply Module"
+            className="group flex flex-col justify-between rounded-3xl border border-cyan-500/30 bg-card p-4 sm:p-5 shadow-xs transition-all cursor-pointer hover:shadow-md hover:border-cyan-500/60 hover:bg-cyan-50/20 dark:hover:bg-cyan-950/20 active:scale-[0.985] select-none"
+          >
             <div>
               <div className="flex items-start justify-between">
-                <span className="grid size-12 place-items-center rounded-2xl bg-cyan-500/15 text-cyan-700">
+                <span className="grid size-12 place-items-center rounded-2xl bg-cyan-500/15 text-cyan-700 transition-transform group-hover:scale-105">
                   <Package className="size-6 text-cyan-700" />
                 </span>
                 <span className="rounded-full bg-cyan-500/15 px-2.5 py-0.5 text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300">
                   Warehouse
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-black text-foreground">
-                ଷ୍ଟକ୍ ଓ ଆମଦାନୀ · Stock & Supply
-              </h3>
+              <div className="mt-3 flex items-center justify-between">
+                <h3 className="text-base font-black text-foreground group-hover:text-cyan-700 dark:group-hover:text-cyan-400 transition-colors">
+                  ଷ୍ଟକ୍ ଓ ଆମଦାନୀ · Stock & Supply
+                </h3>
+                <ChevronRight className="size-4 text-muted-foreground opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Check available feed bags in warehouse, enter incoming harvest deliveries, and record stock replenishment.
               </p>
@@ -326,36 +404,57 @@ export function WorkerOperationsHome({
             <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border/50">
               <Button
                 size="sm"
-                onClick={() => onOpenQuickAdd("stock")}
-                className="flex-1 h-9 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-extrabold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenQuickAdd("stock");
+                }}
+                className="flex-1 h-9 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-extrabold active:scale-95"
               >
-                <Plus className="size-3.5 mr-1" /> Log Supply
+                <Plus className="size-3.5 mr-1 stroke-[2.5]" /> Log Supply
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onNavigateModule("stock")}
-                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigateModule("stock");
+                }}
+                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80 hover:bg-muted active:scale-95"
               >
                 Stock View <ChevronRight className="size-3.5 ml-0.5" />
               </Button>
             </div>
           </div>
 
-          {/* Card 5: Health & Veterinary Log */}
-          <div className="flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md hover:border-rose-500/40 sm:col-span-2 lg:col-span-2">
+          {/* Card 5: Health & Veterinary Log (Entire card clickable) */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigateModule("health")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNavigateModule("health");
+              }
+            }}
+            aria-label="Open Animal Health and Care Module"
+            className="group flex flex-col justify-between rounded-3xl border border-rose-500/30 bg-card p-4 sm:p-5 shadow-xs transition-all cursor-pointer hover:shadow-md hover:border-rose-500/60 hover:bg-rose-50/20 dark:hover:bg-rose-950/20 active:scale-[0.985] select-none sm:col-span-2 lg:col-span-2"
+          >
             <div>
               <div className="flex items-start justify-between">
-                <span className="grid size-12 place-items-center rounded-2xl bg-rose-500/15 text-rose-700">
+                <span className="grid size-12 place-items-center rounded-2xl bg-rose-500/15 text-rose-700 transition-transform group-hover:scale-105">
                   <HeartPulse className="size-6 text-rose-700" />
                 </span>
                 <span className="rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-800 dark:text-rose-300">
                   Clinical Care
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-black text-foreground">
-                ପଶୁ ଚିକିତ୍ସା · Animal Health & Care
-              </h3>
+              <div className="mt-3 flex items-center justify-between">
+                <h3 className="text-base font-black text-foreground group-hover:text-rose-700 dark:group-hover:text-rose-400 transition-colors">
+                  ପଶୁ ଚିକିତ୍ସା · Animal Health & Care
+                </h3>
+                <ChevronRight className="size-4 text-muted-foreground opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Enter sick-cow symptoms, treatment rounds, vaccinations given, pregnancy checkups, and calving dates for individual animals.
               </p>
@@ -363,23 +462,32 @@ export function WorkerOperationsHome({
             <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-border/50">
               <Button
                 size="sm"
-                onClick={() => onOpenQuickAdd("health")}
-                className="h-9 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-3.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenQuickAdd("health");
+                }}
+                className="h-9 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-3.5 active:scale-95"
               >
-                <Plus className="size-3.5 mr-1" /> Log Sickness / Symptoms
+                <Plus className="size-3.5 mr-1 stroke-[2.5]" /> Log Sickness / Symptoms
               </Button>
               <Button
                 size="sm"
-                onClick={() => onOpenQuickAdd("vaccination")}
-                className="h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold px-3.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenQuickAdd("vaccination");
+                }}
+                className="h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold px-3.5 active:scale-95"
               >
-                <Plus className="size-3.5 mr-1" /> Log Vaccination
+                <Plus className="size-3.5 mr-1 stroke-[2.5]" /> Log Vaccination
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onNavigateModule("health")}
-                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigateModule("health");
+                }}
+                className="h-9 rounded-xl px-3 text-xs font-bold border-border/80 hover:bg-muted active:scale-95"
               >
                 Health Records <ChevronRight className="size-3.5 ml-0.5" />
               </Button>
